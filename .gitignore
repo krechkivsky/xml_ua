@@ -24,3 +24,4 @@ templates/xml_ua_layer.csv
 xml_ua_dockwidget.log
 /.vscode
 /.idea
+*.log
