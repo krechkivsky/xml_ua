@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/xml_ua" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
