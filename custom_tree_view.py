@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QWidget, QVB
 from PyQt5.QtWidgets import QTreeView
 from lxml import etree
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QModelIndex
 import os, sys, inspect, chardet
 
 from . import common
@@ -44,8 +44,7 @@ class CustomTreeView(QTreeView):
             Завантажує XML у вигляд дерева та заповнює tableViewMetadata 
             даними розділу ServiceInfo.
         '''
-
-        logging(common.logFile, f"table_view: {table_view}")
+        # logging(common.logFile, f"table_view: {table_view}")
         parts = xml_path.split("/")
         xml_fn = parts[-1]
         parts = xsd_path.split("/")
@@ -298,6 +297,27 @@ class CustomTreeView(QTreeView):
         column_width = int(total_width * width_percentage / 100)
         self.setColumnWidth(column_index, column_width)
 
+    # def populate_tableview_metadata(self, xml_tree, table_view_metadata):
+        # """
+        # Заповнює tableViewMetadata даними розділу ServiceInfo.
+        # """
+        # service_info_path = "./AdditionalPart/ServiceInfo"
+        # service_info_element = xml_tree.find(service_info_path)
+
+        # if service_info_element is None:
+            # logging(common.logFile, f"Розділ ServiceInfo не знайдено за шляхом {service_info_path}.")
+            # return
+
+        # metadata_model = QStandardItemModel()
+        # metadata_model.setHorizontalHeaderLabels(["Key", "Value"])
+        # table_view_metadata.setModel(metadata_model)
+
+        # for child in service_info_element:
+            # key_item = QStandardItem(child.tag)
+            # value_item = QStandardItem(child.text.strip() if child.text else "")
+            # metadata_model.appendRow([key_item, value_item])
+
+
     def populate_tableview_metadata(self, xml_tree, table_view_metadata):
         """
         Заповнює tableViewMetadata даними розділу ServiceInfo.
@@ -306,18 +326,79 @@ class CustomTreeView(QTreeView):
         service_info_element = xml_tree.find(service_info_path)
 
         if service_info_element is None:
-            logging(common.logFile, f"Розділ ServiceInfo не знайдено за шляхом {service_info_path}.")
+            logging(self.logFile, f"Розділ ServiceInfo не знайдено за шляхом {service_info_path}.")
             return
 
         metadata_model = QStandardItemModel()
-        metadata_model.setHorizontalHeaderLabels(["Key", "Value"])
+        metadata_model.setHorizontalHeaderLabels(["Елемент", "Значення"])
         table_view_metadata.setModel(metadata_model)
 
         for child in service_info_element:
-            key_item = QStandardItem(child.tag)
-            value_item = QStandardItem(child.text.strip() if child.text else "")
-            metadata_model.appendRow([key_item, value_item])
+            if child.tag == "FileID":
+                # Розбиваємо FileID на FileDate та FileGUID
+                file_date = child.find("FileDate")
+                file_guid = child.find("FileGUID")
 
+                if file_date is not None:
+                    key_item = QStandardItem("FileID/FileDate")
+                    value_item = QStandardItem(file_date.text.strip() if file_date.text else "")
+                    metadata_model.appendRow([key_item, value_item])
+
+                if file_guid is not None:
+                    key_item = QStandardItem("FileID/FileGUID")
+                    value_item = QStandardItem(file_guid.text.strip() if file_guid.text else "")
+                    metadata_model.appendRow([key_item, value_item])
+            else:
+                key_item = QStandardItem(child.tag)
+                value_item = QStandardItem(child.text.strip() if child.text else "")
+                metadata_model.appendRow([key_item, value_item])
+
+
+
+    def synchronize_metadata(self, table_view_metadata):
+        """
+        Синхронізує дані між treeViewXML і tableViewMetadata.
+        """
+        metadata_model = table_view_metadata.model()
+        if not metadata_model:
+            logging(self.logFile, "Модель tableViewMetadata не встановлена.")
+            return
+
+        for row in range(metadata_model.rowCount()):
+            key_item = metadata_model.item(row, 0)
+            value_item = metadata_model.item(row, 1)
+
+            if key_item and value_item:
+                path = key_item.text()
+                value = value_item.text()
+
+                # Знаходимо елемент у TreeView і оновлюємо його значення
+                index = self.find_element_index(path)
+                if index.isValid():
+                    tree_item = self.model().itemFromIndex(index)
+                    if tree_item:
+                        tree_item.setText(value)
+
+    def find_element_index(self, element_path):
+        """
+        Пошук елемента у моделі TreeView за шляхом.
+        """
+        parts = element_path.split("/")
+        parent_index = QModelIndex()
+
+        for part in parts:
+            found = False
+            for row in range(self.model.rowCount(parent_index)):
+                index = self.model.index(row, 0, parent_index)
+                if index.data() == part:
+                    parent_index = index
+                    found = True
+                    break
+
+            if not found:
+                return QModelIndex()
+
+        return parent_index
 
 
 

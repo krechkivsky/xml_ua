@@ -241,10 +241,21 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
         # Ініціалізація вкладки Загальних даних
         self.tableViewMetadata = self.findChild(QTableView, "tableViewMetadata")
-        logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
+        # logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
         
         # Виклик функцій для додавання меню
         self.add_menu_buttons()
+
+
+
+    def load_data(self, xml_path, xsd_path):
+        """
+        Завантаження XML та XSD у відповідні компоненти плагіна.
+        """
+        self.treeViewXML.load_xml_to_tree_view(xml_path, xsd_path, self.tableViewMetadata)
+        self.treeViewXML.synchronize_metadata(self.tableViewMetadata)
+
+
 
     def closeEvent(self, event):
         # Логування при закритті плагіну
@@ -340,7 +351,12 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             return
     
         logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
-        self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path, self.tableViewMetadata)
+        
+        # self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path, self.tableViewMetadata)
+        
+        self.load_data(xml_path, self.xsd_path)
+        
+        
         self.treeViewXML.expand_initial_elements()
         self.treeViewXML.set_column_width(0, 75)
 

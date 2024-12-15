@@ -1,5 +1,3 @@
-<.xml_ua_dockwidget.py:244> __init__(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDEAE2940>
-<.xml_ua_dockwidget.py:342> process_action_open(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDEAE2940>
-<.custom_tree_view.py:48> load_xml_to_tree_view(): table_view: <PyQt5.QtWidgets.QTableView object at 0x0000021FDEAE2940>
-<.custom_tree_view.py:53> load_xml_to_tree_view(): 4625586200060002802_utf-8-sig.xml, UAXML.xsd
+<.xml_ua_dockwidget.py:353> process_action_open(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDE7E75E0>
+<.custom_tree_view.py:52> load_xml_to_tree_view(): 4625586200060002802_utf-8-sig.xml, UAXML.xsd
 <.xml_ua_layers.py:32> __init__(): xmlUaLayers._id_counter = 1
