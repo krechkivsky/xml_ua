@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os, sys, inspect
 
 logFile = open(os.path.dirname(__file__) + "/xml_ua.log", "w")
@@ -28,6 +29,18 @@ metadata_elements = [
 
 
 '''
+def log_xml(element, level=0):
+    # from lxml import etree
+    # ...
+    # tree = etree.parse('my_file.xml')
+    # # root = tree.getroot()
+    indent = '  ' * level
+    logFile.write(f"{indent}{element.tag}")
+    for attribute in element.attrib:
+        logFile.write(f"{indent}  {attribute}={element.attrib[attribute]}\n")
+    for child in element:
+        log_xml(child, level+1)
+
 # Для того, щоб лог-функції правильно відображали назву модуля, їх
 # потрібно визначати у кожному модулі
 
@@ -39,10 +52,17 @@ def logging(logFile, msg=""):
     logFile.flush()
 
 def log_dict(logFile, dict, name: str = ""):
-    msg = f"{name}:"
+    msg = f"<.{os.path.basename(__file__)}:{sys._getframe().f_back.f_lineno}> {caller()}(): {name}"
     for key, value in dict.items():
         msg += '\n\t' + f"{key}: {value}"
-    logFile.write(f"{sys._getframe().f_back.f_lineno}: {caller()}: {msg}\n")
+    logFile.write(f"{msg}\n")
+    logFile.flush()
+
+def log_list(logFile, list, name: str = ""):
+    msg = f"<.{os.path.basename(__file__)}:{sys._getframe().f_back.f_lineno}> {caller()}(): {name}:"
+    for item in list:
+        msg += '\n\t' + f"{item}"
+    logFile.write(f"{msg}\n")
     logFile.flush()
     
 def log_attributes(object):

@@ -217,10 +217,9 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
     def __init__(self):
         """Конструктор."""
         super().__init__()
-        logging(common.logFile)
+        # logging(common.logFile)
         self.setupUi(self)
         self.xsd_path = common.xsd_path
-        
         # Ініціалізація вкладки дерева
         # Перевіряємо, чи існує старий treeViewXML
         old_tree_view = self.findChild(QTreeView, "treeViewXML")
@@ -259,7 +258,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         включаючи стандартні іконки Qt і користувацьку іконку для дії перевірки синтаксису.
         """
         # Створюємо перше меню з іконками
-        logging(common.logFile)
+        # logging(common.logFile)
         menu1 = QMenu("Меню 1", self)
     
         # Стандартні дії з іконками
@@ -333,14 +332,15 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
     def process_action_open(self):
         
-        """Обробка дії відкриття файлу XML."""
+        """Обробка події відкриття файлу XML."""
         xml_path, _ = QFileDialog.getOpenFileName(self, "Відкрити XML файл", "", "XML файли (*.xml)")
-        logging(common.logFile, f"xml_path = {xml_path}")
+        # logging(common.logFile, f"xml_path = {xml_path}")
         if not xml_path:
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
     
-        self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path)
+        logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
+        self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path, self.tableViewMetadata)
         self.treeViewXML.expand_initial_elements()
         self.treeViewXML.set_column_width(0, 75)
 

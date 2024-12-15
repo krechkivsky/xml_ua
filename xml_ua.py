@@ -49,8 +49,8 @@ class xml_ua:
         :type iface: QgsInterface
         """
         # Save reference to the QGIS interface
-        logging(common.logFile)
-        for frame_info in inspect.stack(): common.logFile.write("\t" + f" stack: {os.path.basename(frame_info.filename)}: {frame_info.lineno}: {frame_info.function}" + "\n")
+        # logging(common.logFile)
+        # for frame_info in inspect.stack(): common.logFile.write("\t" + f" stack: {os.path.basename(frame_info.filename)}: {frame_info.lineno}: {frame_info.function}" + "\n")
         self.iface = iface
 
         # initialize plugin directory
@@ -94,7 +94,7 @@ class xml_ua:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        logging(common.logFile)
+        # logging(common.logFile)
         return QCoreApplication.translate('xml_ua', message)
 
 
@@ -148,7 +148,7 @@ class xml_ua:
         :rtype: QAction
         """
         
-        logging(common.logFile)
+        # logging(common.logFile)
         
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -177,7 +177,7 @@ class xml_ua:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         
-        logging(common.logFile)
+        # logging(common.logFile)
 
         icon_path = ':/plugins/xml_ua/icon.png'
         self.add_action(
@@ -226,7 +226,7 @@ class xml_ua:
         if not self.pluginIsActive:
             self.pluginIsActive = True
 
-            logging(common.logFile)
+            # logging(common.logFile)
 
             # dockwidget may not exist if:
             #    first run of plugin

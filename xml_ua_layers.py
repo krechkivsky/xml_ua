@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os, sys, inspect, configparser
 
 from qgis.core import QgsProject,QgsVectorLayer, QgsFeature, QgsGeometry, QgsPointXY, QgsLineString, QgsPolygon, QgsField, QgsMultiPolygon, QgsLayerTreeLayer
@@ -10,7 +11,7 @@ from xml.etree import ElementTree as ET
 from . import common
 
 def XY(point):
-    logging(common.logFile)
+    # logging(common.logFile)
     formatted_point = f"({point.x():.2f}, {point.y():.2f})"
     return formatted_point
 
@@ -68,18 +69,20 @@ class xmlUaLayers:
             Оскільки шляхи довгі вони не можуть використовуватись 
             для іменування групи
         '''
-        logging(common.logFile)
+        # logging(common.logFile)
         self.group_name = f"{self.fileNameNoExt}::{str(self.id)}"
         self.group = self.layers_root.findGroup(self.group_name)
         
         if self.group:
             self.layers_root.removeChildNode(self.group)
-            logging(common.logFile, "\n\t" + f"Групу '{self.group_name}' видалено.")
+            # logging(common.logFile, "\n\t" + f"Групу '{self.group_name}' видалено.")
+            pass
         else:
-            logging(common.logFile, "\n\t" + f"Групу '{self.group_name}' не знайдено.")
+            # logging(common.logFile, "\n\t" + f"Групу '{self.group_name}' не знайдено.")
+            pass
 
         self.group = self.layers_root.addGroup(self.group_name)
-        logging(common.logFile, "\n\t" + f"Групу '{self.group_name}' створено.")
+        # logging(common.logFile, "\n\t" + f"Групу '{self.group_name}' створено.")
         cloned_group = self.group.clone()
         self.layers_root.removeChildNode(self.group)
         self.layers_root.insertChildNode(0, cloned_group)
@@ -91,7 +94,7 @@ class xmlUaLayers:
         
     def importPoints(self):
 
-        logging(common.logFile)
+        # logging(common.logFile)
         self.xmlPoints = []
         self.qgisPoints = {}
         
@@ -130,16 +133,16 @@ class xmlUaLayers:
             
             self.qgisPoints[uidp] = QgsPointXY(float(x), float(y))
             
-        logstr = ''
-        for uidp, point in self.qgisPoints.items():
-            logstr += '\n\t' + f"'{uidp}' {XY(point)}" 
-        logging(common.logFile, "\n   UIDP Point" + logstr)
+        # logstr = ''
+        # for uidp, point in self.qgisPoints.items():
+            # logstr += '\n\t' + f"'{uidp}' {XY(point)}" 
+        # logging(common.logFile, "\n   UIDP Point" + logstr)
             
         return
         
     def importLines(self):
         
-        logging(common.logFile)
+        # logging(common.logFile)
         self.qgisLines = {}
         self.xmlLines = []
         
@@ -159,7 +162,7 @@ class xmlUaLayers:
             })
             
             self.qgisLines[ulid] = [self.qgisPoints[uidp] for uidp in points ]
-        logging(common.logFile, "\n    ULID [Point list]:" + logstr )
+        # logging(common.logFile, "\n    ULID [Point list]:" + logstr )
             
         return
 
@@ -175,7 +178,7 @@ class xmlUaLayers:
         Returns:
             list: Список координат замкненого полігону.
         """
-        logging(common.logFile, "\n\t" + str(lines_element))
+        # logging(common.logFile, "\n\t" + str(lines_element))
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
     
@@ -193,7 +196,7 @@ class xmlUaLayers:
                 raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
                 raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
-        logging(common.logFile, "\n   ULID:" + logstr)
+        # logging(common.logFile, "\n   ULID:" + logstr)
     
         # Формуємо замкнений полігон
         if not lines:
@@ -236,7 +239,7 @@ class xmlUaLayers:
         for point in coordinates:
             i += 1
             logstr += f"\n\t {str(i)}. {XY(point)}"
-        logging(common.logFile, "\n\tcoordinates: " + logstr)
+        # logging(common.logFile, "\n\tcoordinates: " + logstr)
         
         line_string = QgsLineString([QgsPointXY(y, x) for x, y in coordinates])
 
@@ -246,7 +249,7 @@ class xmlUaLayers:
 
     def importParcel(self):
         
-        logging(common.logFile)
+        # logging(common.logFile)
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, "Ділянка", "memory")
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/parcel.qml")
         layer_provider = layer.dataProvider()
@@ -259,13 +262,13 @@ class xmlUaLayers:
         layer.updateFields()
         
         parcel_id = self.root.find(".//Parcels/ParcelInfo/ParcelMetricInfo/ParcelID").text
-        logging(common.logFile, "\n\tparcel_id = " + parcel_id)
+        # logging(common.logFile, "\n\tparcel_id = " + parcel_id)
 
         for parcel in self.root.findall(".//Parcels/ParcelInfo/ParcelMetricInfo"):
             
             # Зовнішні межі
             externals_element = parcel.find(".//Externals/Boundary/Lines")
-            logging(common.logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
+            # logging(common.logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
             if externals_element is not None:
                 external_coords = self.linesToCoordinates(externals_element)
 
@@ -274,10 +277,10 @@ class xmlUaLayers:
                 for point in external_coords:
                     i += 1
                     logstr += f"\n\t {str(i)}. {XY(point)}"
-                logging(common.logFile, "\n\t external_coords: " + logstr)
+                # logging(common.logFile, "\n\t external_coords: " + logstr)
             
             internals_element = parcel.find(".//Internals/Boundary/Lines")
-            logging(common.logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
+            # logging(common.logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
             internal_coords_list = []
             if internals_element is not None:
                 internal_coords_list.append(self.linesToCoordinates(internals_element))
@@ -295,7 +298,7 @@ class xmlUaLayers:
 
     def get_full_name(self, person_element):
         
-        logging(common.logFile)
+        # logging(common.logFile)
         if person_element is None:
             return ""  # Якщо елемент не знайдено, повертаємо порожній рядок
     
@@ -310,7 +313,7 @@ class xmlUaLayers:
 
     def importQuartal(self):
         
-        logging(common.logFile)
+        # logging(common.logFile)
         quarter_info = {}
         quarter_number = self.root.find(".//CadastralQuarterInfo/CadastralQuarterNumber").text
 
@@ -331,10 +334,11 @@ class xmlUaLayers:
                 },
             }
 
-        for quarter_num, contacts in quarter_info.items():
-            logging(common.logFile, "\n\t" + f"  Квартал: {quarter_num}")
-            logging(common.logFile, "\n\t" + f"  Голова місцевої влади: {contacts['LocalAuthorityHead']}")
-            logging(common.logFile, "\n\t" + f"  Голова ДКЗР: {contacts['DKZRHead']}")
+        # for quarter_num, contacts in quarter_info.items():
+            # logging(common.logFile, "\n\t" + f"  Квартал: {quarter_num}")
+            # logging(common.logFile, "\n\t" + f"  Голова місцевої влади: {contacts['LocalAuthorityHead']}")
+            # logging(common.logFile, "\n\t" + f"  Голова ДКЗР: {contacts['DKZRHead']}")
+            
 
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, "Кадастровий квартал", "memory")
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/quarter.qml")
@@ -349,7 +353,7 @@ class xmlUaLayers:
         
         for quarter in self.root.findall(".//CadastralQuarterInfo"):
             externals_element = quarter.find(".//Externals/Boundary/Lines")
-            logging(common.logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
+            # logging(common.logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
             if externals_element is not None:
                 external_coords = self.linesToCoordinates(externals_element)
 
@@ -358,10 +362,10 @@ class xmlUaLayers:
                 for point in external_coords:
                     i += 1
                     logstr += f"\n\t {str(i)}. {XY(point)}"
-                logging(common.logFile, "\n\t external_coords: " + logstr)
+                # logging(common.logFile, "\n\t external_coords: " + logstr)
             
             internals_element = quarter.find(".//Internals/Boundary/Lines")
-            logging(common.logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
+            # logging(common.logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
             internal_coords_list = []
             if internals_element is not None:
                 internal_coords_list.append(self.linesToCoordinates(internals_element))
@@ -380,11 +384,10 @@ class xmlUaLayers:
             auth_head_full_name = self.get_full_name(auth_head)
             dkzr_head_full_name = self.get_full_name(dkzr_head)
         
-            logging(common.logFile, "\n\t" + f"Auth Head: {auth_head_full_name}")
-            logging(common.logFile, "\n\t" + f"DKZR Head: {dkzr_head_full_name}")
+            # logging(common.logFile, "\n\t" + f"Auth Head: {auth_head_full_name}")
+            # logging(common.logFile, "\n\t" + f"DKZR Head: {dkzr_head_full_name}")
 
         features = []        
-        # feature = QgsFeature()
         feature = QgsFeature(layer.fields())
         
         feature.setGeometry(QgsGeometry(polygon))
@@ -399,16 +402,12 @@ class xmlUaLayers:
         layer.triggerRepaint()
 
         layer_provider.addFeatures(features) 
-        # layer_provider.addFeature(feature)
-
-
-
         
         QgsProject.instance().addMapLayer(layer)
         
     def importZone(self):
         
-        logging(common.logFile)
+        # logging(common.logFile)
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, "Кадастрова зона", "memory")
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/zone.qml")
         layer_provider = layer.dataProvider()
@@ -419,25 +418,25 @@ class xmlUaLayers:
         
         zone_ne = self.root.find(".//CadastralZoneInfo/CadastralZoneNumber")
         zone_id = zone_ne.text
-        logging(common.logFile, "\n\tzone_id = " + str(zone_id))
+        # logging(common.logFile, "\n\tzone_id = " + str(zone_id))
     
         for zone in self.root.findall(".//CadastralZoneInfo"):
             
             # Зовнішні межі
             externals_element = zone.find(".//Externals/Boundary/Lines")
-            logging(common.logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
+            # logging(common.logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
             if externals_element is not None:
                 external_coords = self.linesToCoordinates(externals_element)
 
-                logstr = ''
-                i = 0
-                for point in external_coords:
-                    i += 1
-                    logstr += f"\n\t {str(i)}. {XY(point)}"
-                logging(common.logFile, "\n\t external_coords: " + logstr)
+                # logstr = ''
+                # i = 0
+                # for point in external_coords:
+                    # i += 1
+                    # logstr += f"\n\t {str(i)}. {XY(point)}"
+                # logging(common.logFile, "\n\t external_coords: " + logstr)
             
             internals_element = zone.find(".//Internals/Boundary/Lines")
-            logging(common.logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
+            # logging(common.logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
             internal_coords_list = []
             if internals_element is not None:
                 internal_coords_list.append(self.linesToCoordinates(internals_element))
@@ -455,22 +454,23 @@ class xmlUaLayers:
         
     def removeLayer(self, new_layer):
         
-        logging(common.logFile, "\n\t" + new_layer)
+        # logging(common.logFile, "\n\t" + new_layer)
     
         layers_to_remove = [layer for layer in self.project.mapLayers().values() if layer.name() == new_layer]
 
         if layers_to_remove:
             n_layers = len(layers_to_remove)
-            logging(common.logFile,  "\n\t" + f" Буде видалено {str(n_layers)} шарів." )
+            # logging(common.logFile,  "\n\t" + f" Буде видалено {str(n_layers)} шарів." )
             for layer in layers_to_remove:
                 self.project.removeMapLayer(layer.id())
         else:
-            logging(common.logFile,  "\n\t" + " Нема шарів для видалення." )
+            # logging(common.logFile,  "\n\t" + " Нема шарів для видалення." )
+            pass
             
     def importPickets(self):
 
         layer_name = "Пікети"
-        logging(common.logFile, "\n\tlayer_name = " + layer_name)
+        # logging(common.logFile, "\n\tlayer_name = " + layer_name)
         self.removeLayer(layer_name)
         layer = QgsVectorLayer("Point?crs=" + self.crsEpsg, layer_name, "memory")
         
@@ -492,7 +492,7 @@ class xmlUaLayers:
             # self.layers_root.removeChildNode(layer_node)
             self.layers_root.removeChildNode(layer_node)  # Видалити з поточного місця
             # self.group.addChildNode(layer_node)   # Додати до групи
-            logging(common.logFile, "\n\t" + f"Шар '{layer_name}' додано до групи '{self.group_name}'.")
+            # logging(common.logFile, "\n\t" + f"Шар '{layer_name}' додано до групи '{self.group_name}'.")
         
         provider = layer.dataProvider()
     
@@ -527,7 +527,7 @@ class xmlUaLayers:
 
         logging(common.logFile)
         layer_name = "Лінії XML"
-        logging(common.logFile, " layer_name = " + layer_name)
+        # logging(common.logFile, " layer_name = " + layer_name)
         self.removeLayer(layer_name)
         layer = QgsVectorLayer("LineString?crs=" + self.crsEpsg, layer_name, "memory")
         
