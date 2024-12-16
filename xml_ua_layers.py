@@ -29,7 +29,7 @@ class xmlUaLayers:
         xmlUaLayers._id_counter += 1
         self.id = xmlUaLayers._id_counter
         
-        logging(common.logFile, f"xmlUaLayers._id_counter = {str(self.id)}")
+        # logging(common.logFile, f"xmlUaLayers._id_counter = {str(self.id)}")
         
         self.xmlFilePath: str = xmlFilePath
         self.fileNameNoExt: str = os.path.splitext(os.path.basename(xmlFilePath))[0]

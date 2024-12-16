@@ -1,3 +1,8 @@
-<.xml_ua_dockwidget.py:353> process_action_open(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDE7E75E0>
-<.custom_tree_view.py:52> load_xml_to_tree_view(): 4625586200060002802_utf-8-sig.xml, UAXML.xsd
-<.xml_ua_layers.py:32> __init__(): xmlUaLayers._id_counter = 1
+<.xml_ua_dockwidget.py:240> __init__(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDECE0820>
+<.custom_tree_view.py:26> __init__(): CustomTreeView: <xml_ua.custom_tree_view.CustomTreeView object at 0x0000021FDE78B550>
+<.custom_tree_view.py:430> on_metadata_item_changed(): key_item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion
+<.custom_tree_view.py:431> on_metadata_item_changed(): value_item value = 44
+<.custom_tree_view.py:254> on_item_changed(): item = <PyQt5.QtGui.QStandardItem object at 0x0000021FDE56C550>
+<.custom_tree_view.py:255> on_item_changed(): item.column() = 1
+<.custom_tree_view.py:256> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion
+<.custom_tree_view.py:257> on_item_changed(): item value = 44

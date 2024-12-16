@@ -26,13 +26,16 @@ import os, sys, inspect, configparser
 import qgis.utils
 
 from qgis.PyQt import QtWidgets, uic
-from qgis.PyQt.QtCore import pyqtSignal, Qt, QVariant, QFile
+from qgis.PyQt.QtCore import Qt, QVariant, QFile
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QWidget, QVBoxLayout,QHBoxLayout, QMenuBar, QMenu, QAction, QPushButton, QMessageBox, QToolButton, QStyle,QTreeView, QFileDialog, QInputDialog, QLineEdit, QTableView
 from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PyQt5.QtXml import QDomDocument
 from lxml import etree
 from xml.etree import ElementTree as ET
 from qgis.core import QgsProject, QgsVectorLayer, QgsFeature, QgsGeometry, QgsPointXY, QgsLineString, QgsPolygon, QgsField
+
+# from qgis.PyQt.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal
 
 from .custom_tree_view import CustomTreeView
 from .xml_ua_layers import xmlUaLayers
@@ -231,17 +234,22 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             # Від'єднати й знищити
             old_tree_view.setParent(None)
             old_tree_view.deleteLater()
+
+        # Ініціалізація таблиці Метаданих
+        self.tableViewMetadata = self.findChild(QTableView, "tableViewMetadata")
+        logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
+
         # Додаємо новий CustomTreeView
-        self.treeViewXML = CustomTreeView(self.tabXML)
+        # self.treeViewXML = CustomTreeView(self.tabXML)
+        self.treeViewXML = CustomTreeView(self.tabXML, table_view_metadata=self.tableViewMetadata)
+        
         self.treeViewXML.setObjectName("treeViewXML")  # Залишаємо те саме ім'я
         self.tabXML.layout().addWidget(self.treeViewXML)  # Додаємо до layout
         
         self.treeViewXML.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treeViewXML.customContextMenuRequested.connect(self.treeViewXML.show_context_menu)
+        self.treeViewXML.dataChangedSignal.connect(self.on_tree_view_data_changed)
 
-        # Ініціалізація вкладки Загальних даних
-        self.tableViewMetadata = self.findChild(QTableView, "tableViewMetadata")
-        # logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
         
         # Виклик функцій для додавання меню
         self.add_menu_buttons()
@@ -253,9 +261,21 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         Завантаження XML та XSD у відповідні компоненти плагіна.
         """
         self.treeViewXML.load_xml_to_tree_view(xml_path, xsd_path, self.tableViewMetadata)
-        self.treeViewXML.synchronize_metadata(self.tableViewMetadata)
 
+    def on_tree_view_data_changed(self, path, value):
+        """
+        Оновлення tableViewMetadata при зміні даних у treeViewXML.
+        """
+        metadata_model = self.tableViewMetadata.model()
+        if not metadata_model:
+            return
 
+        for row in range(metadata_model.rowCount()):
+            key_item = metadata_model.item(row, 0)
+            if key_item and key_item.text() == path:
+                value_item = metadata_model.item(row, 1)
+                value_item.setText(value)
+                break
 
     def closeEvent(self, event):
         # Логування при закритті плагіну
@@ -350,7 +370,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
     
-        logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
+        # logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
         
         # self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path, self.tableViewMetadata)
         
