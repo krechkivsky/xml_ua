@@ -42,6 +42,7 @@ class CustomTreeView(QTreeView):
         self.customContextMenuRequested.connect(self.show_context_menu)
         
         self.model.itemChanged.connect(self.on_item_changed)
+        self.dataChangedSignal.connect(self.on_data_changed)  # Підключення сигналу до обробника
 
     def load_xml_to_tree_view(self, xml_path: str, xsd_path: str, table_view):
         '''
@@ -84,7 +85,6 @@ class CustomTreeView(QTreeView):
 
         self.log_tree_structure()
 
-
     def load_xsd_descriptions(self, xsd_path: str):
         """
         Парсує XSD-файл і витягує описи для елементів.
@@ -120,6 +120,9 @@ class CustomTreeView(QTreeView):
 
         # Створюємо основний елемент
         name_item = QStandardItem(name)
+
+        # Забороняємо редагування в першій колонці
+        name_item.setEditable(False)
 
         # Встановлюємо значення (текст елемента)
         value = element.text.strip() if element.text else ""
@@ -243,21 +246,19 @@ class CustomTreeView(QTreeView):
 
     def on_item_changed(self, item):
         """
-            Обробка зміни елемента в TreeView.
+        Обробка зміни елемента в TreeView.
+        Це також оновлює відповідне значення в таблиці.
         """
-        
         if item.column() == 1:  # Оновлюємо тільки значення
-            
             # Отримує шлях до зміненого елемента в дереві через метод get_item_path
             path = self.get_item_path(item)
             value = item.text()
-            # Емітує сигнал dataChangedSignal для синхронізації змін із таблицею
-            self.dataChangedSignal.emit(path, value)
 
-            logging(common.logFile, f"item = {item}")
-            logging(common.logFile, f"item.column() = {item.column()}")
             logging(common.logFile, f"item path = {path}")
             logging(common.logFile, f"item value = {value}")
+
+            # Емітує сигнал dataChangedSignal для синхронізації змін із таблицею
+            self.dataChangedSignal.emit(path, value)
 
     def expand_initial_elements(self):
         """
@@ -353,7 +354,8 @@ class CustomTreeView(QTreeView):
     def populate_tableview_metadata(self, xml_tree, table_view_metadata):
         """
         Заповнює tableViewMetadata даними розділу ServiceInfo та встановлює повний шлях у UserRole.
-        Використовує українські описи з дерева (tooltip) замість англійських назв.
+        Налаштовує ширину нульової колонки відповідно до вмісту.
+        Вимикає редагування та вибір елементів таблиці.
         """
         root_tag = "UkrainianCadastralExchangeFile"
         service_info_path = f"{root_tag}/AdditionalPart/ServiceInfo"
@@ -379,6 +381,11 @@ class CustomTreeView(QTreeView):
                     key_item = QStandardItem(ukr_description)
                     value_item = QStandardItem(file_date.text.strip() if file_date.text else "")
                     key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
+                    
+                    # Вимикаємо редагування для елементів таблиці
+                    key_item.setEditable(False)
+                    value_item.setEditable(True)
+                    
                     metadata_model.appendRow([key_item, value_item])
     
                 if file_guid is not None:
@@ -387,6 +394,11 @@ class CustomTreeView(QTreeView):
                     key_item = QStandardItem(ukr_description)
                     value_item = QStandardItem(file_guid.text.strip() if file_guid.text else "")
                     key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
+                    
+                    # Вимикаємо редагування для елементів таблиці
+                    key_item.setEditable(False)
+                    value_item.setEditable(True)
+                    
                     metadata_model.appendRow([key_item, value_item])
             else:
                 full_path = f"{service_info_path}/{child.tag}"
@@ -394,8 +406,15 @@ class CustomTreeView(QTreeView):
                 key_item = QStandardItem(ukr_description)
                 value_item = QStandardItem(child.text.strip() if child.text else "")
                 key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
+                
+                # Вимикаємо редагування для елементів таблиці
+                key_item.setEditable(False)
+                value_item.setEditable(True)
+                
                 metadata_model.appendRow([key_item, value_item])
     
+        table_view_metadata.resizeColumnToContents(0)
+        
         metadata_model.itemChanged.connect(self.on_metadata_item_changed)
     
     def on_metadata_item_changed(self, item):
@@ -476,6 +495,27 @@ class CustomTreeView(QTreeView):
                 return tree_item.toolTip() or default_name  # Повертає tooltip або default_name
         return default_name
 
+    def on_data_changed(self, path, value):
+        """
+        Оновлює відповідне значення в tableViewMetadata після зміни в дереві.
+        """
+        metadata_model = self.tableViewMetadata.model()  # Отримуємо модель таблиці
+        if metadata_model:
+            # Шукаємо елемент у таблиці за шляхом
+            for row in range(metadata_model.rowCount()):
+                key_item = metadata_model.item(row, 0)
+                if key_item and key_item.data(Qt.UserRole) == path:
+                    value_item = metadata_model.item(row, 1)
+                    if value_item:
+                        value_item.setText(value)  # Оновлюємо значення в таблиці
+                        break
+
+
+
+
+
+
+
 
 def caller():
     return inspect.stack()[2].function
@@ -497,16 +537,6 @@ def log_list(list, name: str = ""):
         msg += '\n\t' + f"{item}"
     logFile.write(f"{msg}\n")
     logFile.flush()
-
-# def log_xml(logFile, element, filter_tag, level=0):
-    # logFile.write("\n")
-    # indent = '  ' * level
-    # logFile.write(f"{indent} {element.tag}")
-    # for attribute in element.attrib:
-        # if filter_tag != '' and element.tag == filter_tag: logFile.write(f"{indent}  {attribute}={element.attrib[attribute]}" + "\n")
-    # for child in element:
-        # log_xml(logFile, child, filter_tag, level+1)
-
 
 def log_xml(logFile, element, filter_tag, level=0):
     # Перевіряємо, чи потрібно обробляти цей вузол
