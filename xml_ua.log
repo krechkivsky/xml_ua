@@ -1,8 +1,21 @@
-<.xml_ua_dockwidget.py:240> __init__(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDECE0820>
-<.custom_tree_view.py:26> __init__(): CustomTreeView: <xml_ua.custom_tree_view.CustomTreeView object at 0x0000021FDE78B550>
-<.custom_tree_view.py:430> on_metadata_item_changed(): key_item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion
-<.custom_tree_view.py:431> on_metadata_item_changed(): value_item value = 44
-<.custom_tree_view.py:254> on_item_changed(): item = <PyQt5.QtGui.QStandardItem object at 0x0000021FDE56C550>
-<.custom_tree_view.py:255> on_item_changed(): item.column() = 1
-<.custom_tree_view.py:256> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion
-<.custom_tree_view.py:257> on_item_changed(): item value = 44
+<.xml_ua_dockwidget.py:240> __init__(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDEA6B310>
+<.custom_tree_view.py:26> __init__(): CustomTreeView: <xml_ua.custom_tree_view.CustomTreeView object at 0x0000021FDEA6B4C0>
+<.custom_tree_view.py:257> on_item_changed(): item = <PyQt5.QtGui.QStandardItem object at 0x0000021FDE7D8310>
+<.custom_tree_view.py:258> on_item_changed(): item.column() = 1
+<.custom_tree_view.py:259> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion
+<.custom_tree_view.py:260> on_item_changed(): item value = 44
+<.custom_tree_view.py:424> on_metadata_item_changed(): Оновлено значення у дереві: UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion -> 44
+<.custom_tree_view.py:257> on_item_changed(): item = <PyQt5.QtGui.QStandardItem object at 0x0000021FDE7D8E50>
+<.custom_tree_view.py:258> on_item_changed(): item.column() = 1
+<.custom_tree_view.py:259> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverName
+<.custom_tree_view.py:260> on_item_changed(): item value = Волинська регіональна філія
+<.custom_tree_view.py:424> on_metadata_item_changed(): Оновлено значення у дереві: UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverName -> Волинська регіональна філія
+<.custom_tree_view.py:257> on_item_changed(): item = <PyQt5.QtGui.QStandardItem object at 0x0000021FDE7D8EE0>
+<.custom_tree_view.py:258> on_item_changed(): item.column() = 1
+<.custom_tree_view.py:259> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate
+<.custom_tree_view.py:260> on_item_changed(): item value = 2020-02-08
+<.custom_tree_view.py:424> on_metadata_item_changed(): Оновлено значення у дереві: UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate -> 2020-02-08
+<.custom_tree_view.py:257> on_item_changed(): item = <PyQt5.QtGui.QStandardItem object at 0x0000021FDE7D8EE0>
+<.custom_tree_view.py:258> on_item_changed(): item.column() = 1
+<.custom_tree_view.py:259> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate
+<.custom_tree_view.py:260> on_item_changed(): item value = 2020-02-11

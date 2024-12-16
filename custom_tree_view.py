@@ -82,6 +82,9 @@ class CustomTreeView(QTreeView):
             # Обробка виключень (логування, повідомлення користувачу тощо)
             logging(common.logFile, f"Помилка при завантаженні XML: {e}")
 
+        self.log_tree_structure()
+
+
     def load_xsd_descriptions(self, xsd_path: str):
         """
         Парсує XSD-файл і витягує описи для елементів.
@@ -309,46 +312,6 @@ class CustomTreeView(QTreeView):
             item = parent
         return "/".join(path)
 
-    def on_metadata_item_changed(self, item):
-        """
-            Обробка зміни елемента в tableViewMetadata.
-        """
-        row = item.row()
-        key_item = item.model().item(row, 0)
-        value_item = item.model().item(row, 1)
-        
-        logging(common.logFile, f"row = {row}")
-        logging(common.logFile, f"key_item = {key_item}")
-        logging(common.logFile, f"value_item = {value_item}")
-
-        if key_item and value_item:
-            path = key_item.text()
-            value = value_item.text()
-            
-            logging(common.logFile, f"key_item path = {path}")
-            logging(common.logFile, f"value_item value = {value}")
-            
-
-            # Синхронізуємо зміни з деревом
-            # Знаходимо елемент у TreeView і оновлюємо його значення
-            index = self.find_element_index(path)
-            
-            logging(common.logFile, f"index = {index}")
-            
-            if index.isValid():
-                tree_item = self.model().itemFromIndex(index)
-                
-                logging(common.logFile, f"tree_item = {tree_item}")
-                
-                if tree_item:
-                    tree_item.setText(value)
-            else:
-                logging(common.logFile, f"Index isn't valid.")
-                
-
-            # Виклик synchronize_metadata для оновлення всього дерева
-            self.synchronize_metadata(self.tableViewMetadata)
-
     def set_column_width(self, column_index, width_percentage):
         """
         Встановлює ширину колонки у відсотках від ширини CustomTreeView.
@@ -389,31 +352,48 @@ class CustomTreeView(QTreeView):
 
     def populate_tableview_metadata(self, xml_tree, table_view_metadata):
         """
-        Заповнює tableViewMetadata даними розділу ServiceInfo.
+        Заповнює tableViewMetadata даними розділу ServiceInfo та встановлює повний шлях у UserRole.
         """
-        service_info_path = "./AdditionalPart/ServiceInfo"
-        service_info_element = xml_tree.find(service_info_path)
-
+        root_tag = "UkrainianCadastralExchangeFile"
+        service_info_path = f"{root_tag}/AdditionalPart/ServiceInfo"
+        service_info_element = xml_tree.find("./AdditionalPart/ServiceInfo")
+    
         if service_info_element is None:
-            logging(self.logFile, f"Розділ ServiceInfo не знайдено за шляхом {service_info_path}.")
+            logging(self.logFile, f"Розділ ServiceInfo не знайдено.")
             return
-
+    
         metadata_model = QStandardItemModel()
-        metadata_model.setHorizontalHeaderLabels(["Елемент", "Значення"])
+        metadata_model.setHorizontalHeaderLabels(["Key", "Value"])
         table_view_metadata.setModel(metadata_model)
-
+    
         for child in service_info_element:
-            key_item = QStandardItem(child.tag)
-            value_item = QStandardItem(child.text.strip() if child.text else "")
+            if child.tag == "FileID":
+                # Розбиваємо FileID на FileDate та FileGUID
+                file_date = child.find("FileDate")
+                file_guid = child.find("FileGUID")
     
-            # Збереження повного шляху як користувацьких даних
-            full_path = f"UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/{child.tag}"
-            key_item.setData(full_path, Qt.UserRole)
+                if file_date is not None:
+                    key_item = QStandardItem("FileID/FileDate")
+                    value_item = QStandardItem(file_date.text.strip() if file_date.text else "")
+                    full_path = f"{service_info_path}/FileID/FileDate"
+                    key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
+                    metadata_model.appendRow([key_item, value_item])
     
-            metadata_model.appendRow([key_item, value_item])
+                if file_guid is not None:
+                    key_item = QStandardItem("FileID/FileGUID")
+                    value_item = QStandardItem(file_guid.text.strip() if file_guid.text else "")
+                    full_path = f"{service_info_path}/FileID/FileGUID"
+                    key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
+                    metadata_model.appendRow([key_item, value_item])
+            else:
+                key_item = QStandardItem(child.tag)
+                value_item = QStandardItem(child.text.strip() if child.text else "")
+                full_path = f"{service_info_path}/{child.tag}"
+                key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
+                metadata_model.appendRow([key_item, value_item])
     
         metadata_model.itemChanged.connect(self.on_metadata_item_changed)
-
+    
     def on_metadata_item_changed(self, item):
         """
         Обробка зміни елемента в tableViewMetadata.
@@ -422,25 +402,43 @@ class CustomTreeView(QTreeView):
         key_item = item.model().item(row, 0)
         value_item = item.model().item(row, 1)
     
-        if key_item and value_item:
-            # Отримуємо повний шлях з key_item
-            path = key_item.data(Qt.UserRole)
-            value = value_item.text()
+        if not key_item or not value_item:
+            logging(self.logFile, "Ключ або значення елемента таблиці відсутні.")
+            return
     
-            logging(common.logFile, f"key_item path = {path}")
-            logging(common.logFile, f"value_item value = {value}")
+        # Отримуємо шлях із UserRole
+        path = key_item.data(Qt.UserRole)
+        if not path:
+            logging(self.logFile, "Шлях елемента таблиці дорівнює None.")
+            return
     
-            # Синхронізуємо зміни з деревом
-            index = self.find_element_index(path)
+        value = value_item.text()
     
-            if index.isValid():
-                # Оновлюємо **значення** (колонка 1) у дереві
-                tree_item_value = self.model.itemFromIndex(self.model.index(index.row(), 1, index.parent()))
-                if tree_item_value:
-                    tree_item_value.setText(value)
-            else:
-                logging(common.logFile, f"Index isn't valid.")
+        # Оновлюємо відповідний елемент у TreeView
+        index = self.find_element_index(path)
+        if index.isValid():
+            tree_item = self.model.itemFromIndex(index)
+            if tree_item:
+                # Оновлюємо текст у колонці 1 (значення вузла)
+                tree_item.parent().child(tree_item.row(), 1).setText(value)
+                logging(common.logFile, f"Оновлено значення у дереві: {path} -> {value}")
+        else:
+            logging(common.logFile, f"Елемент не знайдено у дереві: {path}")
+
+    def log_tree_structure(self):
+        """
+        Виводить усі шляхи у дереві для діагностики.
+        """
+        def traverse_tree(item, path=""):
+            path = f"{path}/{item.text()}" if path else item.text()
+            print(f"Tree path: {path}")
+            for row in range(item.rowCount()):
+                traverse_tree(item.child(row, 0), path)
     
+        root = self.model.invisibleRootItem()
+        for row in range(root.rowCount()):
+            traverse_tree(root.child(row, 0))
+
     def find_element_index(self, element_path):
         """
         Пошук елемента у моделі TreeView за повним шляхом.
@@ -461,8 +459,6 @@ class CustomTreeView(QTreeView):
                 return QModelIndex()
     
         return parent_index
-
-
 
 
 
