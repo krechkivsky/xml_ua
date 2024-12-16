@@ -353,6 +353,7 @@ class CustomTreeView(QTreeView):
     def populate_tableview_metadata(self, xml_tree, table_view_metadata):
         """
         Заповнює tableViewMetadata даними розділу ServiceInfo та встановлює повний шлях у UserRole.
+        Використовує українські описи з дерева (tooltip) замість англійських назв.
         """
         root_tag = "UkrainianCadastralExchangeFile"
         service_info_path = f"{root_tag}/AdditionalPart/ServiceInfo"
@@ -363,7 +364,7 @@ class CustomTreeView(QTreeView):
             return
     
         metadata_model = QStandardItemModel()
-        metadata_model.setHorizontalHeaderLabels(["Key", "Value"])
+        metadata_model.setHorizontalHeaderLabels(["Елемент", "Значення"])
         table_view_metadata.setModel(metadata_model)
     
         for child in service_info_element:
@@ -373,22 +374,25 @@ class CustomTreeView(QTreeView):
                 file_guid = child.find("FileGUID")
     
                 if file_date is not None:
-                    key_item = QStandardItem("FileID/FileDate")
-                    value_item = QStandardItem(file_date.text.strip() if file_date.text else "")
                     full_path = f"{service_info_path}/FileID/FileDate"
+                    ukr_description = self.get_tooltip_from_tree(full_path, "FileDate")
+                    key_item = QStandardItem(ukr_description)
+                    value_item = QStandardItem(file_date.text.strip() if file_date.text else "")
                     key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
                     metadata_model.appendRow([key_item, value_item])
     
                 if file_guid is not None:
-                    key_item = QStandardItem("FileID/FileGUID")
-                    value_item = QStandardItem(file_guid.text.strip() if file_guid.text else "")
                     full_path = f"{service_info_path}/FileID/FileGUID"
+                    ukr_description = self.get_tooltip_from_tree(full_path, "FileGUID")
+                    key_item = QStandardItem(ukr_description)
+                    value_item = QStandardItem(file_guid.text.strip() if file_guid.text else "")
                     key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
                     metadata_model.appendRow([key_item, value_item])
             else:
-                key_item = QStandardItem(child.tag)
-                value_item = QStandardItem(child.text.strip() if child.text else "")
                 full_path = f"{service_info_path}/{child.tag}"
+                ukr_description = self.get_tooltip_from_tree(full_path, child.tag)
+                key_item = QStandardItem(ukr_description)
+                value_item = QStandardItem(child.text.strip() if child.text else "")
                 key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
                 metadata_model.appendRow([key_item, value_item])
     
@@ -460,6 +464,17 @@ class CustomTreeView(QTreeView):
     
         return parent_index
 
+    def get_tooltip_from_tree(self, full_path, default_name):
+        """
+        Отримує tooltip для елемента з дерева за його шляхом.
+        Якщо tooltip не знайдено, повертає default_name.
+        """
+        tree_index = self.find_element_index(full_path)  # Пошук елемента за шляхом
+        if tree_index.isValid():
+            tree_item = self.model.itemFromIndex(tree_index)
+            if tree_item:
+                return tree_item.toolTip() or default_name  # Повертає tooltip або default_name
+        return default_name
 
 
 def caller():
