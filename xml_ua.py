@@ -33,7 +33,7 @@ from .xml_ua_dockwidget import xml_uaDockWidget
 import os.path
 import os, sys, inspect
 
-# logFile = open(os.path.dirname(__file__) + "/xml_ua.log", "w")
+from . import common
 
 class xml_ua:
 
@@ -49,8 +49,7 @@ class xml_ua:
         :type iface: QgsInterface
         """
         # Save reference to the QGIS interface
-        # logging(common.logFile)
-        # for frame_info in inspect.stack(): common.logFile.write("\t" + f" stack: {os.path.basename(frame_info.filename)}: {frame_info.lineno}: {frame_info.function}" + "\n")
+        common.log_msg(common.logFile)
         self.iface = iface
 
         # initialize plugin directory
@@ -94,7 +93,7 @@ class xml_ua:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        # logging(common.logFile)
+        common.log_msg(common.logFile)
         return QCoreApplication.translate('xml_ua', message)
 
 
@@ -148,7 +147,7 @@ class xml_ua:
         :rtype: QAction
         """
         
-        # logging(common.logFile)
+        common.log_msg(common.logFile)
         
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -177,7 +176,7 @@ class xml_ua:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         
-        # logging(common.logFile)
+        common.log_msg(common.logFile)
 
         icon_path = ':/plugins/xml_ua/icon.png'
         self.add_action(
@@ -186,12 +185,11 @@ class xml_ua:
             callback=self.run,
             parent=self.iface.mainWindow())
 
-    #--------------------------------------------------------------------------
 
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
-        logging(common.logFile)
+        common.log_msg(common.logFile)
 
         # disconnects
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
@@ -208,7 +206,7 @@ class xml_ua:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
 
-        logging(common.logFile)
+        common.log_msg(common.logFile)
 
         for action in self.actions:
             self.iface.removePluginVectorMenu(
@@ -223,14 +221,12 @@ class xml_ua:
     def run(self):
         """Run method that loads and starts the plugin"""
 
+        common.log_msg(common.logFile)
         if not self.pluginIsActive:
             self.pluginIsActive = True
 
-            # logging(common.logFile)
+            # common.log_stack(common.logFile, "self.pluginIsActive = True")
 
-            # dockwidget may not exist if:
-            #    first run of plugin
-            #    removed on close (see self.onClosePlugin method)
             if self.dockwidget == None:
                 # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = xml_uaDockWidget()
@@ -243,16 +239,3 @@ class xml_ua:
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
 
-def caller():
-    return inspect.stack()[2].function
-
-def logging(logFile, msg=""):
-    logFile.write(f"<.{os.path.basename(__file__)}:{sys._getframe().f_back.f_lineno}> {caller()}(): {msg}\n")
-    logFile.flush()
-
-def log_dict(logFile, dict, name: str = ""):
-    msg = f"{name}:"
-    for key, value in dict.items():
-        msg += '\n\t' + f"{key}: {value}"
-    logFile.write(f"{sys._getframe().f_back.f_lineno}: {caller()}: {msg}\n")
-    logFile.flush()

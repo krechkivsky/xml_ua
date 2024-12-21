@@ -22,68 +22,95 @@
  ***************************************************************************/
 """
 
-import os, sys, inspect, configparser
+import os
+import sys
+import inspect
+import configparser
+
 import qgis.utils
 
-from qgis.PyQt import QtWidgets, uic
-from qgis.PyQt.QtCore import Qt, QVariant, QFile
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QWidget, QVBoxLayout,QHBoxLayout, QMenuBar, QMenu, QAction, QPushButton, QMessageBox, QToolButton, QStyle,QTreeView, QFileDialog, QInputDialog, QLineEdit, QTableView
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtXml import QDomDocument
-from lxml import etree
-from xml.etree import ElementTree as ET
-from qgis.core import QgsProject, QgsVectorLayer, QgsFeature, QgsGeometry, QgsPointXY, QgsLineString, QgsPolygon, QgsField
+from qgis.PyQt import uic
+from qgis.PyQt import QtWidgets
 
-# from qgis.PyQt.QtCore import pyqtSignal
-from PyQt5.QtCore import pyqtSignal
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QStandardItem
+from qgis.PyQt.QtGui import QStandardItemModel
+
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtCore import QFile
+from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QModelIndex
+from qgis.PyQt.QtCore import pyqtSignal
+from qgis.PyQt.QtCore import QDate
+
+from qgis.core import QgsProject
+from qgis.core import QgsVectorLayer
+from qgis.core import QgsFeature
+from qgis.core import QgsGeometry
+from qgis.core import QgsPointXY
+from qgis.core import QgsLineString
+from qgis.core import QgsPolygon
+from qgis.core import QgsField
+
+from qgis.PyQt.QtWidgets import QApplication
+from qgis.PyQt.QtWidgets import QMainWindow
+from qgis.PyQt.QtWidgets import QDockWidget
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.PyQt.QtWidgets import QVBoxLayout
+from qgis.PyQt.QtWidgets import QHBoxLayout
+from qgis.PyQt.QtWidgets import QMenuBar
+from qgis.PyQt.QtWidgets import QMenu
+from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QPushButton
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtWidgets import QToolButton
+from qgis.PyQt.QtWidgets import QStyle
+from qgis.PyQt.QtWidgets import QTreeView
+from qgis.PyQt.QtWidgets import QFileDialog
+from qgis.PyQt.QtWidgets import QInputDialog
+from qgis.PyQt.QtWidgets import QLineEdit
+from qgis.PyQt.QtWidgets import QTableView
+from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt.QtWidgets import QDateEdit
+from qgis.PyQt.QtWidgets import QAbstractItemView
+
+from qgis.PyQt.QtXml import QDomDocument
+
+from xml.etree import ElementTree as ET
+from lxml import etree
 
 from .custom_tree_view import CustomTreeView
 from .xml_ua_layers import xmlUaLayers
+from .date_dialog import DateInputDialog
+
 from . import common
+from . import metadata
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'xml_ua_dockwidget_base.ui'))
 
-def caller():
-    return inspect.stack()[2].function
-
-def logging(logFile, msg=""):
-    logFile.write(f"<.{os.path.basename(__file__)}:{sys._getframe().f_back.f_lineno}> {caller()}(): {msg}\n")
-    logFile.flush()
-
-def log_dict(logFile, dict, name: str = ""):
-    msg = f"{name}:"
-    for key, value in dict.items():
-        msg += '\n\t' + f"{key}: {value}"
-    logFile.write(f"{sys._getframe().f_back.f_lineno}: {caller()}: {msg}\n")
-    logFile.flush()
-
-def log_attributes(object):
-    logging(logFile)
-
-    for attr, value in vars(object).items():
-        logging(logFile, f"{attr}: {value}")
 
 def get_xml_file_path():
-    logging(logFile)
+    
+    common.log_msg(common.logFile)
     
     options = QFileDialog.Options()
     options |= QFileDialog.ReadOnly  # Опція лише для читання (необов’язкова)
     
     file_path, _ = QFileDialog.getOpenFileName(None,"Вибір файлу","","Файли XML (*.xml)",options=options)
-    logging(logFile, f"Вибраний файл: '{file_path}'" )
+    common.log_msg(common.logFile, f"Вибраний файл: '{file_path}'" )
     
     return file_path
 
 def save_tree_view_to_xml(tree_view, xmlPath):
 
-    logging(common.logFile)
+    common.log_msg(common.logFile)
     doc = QDomDocument()
     
     model = tree_view.model()
     root_item = model.item(0)
     
     def add_elements_to_dom(parent_dom_element, item):
-        logging(common.logFile)
+        common.log_msg(common.logFile)
         for row in range(item.rowCount()):
             child_item = item.child(row, 0)
             value_item = item.child(row, 1)
@@ -105,14 +132,14 @@ def save_tree_view_to_xml(tree_view, xmlPath):
     with open(xmlPath, 'w', encoding='utf-8') as file:
         file.write('<?xml version="1.0" encoding="utf-8"?>\n  ' + doc.toString(2))  # 4 — це відступ для читабельності
 
-    logging(common.logFile, f"Зміни збережено у {xmlPath}")
+    common.log_msg(common.logFile, f"Зміни збережено у {xmlPath}")
 
 def get_points_xml(xmlPath):
     
     global pointsData
     global XYs
     
-    logging(common.logFile)
+    common.log_msg(common.logFile)
     tree = ET.parse(xmlPath)
     root = tree.getroot()
     pointsData = []
@@ -153,7 +180,7 @@ def get_points_xml(xmlPath):
 def layer_in_project(layer_name):
 
 
-    logging(common.logFile)
+    common.log_msg(common.logFile)
     layers = QgsProject.instance().mapLayers().values()
     
     for layer in layers:
@@ -165,11 +192,11 @@ def add_points_to_qgis(xmlPath):
     global pointsData
     global treeViewKadNum
     
-    logging(common.logFile, " treeViewKadNum = " + treeViewKadNum)
+    common.log_msg(common.logFile, " treeViewKadNum = " + treeViewKadNum)
     layer_name = treeViewKadNum + "_точки"
-    logging(logFile, " layer_name = " + layer_name)
+    common.log_msg(common.logFile, " layer_name = " + layer_name)
     layer = layer_in_project(layer_name)
-    logging(logFile, "crs=" + crsEpsg)
+    common.log_msg(common.logFile, "crs=" + crsEpsg)
    
     if not layer: layer = QgsVectorLayer("Point?crs=" + crsEpsg, layer_name, "memory")
     
@@ -190,7 +217,7 @@ def add_points_to_qgis(xmlPath):
     for point_data in pointsData:
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(point_data["y"]), float(point_data["x"]))))
-        #logging(logFile, " point_data['y'] = " + point_data["y"])
+        #common.log_msg(common.logFile, " point_data['y'] = " + point_data["y"])
             
         feature.setAttributes([
             point_data["uid"],
@@ -204,7 +231,7 @@ def add_points_to_qgis(xmlPath):
             point_data["description"]])
         provider.addFeature(feature)
 
-    #logging(logFile, " pointsData = " + str(pointsData))
+    #common.log_msg(common.logFile, " pointsData = " + str(pointsData))
 
     # Додавання шару до проекту QGIS
     QgsProject.instance().addMapLayer(layer)
@@ -219,15 +246,16 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
     def __init__(self):
         """Конструктор."""
+        common.log_msg(common.logFile)
         super().__init__()
-        # logging(common.logFile)
         self.setupUi(self)
         self.xsd_path = common.xsd_path
+        
         # Ініціалізація вкладки дерева
-        # Перевіряємо, чи існує старий treeViewXML
+        # Перевіряємо, чи існує treeViewXML типу QTreeView (створений в UI файлі)
         old_tree_view = self.findChild(QTreeView, "treeViewXML")
         if old_tree_view:
-            # Видалити старий віджет із менеджера компоновки
+            # Видаляємо старий-UI віджет із менеджера компоновки
             layout = self.tabXML.layout()
             if layout:
                 layout.removeWidget(old_tree_view)
@@ -235,37 +263,113 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             old_tree_view.setParent(None)
             old_tree_view.deleteLater()
 
-        # Ініціалізація таблиці Метаданих
-        self.tableViewMetadata = self.findChild(QTableView, "tableViewMetadata")
-        logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
-
-        # Додаємо новий CustomTreeView
-        # self.treeViewXML = CustomTreeView(self.tabXML)
+        # Додаємо новий віджет типу CustomTreeView
         self.treeViewXML = CustomTreeView(self.tabXML, table_view_metadata=self.tableViewMetadata)
-        
         self.treeViewXML.setObjectName("treeViewXML")  # Залишаємо те саме ім'я
         self.tabXML.layout().addWidget(self.treeViewXML)  # Додаємо до layout
         
+        self.treeViewXML.setSelectionMode(QAbstractItemView.NoSelection)
+
+
+        # Контекстне меню дерева XML
         self.treeViewXML.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treeViewXML.customContextMenuRequested.connect(self.treeViewXML.show_context_menu)
         self.treeViewXML.dataChangedSignal.connect(self.on_tree_view_data_changed)
 
+        # Ініціалізація таблиці Метаданих
+        self.tableViewMetadata = self.findChild(QTableView, "tableViewMetadata")
+        
+        self.tableViewMetadata.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tableViewMetadata.customContextMenuRequested.connect(self.handle_right_click)
+
+        # Встановлення обробника подвійного кліку
+        self.tableViewMetadata.doubleClicked.connect(self.handle_double_click)
+        # # Щоб подвійний клік працював коректно, переконайтесь, що режим виділення дозволяє виділення комірок
+        # self.tableViewMetadata.setSelectionMode(QAbstractItemView.SingleSelection) # Або ExtendedSelection, якщо потрібно кілька виділень
+        # self.tableViewMetadata.setSelectionBehavior(QAbstractItemView.SelectItems) # Важливо для виділення комірок
+
+
+        self.tooltips = dict(common.config['metaDataTooltips'])
+        # common.log_dict(common.logFile, self.tooltips, msg="tooltips")
+
+        # Підключення подій для таблиці
+        # plugin_directory = os.path.dirname(__file__)
+        # metadata.setup_table_events(self.tableViewMetadata, common.config, plugin_directory)
         
         # Виклик функцій для додавання меню
         self.add_menu_buttons()
 
+    def handle_right_click(self, position):
+        """
+        Обробляє правий клік для виклику handle_metadata_edit.
+        """
+        common.log_stack(common.logFile)
+        
+        index = self.tableViewMetadata.indexAt(position)  # Отримуємо QModelIndex за позицією
+        if not index.isValid():
+            common.log_msg(common.logFile, "Клік поза межами таблиці")
+            return
 
+        # Перевірка, чи комірка є row=0, col=1
+        if index.row() == 0 and index.column() == 1:
+            # Створення контекстного меню
+            menu = QMenu()
+            self.open_date_dialog(index)
+
+        # common.log_msg(common.logFile, f"Правий клік на рядку {index.row()}, колонці {index.column()}")
+
+    def open_date_dialog(self, index):
+        # Створення діалогу вводу дати
+        current_value = index.data(Qt.EditRole)
+        default_date = QDate.fromString(current_value, "yyyy-MM-dd") if current_value else QDate.currentDate()
+        dialog = DateInputDialog(default_date=default_date)
+
+        if dialog.exec_() == QDialog.Accepted:
+            # Отримання дати з діалогу та оновлення моделі
+            new_date = dialog.get_date()
+            self.tableViewMetadata.model().setData(index, new_date, Qt.EditRole)
+
+    def handle_double_click(self, index: QModelIndex):
+        """
+        Обробляє  клік для виклику handle_metadata_edit.
+        """
+        common.log_stack(common.logFile)
+        
+        if not index.isValid():
+            common.log_msg(common.logFile, "Клік поза межами таблиці")
+            return
+
+        row = index.row()
+        column = index.column()
+        model = self.tableViewMetadata.model()  # Отримуємо модель таблиці
+        value = model.data(index)  # Отримуємо значення з моделі
+    
+        common.log_msg(common.logFile, f"Подвійний клік на рядку {row}, колонці {column}, значення: {value}")
+        QMessageBox.warning(None, "Повідомлення", f"Подвійний клік на рядку {row}, колонці {column}, значення: {value}")
 
     def load_data(self, xml_path, xsd_path):
         """
-        Завантаження XML та XSD у відповідні компоненти плагіна.
+            Викликає функції завантаження: 
+                -  XML у віджет дерева 
+                -  метаданих у віджет таблиці (тимчасово:)
         """
-        self.treeViewXML.load_xml_to_tree_view(xml_path, xsd_path, self.tableViewMetadata)
+
+        common.log_msg(common.logFile, "Виклик функцій заповнення дерева та таблиці")
+
+        """ заповнення дерева """
+        self.treeViewXML.load_xml_to_tree_view(xml_path, xsd_path)
+
+        """ заповнення таблиці Метадані """
+        # викликаємо метод об'єкта treeViewXML класу CustomTreeView
+        # у майбутньому треба зробити окремий клас CustomTableView
+        # self.treeViewXML.populate_tableview_metadata(self.treeViewXML.xmlTree, self.treeViewXML.tableViewMetadata)
+        self.treeViewXML.populate_tableview_metadata(self.treeViewXML.xmlTree, self.treeViewXML.tableViewMetadata, self.tooltips)
 
     def on_tree_view_data_changed(self, path, value):
         """
         Оновлення tableViewMetadata при зміні даних у treeViewXML.
         """
+        common.log_msg(common.logFile)
         metadata_model = self.tableViewMetadata.model()
         if not metadata_model:
             return
@@ -279,7 +383,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
     def closeEvent(self, event):
         # Логування при закритті плагіну
-        logging(common.logFile)
+        common.log_msg(common.logFile)
         self.closingPlugin.emit()
         event.accept()
 
@@ -288,6 +392,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         Додає дві кнопки з випадаючими меню в основний інтерфейс QDockWidget, 
         включаючи стандартні іконки Qt і користувацьку іконку для дії перевірки синтаксису.
         """
+        common.log_msg(common.logFile)
         # Створюємо перше меню з іконками
         # logging(common.logFile)
         menu1 = QMenu("Меню 1", self)
@@ -364,25 +469,19 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
     def process_action_open(self):
         
         """Обробка події відкриття файлу XML."""
+        common.log_msg(common.logFile)
         xml_path, _ = QFileDialog.getOpenFileName(self, "Відкрити XML файл", "", "XML файли (*.xml)")
         # logging(common.logFile, f"xml_path = {xml_path}")
         if not xml_path:
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
     
-        # logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
-        
-        # self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path, self.tableViewMetadata)
-        
         self.load_data(xml_path, self.xsd_path)
         
         
         self.treeViewXML.expand_initial_elements()
         self.treeViewXML.set_column_width(0, 75)
 
-        #get_points_xml(xml_path)
-        #add_points_to_qgis(xml_path)
-        
         projectLayers = xmlUaLayers(xml_path)
 
         return
@@ -391,7 +490,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         global treeViewXml
         global treeViewKadNum
 
-        logging(common.logFile)
+        common.log_msg(common.logFile)
         folder_path = QFileDialog.getExistingDirectory(None, "Виберіть папку для збереження")
         
         if folder_path:
@@ -404,12 +503,12 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
             # Якщо користувач скасував вибір
             QMessageBox.warning(None, "Відміна", "Папка не вибрана.")
             return None        
-        
+
     def process_action_save_as(self):
         global treeViewXml
         global xmlPath
 
-        logging(common.logFile)
+        common.log_msg(common.logFile)
         folder_path = QFileDialog.getExistingDirectory(self, "Виберіть папку для збереження")
         if not folder_path:
             QMessageBox.warning(self, "Помилка", "Папку не вибрано.")
