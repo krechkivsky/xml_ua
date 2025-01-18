@@ -3,36 +3,37 @@ import os
 import sys
 import inspect
 import configparser
-from qgis.PyQt.QtCore import Qt
 
+from qgis.PyQt.QtXml import QDomDocument
 
-logFile = open(os.path.dirname(__file__) + "/xml_ua.log", "w")
+from xmlschema import XMLSchema
+
+logFile = open(os.path.dirname(__file__) + "/xml_ua.md", "w")
 ini_path = os.path.dirname(__file__) + "/xml_ua.ini"
 xsd_path = os.path.dirname(__file__) + "/templates/UAXML.xsd"
-
-
+xml_file_name = ""
+schema = XMLSchema(xsd_path)
 
 def get_xml_file_path():
-    
-    common.log_var(common.logFile)
+    """ Повертає повний шлях файлу XML.
+        Використовується фільтр розширення.
+    """
     options = QFileDialog.Options()
     options |= QFileDialog.ReadOnly  # Опція лише для читання (необов’язкова)
-    
-    file_path, _ = QFileDialog.getOpenFileName(None,"Вибір файлу","","Файли XML (*.xml)",options=options)
-    
+
+    file_path, _ = QFileDialog.getOpenFileName(None, "Вибір файлу", "", "Файли XML (*.xml)", options=options)
+
     return file_path
 
-
 def save_tree_view_to_xml(tree_view, xmlPath):
-
-    common.log_var(common.logFile)
+    # common.log_var(common.logFile)
     doc = QDomDocument()
-    
+
     model = tree_view.model()
     root_item = model.item(0)
-    
+
     def add_elements_to_dom(parent_dom_element, item):
-        common.log_var(common.logFile)
+        # common.log_var(common.logFile)
         for row in range(item.rowCount()):
             child_item = item.child(row, 0)
             value_item = item.child(row, 1)
@@ -54,32 +55,23 @@ def save_tree_view_to_xml(tree_view, xmlPath):
     with open(xmlPath, 'w', encoding='utf-8') as file:
         file.write('<?xml version="1.0" encoding="utf-8"?>\n  ' + doc.toString(2))  # 4 — це відступ для читабельності
 
-    common.log_var(common.logFile, f"Зміни збережено у {xmlPath}")
-
-
 def layer_in_project(layer_name):
-
-
-    common.log_var(common.logFile)
+    # common.log_var(common.logFile)
     layers = QgsProject.instance().mapLayers().values()
-    
+
     for layer in layers:
         if layer.name() == layer_name:
             return layer
     return None
 
+def get_points_xml(xml_path):
 
-def get_points_xml(xmlPath):
-    
-    global pointsData
-    global XYs
-    
-    common.log_var(common.logFile)
-    tree = ET.parse(xmlPath)
+    # common.log_var(common.logFile)
+    tree = ET.parse(xml_path)
     root = tree.getroot()
     pointsData = []
     XYs = []
-    
+
     for point in root.findall(".//PointInfo/Point"):
         uid = point.find("UIDP").text if point.find("UIDP") is not None else None
         pn = point.find("PN").text if point.find("PN") is not None else None
@@ -102,54 +94,51 @@ def get_points_xml(xmlPath):
             "mh": mh,
             "description": description
         })
-        
+
         XYs.append({
             "uid": uid,
             "x": x,
             "y": y,
         })
-    
-    
+
     return
 
-
 def add_points_to_qgis(xmlPath):
-    
     global pointsData
     global treeViewKadNum
-    
-    common.log_var(common.logFile, " treeViewKadNum = " + treeViewKadNum)
+
+    # common.log_var(common.logFile, " treeViewKadNum = " + treeViewKadNum)
     layer_name = treeViewKadNum + "_точки"
-    common.log_var(logFile, " layer_name = " + layer_name)
+    # common.log_var(logFile, " layer_name = " + layer_name)
     layer = common.layer_in_project(layer_name)
-    common.log_var(logFile, "crs=" + crsEpsg)
-   
+    # common.log_var(logFile, "crs=" + crsEpsg)
+
     if not layer: layer = QgsVectorLayer("Point?crs=" + crsEpsg, layer_name, "memory")
-    
+
     provider = layer.dataProvider()
-    
+
     provider.addAttributes([
-    QgsField("UIDP", QVariant.String),
-    QgsField("PN", QVariant.String),
-    #QgsField("X", QVariant.String),
-    #QgsField("Y", QVariant.String),
-    QgsField("H", QVariant.String),
-    QgsField("MX", QVariant.String),
-    QgsField("MY", QVariant.String),
-    QgsField("MH", QVariant.String),
-    QgsField("Description", QVariant.String)])
+        QgsField("UIDP", QVariant.String),
+        QgsField("PN", QVariant.String),
+        # QgsField("X", QVariant.String),
+        # QgsField("Y", QVariant.String),
+        QgsField("H", QVariant.String),
+        QgsField("MX", QVariant.String),
+        QgsField("MY", QVariant.String),
+        QgsField("MH", QVariant.String),
+        QgsField("Description", QVariant.String)])
     layer.updateFields()
-    
+
     for point_data in pointsData:
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(point_data["y"]), float(point_data["x"]))))
-        #common.log_var(logFile, " point_data['y'] = " + point_data["y"])
-            
+        ## common.log_var(logFile, " point_data['y'] = " + point_data["y"])
+
         feature.setAttributes([
             point_data["uid"],
             point_data["pn"],
-            #point_data["x"],
-            #point_data["y"],
+            # point_data["x"],
+            # point_data["y"],
             point_data["h"],
             point_data["mx"],
             point_data["my"],
@@ -157,16 +146,14 @@ def add_points_to_qgis(xmlPath):
             point_data["description"]])
         provider.addFeature(feature)
 
-    #common.log_var(logFile, " pointsData = " + str(pointsData))
+    ## common.log_var(logFile, " pointsData = " + str(pointsData))
 
     # Додавання шару до проекту QGIS
     QgsProject.instance().addMapLayer(layer)
-    
+
     return
 
-
 def get_object_name(obj):
-    
     """Повертає ім'я об'єкта або None, якщо не знайдено."""
     for name, value in globals().items():
         if value is obj:
@@ -176,12 +163,10 @@ def get_object_name(obj):
             return name
     return None
 
-
 def get_object_name_from_frame(obj, frame):
-    
     """
         Пошук імені об'єкта у вказаному фреймі стеку.
-        frame = inspect.currentframe()        
+        frame = inspect.currentframe()
 
     """
     for name, value in frame.f_locals.items():
@@ -189,24 +174,21 @@ def get_object_name_from_frame(obj, frame):
             return name
     return None
 
-
 def caller(i: int):
     return inspect.stack()[i].function
 
-
 def log_msg(logFile, msg=""):
-    
+    """ """
     filename = os.path.basename(inspect.stack()[1].frame.f_code.co_filename)
     lineno = sys._getframe().f_back.f_lineno
-    spaces1 = " " * (4 - len(str(lineno)))
-    spaces2 = " " * (20 - len(filename))
-    # logFile.write(f"/.{filename}:{sys._getframe().f_back.f_lineno} {caller(2)}(): {msg}\n")
-    logFile.write(f"/.{filename}{spaces2}{spaces1}{lineno}  {caller(2)}(): {msg}\n")
+    #spaces1 = " " * (4 - len(str(lineno)))
+    #spaces2 = " " * (20 - len(filename))
+    #spaces = " " * (27 - len(caller(2)))
+    #logFile.write(f"\n#### [{caller(2)}():]({filename}#L{lineno})" + f"\n{msg}\n")
+    logFile.write(f"\n#### [{caller(2)}(): {msg}]({filename}#L{lineno})" )
     logFile.flush()
 
-
-def get_call_stack(i:int):
-    
+def get_call_stack(i: int):
     """Отримує стек викликів у вигляді рядка у зворотному порядку."""
     stack = inspect.stack()
     result = ""
@@ -215,28 +197,28 @@ def get_call_stack(i:int):
         frame = frame_info.frame
         filename = os.path.basename(frame.f_code.co_filename)
         lineno = frame.f_lineno
-        spaces = ' ' * (30 - len(filename) - len(str(lineno)))
+        # spaces = ' ' * (24 - len(filename) - len(str(lineno)))
         func_name = frame.f_code.co_name
-        result += f"\n    ./{filename}:{lineno}{spaces}{func_name}()"
-        
+        # spaces1 = ' ' * (28 - len(func_name))
+        result += f"\n* [{func_name}():]({filename}#L{lineno})"
+
     return result
 
-
-def log_stack(logFile, msg=""):
-    
-    """Записує повідомлення в лог-файл з інформацією про стек викликів."""
-    filename = os.path.basename(__file__)
-    lineno = sys._getframe().f_back.f_lineno
-    caller_func_name = sys._getframe().f_back.f_code.co_name
+def log_calls(logFile: str, msg: str = "") -> None:
+    """ Записує повідомлення в лог-файл з інформацією про стек викликів.
+    """
+    #filename = os.path.basename(__file__)
+    #lineno = sys._getframe().f_back.f_lineno
+    #caller_func_name = sys._getframe().f_back.f_code.co_name
     stack_info = get_call_stack(2)
-    log_message = f"Log stack:{stack_info}:\n\t\t{msg}\n"
+    log_message = f"\n#### Стек викликів:{stack_info} {msg}"
     logFile.write(log_message)
     logFile.flush()
 
-
 def log_var(logFile, msg=""):
-    
-    """Записує повідомлення в лог-файл з інформацією про стек викликів."""
+    """
+        Записує повідомлення в лог-файл з інформацією про стек викликів.
+    """
     filename = os.path.basename(__file__)
     lineno = sys._getframe().f_back.f_lineno
     caller_func_name = sys._getframe().f_back.f_code.co_name
@@ -245,32 +227,28 @@ def log_var(logFile, msg=""):
     logFile.write(log_message)
     logFile.flush()
 
-
 def log_dict(logFile, dictionary, msg=""):
-    """Записує словник в лог-файл з інформацією про стек викликів."""
-    filename = os.path.basename(__file__)
+    filename = os.path.basename(inspect.stack()[1].frame.f_code.co_filename)
     lineno = sys._getframe().f_back.f_lineno
     caller_func_name = sys._getframe().f_back.f_code.co_name
-    stack_info = get_call_stack(2)
     dict_str = ""
+    spaces1 = " " * (4 - len(str(lineno)))
+    spaces2 = " " * (34 - len(filename))
     for key, value in dictionary.items():
-        dict_str += f"\t\t{key}: {value}\n"
-    log_message = f"Debug dict:{stack_info}\n\t{msg}\n{dict_str}"
+        spaces = ' ' * (20 - len(key))
+        dict_str += f"\t{key}: " + spaces + f"{value}\n"
+    log_message = f"./{filename}{spaces2}{spaces1}{lineno}  {caller(2)}()\nDICT:\n {msg}:\n{dict_str}"
     logFile.write(log_message)
     logFile.flush()
 
-
-def log_object(logFile, obj, frame, search = ""):
-    
-    """ 
+def log_object(logFile, obj, frame, search=""):
+    """
         Записує об'єкт в лог-файл з інформацією про стек викликів.
         Особливості виклику:
         1. В модулі повинен імпортуватись inspect.
         2. Перед викликом необхідно встановити контекст об'єкта:
-            frame = inspect.currentframe()        
-            common.log_object(common.logFile, object, frame, 'property')
-
-    
+            frame = inspect.currentframe()
+            # common.log_object(common.logFile, object, frame, 'property')
     """
     filename = os.path.basename(__file__)
     lineno = sys._getframe().f_back.f_lineno
@@ -289,15 +267,12 @@ def log_object(logFile, obj, frame, search = ""):
             except Exception as e:  # Обробка можливих помилок при доступі до атрибутів
                 obj_str += f"\t\t{attr_name}: <Помилка отримання значення: {e}>\n"
     # log_message = f"Debug object: <{filename}:{lineno}> {caller_func_name}():\n{stack_info}{msg}\n{obj_str}"
-    log_message = f"Debug object:{stack_info} {get_object_name_from_frame(obj, frame)}:\n{obj_str}"
+    log_message = f"Debug object:{stack_info}\n\t\t{get_object_name_from_frame(obj, frame)}:\n{obj_str}"
     logFile.write(log_message)
     logFile.flush()
 
-
 def log_model(logFile, model):
-
     if model is None:
-        
         filename = os.path.basename(__file__)
         lineno = sys._getframe().f_back.f_lineno
         caller_func_name = sys._getframe().f_back.f_code.co_name
@@ -307,7 +282,7 @@ def log_model(logFile, model):
         logFile.write(log_message)
         logFile.flush()
         return
-        
+
     stack_info = get_call_stack(2)
 
     logFile.write(f"Debug model:{stack_info}:\n\tІнформація про модель:\n")
@@ -325,20 +300,17 @@ def log_model(logFile, model):
 
     # Отримання даних з кількох комірок для прикладу
     try:
-        for row in range(min(3, model.rowCount())): # Виводимо дані максимум з 3 рядків
-            for col in range(min(3, model.columnCount())): # Виводимо дані максимум з 3 стовпців
+        for row in range(min(3, model.rowCount())):  # Виводимо дані максимум з 3 рядків
+            for col in range(min(3, model.columnCount())):  # Виводимо дані максимум з 3 стовпців
                 index = model.index(row, col)
                 data = model.data(index)
                 logFile.write(f"\t\tДані в комірці ({row}, {col}): {data}\n")
     except IndexError:
         logFile.write("Вихід за межі індексу моделі\n")
 
-
 def log_object_model(logFile, table_view):
-
     model = table_view.model()
     if model is None:
-        
         filename = os.path.basename(__file__)
         lineno = sys._getframe().f_back.f_lineno
         caller_func_name = sys._getframe().f_back.f_code.co_name
@@ -348,7 +320,7 @@ def log_object_model(logFile, table_view):
         logFile.write(log_message)
         logFile.flush()
         return
-        
+
     stack_info = get_call_stack()
 
     logFile.write(f"Debug model:{stack_info}:\n\tІнформація про модель:\n")
@@ -366,14 +338,13 @@ def log_object_model(logFile, table_view):
 
     # Отримання даних з кількох комірок для прикладу
     try:
-        for row in range(min(3, model.rowCount())): # Виводимо дані максимум з 3 рядків
-            for col in range(min(3, model.columnCount())): # Виводимо дані максимум з 3 стовпців
+        for row in range(min(3, model.rowCount())):  # Виводимо дані максимум з 3 рядків
+            for col in range(min(3, model.columnCount())):  # Виводимо дані максимум з 3 стовпців
                 index = model.index(row, col)
                 data = model.data(index)
                 logFile.write(f"\t\tДані в комірці ({row}, {col}): {data}\n")
     except IndexError:
         logFile.write("Вихід за межі індексу моделі\n")
-
 
 def log_xml(logFile, element, filter_tag, level=0):
     # Перевіряємо, чи потрібно обробляти цей вузол
@@ -394,26 +365,12 @@ def log_xml(logFile, element, filter_tag, level=0):
     for child in element:
         log_xml(logFile, child, filter_tag, level + 1)
 
-
 class CaseSensitiveConfigParser(configparser.ConfigParser):
     def optionxform(self, optionstr):
         return optionstr
 
-config = CaseSensitiveConfigParser()
+config = CaseSensitiveConfigParser(strict=False)
 config.read(ini_path, encoding="utf-8")
-
-elements_to_expand = [
-    "UkrainianCadastralExchangeFile",
-    "InfoPart",
-    "CadastralZoneInfo",
-    "CadastralQuarters",
-    "CadastralQuarterInfo",
-    "Parcels",
-    "ParcelInfo",
-    "ParcelMetricInfo",
-    "LandsParcel",
-    "AdjacentUnits"]
-
 
 metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate",
@@ -423,4 +380,3 @@ metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverIdentifier",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/Software",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/SoftwareVersion"]
-

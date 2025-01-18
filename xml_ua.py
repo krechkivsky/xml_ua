@@ -21,19 +21,22 @@
  *                                                                         *
  ***************************************************************************/
 """
+import os.path
+import os
+# import sys
+# import inspect
+
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 # Initialize Qt resources from file resources.py
 from .resources import *
-from . import common
 
 # Import the code for the DockWidget
-from .xml_ua_dockwidget import xml_uaDockWidget
-import os.path
-import os, sys, inspect
+from .dockwidget import xml_uaDockWidget
 
-from . import common
+from .common import logFile
+from .common import log_msg
 
 class xml_ua:
 
@@ -49,7 +52,7 @@ class xml_ua:
         :type iface: QgsInterface
         """
         # Save reference to the QGIS interface
-        common.log_msg(common.logFile)
+        # log_msg(logFile)
         self.iface = iface
 
         # initialize plugin directory
@@ -57,10 +60,12 @@ class xml_ua:
 
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
+
         locale_path = os.path.join(
             self.plugin_dir,
             'i18n',
-            'xml_ua_{}.qm'.format(locale))
+            f'xml_ua_{locale}.qm')
+
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
@@ -93,7 +98,7 @@ class xml_ua:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        common.log_msg(common.logFile)
+        # log_msg(logFile)
         return QCoreApplication.translate('xml_ua', message)
 
 
@@ -146,9 +151,9 @@ class xml_ua:
             added to self.actions list.
         :rtype: QAction
         """
-        
-        common.log_msg(common.logFile)
-        
+
+        # log_msg(logFile)
+
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
         action.triggered.connect(callback)
@@ -175,8 +180,8 @@ class xml_ua:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-        
-        common.log_msg(common.logFile)
+
+        # log_msg(logFile)
 
         icon_path = ':/plugins/xml_ua/icon.png'
         self.add_action(
@@ -189,7 +194,7 @@ class xml_ua:
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
-        common.log_msg(common.logFile)
+        log_msg(logFile)
 
         # disconnects
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
@@ -206,7 +211,7 @@ class xml_ua:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
 
-        common.log_msg(common.logFile)
+        log_msg(logFile)
 
         for action in self.actions:
             self.iface.removePluginVectorMenu(
@@ -214,22 +219,22 @@ class xml_ua:
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
-        del self.toolbar
+        if self.toolbar:
+            del self.toolbar
 
     #--------------------------------------------------------------------------
 
     def run(self):
         """Run method that loads and starts the plugin"""
 
-        common.log_msg(common.logFile)
+        # log_msg(logFile, f"self = {self}")
         if not self.pluginIsActive:
             self.pluginIsActive = True
 
-            # common.log_stack(common.logFile, "self.pluginIsActive = True")
-
-            if self.dockwidget == None:
+            # if self.dockwidget == None:
+            if self.dockwidget is None:
                 # Create the dockwidget (after translation) and keep reference
-                self.dockwidget = xml_uaDockWidget()
+                self.dockwidget = xml_uaDockWidget(self)
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
@@ -238,4 +243,3 @@ class xml_ua:
             # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
-

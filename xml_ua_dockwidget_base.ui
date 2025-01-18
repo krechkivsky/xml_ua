@@ -23,6 +23,9 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="toolTip">
+       <string/>
+      </property>
       <property name="currentIndex">
        <number>0</number>
       </property>
@@ -50,6 +53,9 @@
             <width>100</width>
             <height>100</height>
            </size>
+          </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Загальна структура електронного документу&lt;/span&gt;&lt;/p&gt;&lt;p&gt;(згідно Додатку 1 до &lt;a href=&quot;https://zakon.rada.gov.ua/laws/show/1051-2012-%D0%BF/print1487667692790985#Text&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Порядку ведення ДЗК&lt;/span&gt;&lt;/a&gt;) &lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Увага!&lt;/span&gt; На цій вкладці Ви можете додавати, видаляти&lt;/p&gt;&lt;p&gt;елементи та змінювати їх значення.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;Користуйтесь цим можливостями обережно, лише&lt;/p&gt;&lt;p&gt;якщо точно знаєте, що робите!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="verticalScrollBarPolicy">
            <enum>Qt::ScrollBarAlwaysOn</enum>

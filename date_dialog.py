@@ -6,15 +6,14 @@ from qgis.PyQt.QtCore import QDate
 from qgis.PyQt.QtWidgets import QDialog
 from qgis.PyQt.QtWidgets import QDateEdit
 from qgis.PyQt.QtWidgets import QPushButton
-from qgis.PyQt.QtWidgets import QMenu
 from qgis.PyQt.QtWidgets import QVBoxLayout
 from qgis.PyQt.QtWidgets import QHBoxLayout
 
-
-
+from .common import logFile
+from .common import log_calls
+from .common import log_msg
 
 class DateInputDialog(QDialog):
-    
 
     def __init__(self, parent=None, default_date=None):
         super().__init__(parent)
@@ -26,6 +25,7 @@ class DateInputDialog(QDialog):
         # Компоновка для дати
         date_layout = QHBoxLayout()
         self.date_edit = QDateEdit(self)
+        self.date_edit.setDisplayFormat("yyyy-MM-dd")
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDate(default_date or QDate.currentDate())
         self.date_edit.setFixedSize(100, 20)  # Розмір віджета дати
@@ -47,7 +47,11 @@ class DateInputDialog(QDialog):
 
 
     def get_date(self):
-        return self.date_edit.date().toString("yyyy-MM-dd")  # Повертає дату у форматі "YYYY-MM-DD"
+
+        answer = self.date_edit.date().toString("yyyy-MM-dd")
+        log_msg(logFile, f"answer = {answer}")
+
+        return answer  # Повертає дату у форматі "YYYY-MM-DD"
 
 
 
