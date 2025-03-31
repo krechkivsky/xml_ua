@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>&Pcy;&lcy;&acy;&gcy;&iukcy;&ncy; xml&lowbar;ua&colon; &Rcy;&ocy;&zcy;&bcy;&rcy;&ocy;&bcy;&kcy;&acy; &fcy;&acy;&jcy;&lcy;&iukcy;&vcy; &ocy;&bcy;&mcy;&iukcy;&ncy;&ucy; &kcy;&acy;&dcy;&acy;&scy;&tcy;&rcy;&ocy;&vcy;&ocy;&yucy; &iukcy;&ncy;&fcy;&ocy;&rcy;&mcy;&acy;&tscy;&iukcy;&jukcy;&yucy; &ucy; &fcy;&ocy;&rcy;&mcy;&acy;&tcy;&iukcy; XML</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.1;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <img src="file:///c:\Users\MacBook Pro\AppData\Roaming\QGIS\QGIS3\profiles\PL\python\plugins\xml_ua\docs\images\icon.png" width="50">
+<h2 id="плагін-xml_ua-розбробка-файлів-обміну-кадастровою-інформацією-у-форматі-xml">Плагін xml_ua: Розбробка файлів обміну кадастровою інформацією у форматі XML</h2>
+<h3 id="1-опис">1. Опис</h3>
+<p>Плагін <strong>xml_ua</strong> призначений для роботи з xml - файлами обміну кадастровою інформацією в Україні, що відповідають XSD схемі версії 0.7 у середовищі QGIS. Він дозволяє відкривати, редагувати, перевіряти та зберігати ці файли, а також візуалізувати дані на карті QGIS.</p>
+<p>Плагін <strong>xml_ua</strong> має відкритий самодокументований код, який розповсюджується під ліцензією GNU General Public License v3.0 (копілефт).</p>
+<p>Плагін <strong>xml_ua</strong> &quot;на льоту&quot; перевіряє правильність редагування геометрії XML-файлу, та при наявності помилок інформує користувача.</p>
+<h3 id="2-інтерфейс">2. Інтерфейс</h3>
+<p>Інтерфейс плагіну xml_ua має кнопку з іконкою та випадаючим меню, док-віджет з текстовою інформацією, групу шарів XML у ієрархічному списку та на карті.</p>
+<img src="file:///c:\Users\MacBook Pro\AppData\Roaming\QGIS\QGIS3\profiles\PL\python\plugins\xml_ua\docs\images\screen.png" width="800">
+<p>Док-віджет з вкладками:</p>
+<ul>
+<li>Постійні вкладки:
+<ul>
+<li>Структура: Ієрархічне дерево XML-файлу.</li>
+<li>Метадані: Таблиця з загальною інформацією про XML файл.</li>
+<li>Ділянка: Таблиця з даними земельної ділянки.</li>
+</ul>
+</li>
+<li>Вкладки які створюються за необхідності і відображають інформацію про:
+<ul>
+<li>власників/користувачів</li>
+<li>угіддя</li>
+<li>обмеження</li>
+<li>технічну документацію</li>
+</ul>
+</li>
+</ul>
+<p>Випадаюче меню кнопки тулбару містить пункти:</p>
+<ul>
+<li>Новий: Створення нового XML-файлу.</li>
+<li>Відкрити: Відкриття існуючого XML-файлу.</li>
+<li>Зберегти: Збереження поточного XML-файлу.</li>
+<li>Зберегти як...: Збереження поточного XML-файлу під іншою назвою.</li>
+<li>Перевірити: Перевірка XML-файлу на відповідність схемі.</li>
+<li>Очистити дані: Очищення даних у док-віджеті.</li>
+<li>Відновити закриті вкладки: Відновлення закритих вкладок.</li>
+</ul>
+<h3 id="3-функціонал">3. Функціонал</h3>
+<ul>
+<li>
+<p>Відкриття XML-файлу: Завантаження та парсинг XML-файлу.</p>
+</li>
+<li>
+<p><a href="new_xml.html">Створення нового XML-файлу</a>: генерація нового XML-файлу на основі користувацьких шаблонів, дозволяє уникнути повторного введення даних.</p>
+</li>
+<li>
+<p>Редагування даних: зручне редагування метаданих та даних земельної ділянки в табличному вигляді та ієрархічному дереві.</p>
+</li>
+<li>
+<p>Редагування геометрії об'єктів: зручне редагування та контроль правильності змін геометричних об'єктів &quot;на льоту&quot;.</p>
+</li>
+<li>
+<p>Перевірка XML-файлу: Валідація XML-файлу на відповідність схемі XSD.</p>
+</li>
+<li>
+<p>Збереження XML-файлу: Збереження змін у файлі.</p>
+</li>
+<li>
+<p>Візуалізація та редагування геометричних об'єктів на карті: для наглядності дозволяє одночасно відобразити всі шари та елементи XML</p>
+<ul>
+<li>суміжники</li>
+<li>обмеження</li>
+<li>оренда та суборенда</li>
+<li>угіддя</li>
+<li>ділянка</li>
+<li>кадастровий квартал</li>
+<li>кадастрова зона</li>
+<li>лінії</li>
+<li>точки</li>
+</ul>
+</li>
+<li>
+<p>Застосування індивідуальних стилів для окремих шарів та інструменту QGIS <strong>&quot;Наближення&quot;</strong> дозволяє <a href="visual_control.html">візуально перевірити відсутність типових помилок геометрії</a>.</p>
+</li>
+</ul>
+<h3 id="4-порядок-роботи-з-плагіном">4. Порядок роботи з плагіном</h3>
+<p>Для використання плагіна необхідно:</p>
+<ul>
+<li><a href="install_qgis.html">Встановлення та налаштування QGIS.</a></li>
+<li><a href="install_plugin.html">Встановлення плагіну xml_ua в QGIS.</a></li>
+<li>Відкрити/створити проект QGIS, правильно вказавши <a href="crs.html">систему координат</a>.</li>
+<li>Відкрити XML-файл або <a href="new_xml.html">створити новий</a>.</li>
+<li>Відредагувати геометрію ділянки та інших графічних об'єктів.</li>
+<li>Редагувати дані в таблицях та дереві.</li>
+<li>Зберегти зміни.</li>
+</ul>
+<h3 id="5-помилки-та-зауваження">5. Помилки та зауваження</h3>
+<p>Плагін знаходиться на стадії розробки. Про виявлені помилки в роботі прохання повідомляти на електронну пошту, додаючи скріншоти помилок та файли xml з помилками.</p>
+<h3 id="6-ліцензія">6. Ліцензія</h3>
+<p>У частині створення та редагування файлів обміну кадастровою інформацією у форматі XML плагін <strong>xml_ua</strong> розповсюджується під ліцензією <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">GNU General Public License v3.0</a>.</p>
+<h3 id="7-контакти">7. Контакти</h3>
+<p><a href="mailto:michael.krechkivski@gmail.com">michael.krechkivski@gmail.com</a></p>
+
+            
+            
+        </body>
+        </html>
