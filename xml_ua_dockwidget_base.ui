@@ -11,17 +11,29 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string/>
+   <string>xml_ua</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
      <widget class="QTabWidget" name="tabWidget">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
+      </property>
+      <property name="toolTip">
+       <string/>
       </property>
       <property name="currentIndex">
        <number>0</number>
@@ -51,6 +63,9 @@
             <height>100</height>
            </size>
           </property>
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Загальна структура електронного документу&lt;/span&gt;&lt;/p&gt;&lt;p&gt;(згідно Додатку 1 до &lt;a href=&quot;https://zakon.rada.gov.ua/laws/show/1051-2012-%D0%BF/print1487667692790985#Text&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Порядку ведення ДЗК&lt;/span&gt;&lt;/a&gt;) &lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Увага!&lt;/span&gt; На цій вкладці Ви можете додавати, видаляти&lt;/p&gt;&lt;p&gt;елементи та змінювати їх значення.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;Користуйтесь цим можливостями обережно, лише&lt;/p&gt;&lt;p&gt;якщо точно знаєте, що робите!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
           <property name="verticalScrollBarPolicy">
            <enum>Qt::ScrollBarAlwaysOn</enum>
           </property>
@@ -74,6 +89,16 @@
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QTableView" name="tableViewMetadata"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabParcel">
+       <attribute name="title">
+        <string>Ділянка</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayoutTabParcel">
+        <item>
+         <widget class="QTableView" name="tableViewParcel"/>
         </item>
        </layout>
       </widget>

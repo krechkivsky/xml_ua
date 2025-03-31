@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 /***************************************************************************
  xml_ua
@@ -25,13 +25,13 @@
 
 __version__ = "v0.0.7"  # Цей рядок буде замінено на тег під час збірки
 
-# noinspection PyPep8Naming
+
 def classFactory(iface):  # pylint: disable=invalid-name
     """Load xml_ua class from file xml_ua.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
-    #
+
     from .xml_ua import xml_ua
     return xml_ua(iface)
