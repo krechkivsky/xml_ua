@@ -1,8 +1,0 @@
-<.xml_ua_dockwidget.py:240> __init__(): self.tableViewMetadata = <PyQt5.QtWidgets.QTableView object at 0x0000021FDFF33B80>
-<.custom_tree_view.py:26> __init__(): CustomTreeView: <xml_ua.custom_tree_view.CustomTreeView object at 0x0000021FDFF33CA0>
-<.custom_tree_view.py:257> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion
-<.custom_tree_view.py:258> on_item_changed(): item value = 44
-<.custom_tree_view.py:447> on_metadata_item_changed(): Оновлено значення у дереві: UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion -> 44
-<.custom_tree_view.py:257> on_item_changed(): item path = UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverIdentifier
-<.custom_tree_view.py:258> on_item_changed(): item value = 700
-<.custom_tree_view.py:447> on_metadata_item_changed(): Оновлено значення у дереві: UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverIdentifier -> 700
