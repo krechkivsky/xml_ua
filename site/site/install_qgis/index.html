@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://krechkivsky.github.io/xml_ua/install_plugin/">
+        <link rel="canonical" href="https://krechkivsky.github.io/xml_ua/install_qgis/">
       
       
-        <link rel="prev" href="../install_qgis/">
+        <link rel="prev" href="..">
       
       
-        <link rel="next" href="../new_xml/">
+        <link rel="next" href="../install_plugin/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Встановлення плагіна - xml_ua Plugin Documentation</title>
+        <title>Встановлення QGIS - xml_ua Plugin Documentation</title>
       
     
     
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Встановлення плагіна
+              Встановлення QGIS
             
           </span>
         </div>
@@ -240,9 +240,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../install_qgis/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -259,11 +261,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../install_plugin/" class="md-tabs__link">
         
   
   
@@ -387,28 +387,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../install_qgis/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Встановлення QGIS
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
@@ -424,7 +402,7 @@
   
   
   <span class="md-ellipsis">
-    Встановлення плагіна
+    Встановлення QGIS
     
   </span>
   
@@ -437,7 +415,7 @@
   
   
   <span class="md-ellipsis">
-    Встановлення плагіна
+    Встановлення QGIS
     
   </span>
   
@@ -468,47 +446,37 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#xml_ua-qgis" class="md-nav__link">
+  <a href="#qgis" class="md-nav__link">
     <span class="md-ellipsis">
-      Встановлення плагіну xml_ua в QGIS.
+      Інсталяція QGIS
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Встановлення плагіну xml_ua в QGIS.">
+    <nav class="md-nav" aria-label="Інсталяція QGIS">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis-340-wwwqgisorg" class="md-nav__link">
+    <span class="md-ellipsis">
+      Встановити останню довгртермінову версію QGIS 3.40 з офіційного сайту www.qgis.org.
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis-34xx" class="md-nav__link">
+    <span class="md-ellipsis">
+      Налаштування системних змінних для QGIS 3.4X.X
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Як знайти папку де встановлені плагіни
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Як знайти папку де встановлені плагіни">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#windows" class="md-nav__link">
-    <span class="md-ellipsis">
-      Windows:
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#linux" class="md-nav__link">
-    <span class="md-ellipsis">
-      Linux:
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#macos" class="md-nav__link">
-    <span class="md-ellipsis">
-      macOS:
+      Ручне налаштування системних змінних
     </span>
   </a>
   
@@ -517,14 +485,9 @@
           <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      Важливі зауваження:
+      Налаштування системних змінних з допомогою скрипта
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -542,6 +505,28 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install_plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Встановлення плагіна
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -609,27 +594,70 @@
   
 
 
-  <h1>Встановлення плагіна</h1>
+  <h1>Встановлення QGIS</h1>
 
-<p><img alt="Логотип плагіна xml_ua" src="../images/icon.png" /></p>
+<p><img alt="Логотип плагіна" src="../images/icon.png" /></p>
 <h2 id="xml_ua-xml">Плагін xml_ua: Розбробка файлів обміну кадастровою інформацією у форматі XML</h2>
-<h3 id="xml_ua-qgis">Встановлення плагіну xml_ua в QGIS.</h3>
-<p>Завантажити останню версію плагіну xml_ua з ресурсу 
-https://github.com/krechkivsky/xml_ua/</p>
-<h4 id="_1">Як знайти папку де встановлені плагіни</h4>
-<p>Папка встановлених плагінів QGIS залежить від вашої операційної системи:</p>
-<h5 id="windows">Windows:</h5>
-<p>Для QGIS, встановленого через OSGeo4W:
-Зазвичай плагіни знаходяться в каталозі: C:\OSGeo4W\apps\qgis\python\plugins\
-Для окремої установки QGIS:
-Шлях може відрізнятися, але зазвичай це щось на зразок: C:\Users[Ваше ім'я користувача]\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins</p>
-<h5 id="linux">Linux:</h5>
-<p>Зазвичай плагіни знаходяться в: ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/</p>
-<h5 id="macos">macOS:</h5>
-<p>Зазвичай плагіни знаходяться в: /Users/[Ваше ім'я користувача]/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/</p>
-<h5 id="_2">Важливі зауваження:</h5>
-<p>Шлях до папки може трохи відрізнятися залежно від версії QGIS та способу встановлення.
-Папка AppData в Windows зазвичай прихована. Вам потрібно увімкнути відображення прихованих папок, щоб її побачити.</p>
+<h3 id="qgis">Інсталяція QGIS</h3>
+<h4 id="qgis-340-wwwqgisorg">Встановити останню довгртермінову версію QGIS 3.40 з офіційного сайту www.qgis.org.</h4>
+<p>Дана версія 0.9 плагіна створена на базі QT5, тому доцільно вибрати офлайн інсталятор довготермінової (Long Term) версії QGIS 3.40 для Вашої операційної системи. Станом на березень 2025 року версія з QT6 є експериментальною.</p>
+<h4 id="qgis-34xx">Налаштування системних змінних для QGIS 3.4X.X</h4>
+<h4 id="_1">Ручне налаштування системних змінних</h4>
+<ul>
+<li>
+<p>У каталозі, де встановлена QGIS (C:\Program Files\QGIS 3.4X.X) повинні бути папки </p>
+<ul>
+<li>
+<p>apps\qgis-ltr\bin</p>
+</li>
+<li>
+<p>apps\Python312</p>
+</li>
+<li>
+<p>apps\Python312\Scripts</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Алгоритм створення/редагування системних змінних:</p>
+<ul>
+<li>По правому кліку на значку «Цей ПК» («Мій комп'ютер»)</li>
+<li>Вибрати пункт «Властивості» з контекстного меню </li>
+<li>Використовуючи прокрутку у правій частині вікна «Налаштування», у розділі «Пов'язані налаштування», вибрати пункт «Додаткові налаштування системи»  </li>
+<li>У вікні «Властивості системи», на вкладці «Додатково» натиснути кнопку «Змінні оточення»  </li>
+<li>У таблиці «Системні змінні» з допомогою кнопок «Створити...» і/або «Редагувати...» наступні системні змінні:</li>
+</ul>
+</li>
+</ul>
+<table>
+    <tr>
+        <th>Змінна</th>
+        <th>Значення (залежить від шляху установки і версії QGIS)</th>
+    </tr>
+    <tr>
+        <td>PATH</td>
+        <td>D:\Program Files\QGIS 3.40.4\apps\qgis-ltr\bin;D:\Program Files\QGIS 3.40.4\apps\Python312\Scripts;D:\Program Files\QGIS 3.40.4\apps\Python312</td>
+    </tr>
+    <tr>
+        <td>PYTHONPATH</td>
+        <td>D:\Program Files\QGIS 3.40.4\apps\qgis-ltr\python;D:\Program Files\QGIS 3.40.4\apps\Python312;C:\Program Files\QGIS 3.40.4\apps\Python312\Lib\site-packages</td>
+    </tr>
+    <tr>
+        <td>QGIS_PREFIX_PATH</td>
+        <td>D:\Program Files\QGIS 3.40.4\apps\qgis-ltr</td>
+    </tr>
+    <tr>
+        <td>GDAL_DATA</td>
+        <td>D:\Program Files\QGIS 3.40.4\apps\qgis-ltr\share\gdal</td>
+    </tr>
+    <tr>
+        <td>QT_PLUGIN_PATH</td>
+        <td>D:\Program Files\QGIS 3.40.4\apps\qgis-ltr\qtplugins</td>
+    </tr>
+</table>
+
+<h4 id="_2">Налаштування системних змінних з допомогою скрипта</h4>
+<p>З <a href="../install_plugin/">папки плагіна</a> скопіювати файл set_system_vars.bat у папку де встановлений QGIS і запустити його на виконання з правами адміністратора.</p>
 
 
 
