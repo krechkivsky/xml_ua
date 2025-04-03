@@ -1,6 +1,5 @@
 
-<img src="images/icon.png" width="50">
-
+![index.md](images/icon.png)
 
 ### Встановлення плагіну xml_ua в QGIS.
 

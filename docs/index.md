@@ -1,4 +1,5 @@
-<img src="images/icon.png" width="50">
+![index.md](images/icon.png)
+
 
 ## Плагін xml_ua: Розбробка файлів обміну кадастровою інформацією у форматі XML
 

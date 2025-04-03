@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 """Обробка XML дерева"""
 
 import re
@@ -29,19 +29,19 @@ class CustomTreeView(QTreeView):
         Клас віджета XML дерева
     """
 
+    # Сигнал для повідомлення про зміну даних у вузлі дерева
+    # перший параметр full_path
+    # другий параметр value
+    # шлях (гілки?) і значення (листка?)
 
-
-
-
-
-
-
-
-
-
-
-
-
+    # Коли користувач редагує значення в дереві, викликається метод 
+    # on_tree_model_data_changed класу CustomTreeView.
+    # Цей метод правильно визначає повний шлях (full_path) до 
+    # зміненого елемента та його нове значення (value).
+    # Він також правильно емітує сигнал dataChangedInTree, 
+    # який може бути використаний для синхронізації з іншими віджетами.
+    # Але він не зберігає зміни в XML-дереві (self.xml_tree) 
+    # та не викликає функцію збереження на диск.
 
 
     dataChangedInTree = pyqtSignal(str, str)
@@ -64,7 +64,7 @@ class CustomTreeView(QTreeView):
         """
         super().__init__(parent)
 
-
+        # log_msg(logFile, "CustomTreeView")
 
         self.parent = parent
         self.tree_upd = False   # Флаг для запобігання циклічним змінам
@@ -78,14 +78,14 @@ class CustomTreeView(QTreeView):
 
         self.model.setHorizontalHeaderLabels(["Елемент", "Значення"])
 
-
+        #self.model.itemChanged.connect(self.on_tree_model_data_changed)
         connector.connect(self.model, "itemChanged", self.on_tree_model_data_changed)
         self.group_name = ""
 
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setSelectionMode(QAbstractItemView.NoSelection)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
-
+        #self.customContextMenuRequested.connect(self.show_context_menu)
         connector.connect(self, "customContextMenuRequested", self.show_context_menu)
         self.allowed_dothers = {}
         self.load_allowed_dothers()
@@ -98,48 +98,48 @@ class CustomTreeView(QTreeView):
             Обробка змін у вузлі дерева, запобігання циклічному виклику 
         """
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        # 1.Оновлення self.xml_tree:
+        #
+        # У методі on_tree_model_data_changed класу CustomTreeView 
+        # потрібно додати код, який буде оновлювати відповідний 
+        # елемент в self.xml_tree на основі full_path та value.
+        # Для цього потрібно:
+        #   Розпарсити full_path для знаходження відповідного 
+        #   елемента в self.xml_tree.
+        #   Оновити text цього елемента на value.
+        # 
+        # 🔨.Збереження при закритті (опціонально):
+        # 
+        # Додати обробник події закриття док-віджета (closeEvent) 
+        # або плагіна (onClosePlugin), який буде запитувати користувача, 
+        # чи потрібно зберегти зміни, якщо вони були.
         
 
         log_msg(logFile, f"{item.text()}")
 
-
+        # Якщо вже йде оновлення, нічого не робимо
         if self.tree_upd:  
             log_msg(logFile, "пропускаємо оновлення дерева")
             return
 
-
+        # Початок синхронізації
         self.tree_upd = True  
         log_msg(logFile, f"tree_upd = {self.tree_upd}")
         try:
             log_msg(logFile, f"tree_upd = {self.tree_upd}")
-
+            # Отримати шлях до елемента
             full_path = self.get_item_path(item)  
             value = item.text()
 
-
+            # Оновлення self.xml_tree
             self.update_xml_tree(full_path, value)
 
-
-
+            # Емітуємо сигнал dataChangedInTree для підключених компонентів
+            # Передача змін у таблицю через сигнал dataChangedInTree
             log_msg(logFile, f"try: emit dataChangedInTree")
             self.dataChangedInTree.emit(full_path, value)
         finally:
-
+            # Завершення синхронізації
             self.tree_upd = False
             log_msg(logFile, f"tree_upd = {self.tree_upd}")
 
@@ -149,11 +149,11 @@ class CustomTreeView(QTreeView):
         Оновлює self.xml_tree на основі full_path та value.
         """
         
-
-
-
-
-
+        # приймає full_path та value як аргументи.
+        # розбиває full_path на частини, щоб знайти відповідний елемент 
+        # в self.xml_tree.
+        # Він оновлює text знайденого елемента на value.
+        # Додано обробку помилок, якщо елемент не знайдено.
 
         log_msg(logFile, f"full_path: {full_path}, value: {value}")
         if self.xml_tree is None:
@@ -161,13 +161,13 @@ class CustomTreeView(QTreeView):
             return
 
         try:
-
+            # Розділяємо шлях на частини
             path_parts = full_path.split("/")
-
+            # Починаємо з кореневого елемента
             current_element = self.xml_tree.getroot()
 
-
-
+            # Проходимо по частинах шляху, знаходячи відповідні елементи
+            # Пропускаємо кореневий елемент
             for part in path_parts[1:]:  
                 found = False
                 for child in current_element:
@@ -179,7 +179,7 @@ class CustomTreeView(QTreeView):
                     log_msg(logFile, f"Error: Element '{part}' not found in path '{full_path}'")
                     return
 
-
+            # Оновлюємо значення елемента
             current_element.text = value
             log_msg(logFile, f"Element '{full_path}' updated with value '{value}'")
         except Exception as e:
@@ -201,10 +201,10 @@ class CustomTreeView(QTreeView):
         """
         log_msg(logFile)
 
-
+        # Отримання повного шляху до елемента
         full_path = self.get_full_path(item)
         value = item.text()
-
+        # Емітуємо сигнал із даними (шлях вузла та нове значення)
         self.dataChangedInTree.emit(full_path, value)
         return
 
@@ -220,17 +220,17 @@ class CustomTreeView(QTreeView):
         """
         log_msg(logFile, "")
 
-
+        # Завантажуємо секцію [AllowedDothers]
         if "AllowedDothers" in config:
             for path, rules in config["AllowedDothers"].items():
                 self.allowed_dothers[path.strip()] = {}
-
+                # Видаляємо зайві пробіли
                 rules = " ".join(rules.split())
                 elements = rules.split(" ")
                 for i in range(0, len(elements), 2):
                     try:
                         element = elements[i]
-
+                        # Перетворюємо кількість на число
                         limit = int(elements[i + 1])
                         self.allowed_dothers[path.strip()][element] = limit
                     except (IndexError, ValueError):
@@ -252,24 +252,24 @@ class CustomTreeView(QTreeView):
 
         menu = QMenu()
 
-
+        # Дія "Додати дочірній елемент"
         if path in self.allowed_dothers:
             add_child_menu = QMenu("Додати дочірній елемент", menu)
 
             for child_name, max_count in self.allowed_dothers[path].items():
                 child_count = self.get_current_child_count(item, child_name)
 
-
+                # Дозволяємо додати елемент, якщо обмеження не досягнуто
                 if max_count == 0 or child_count < max_count:
                     child_action = QAction(child_name, menu)
-
+                    #child_action.triggered.connect(self.create_add_child_callback(item, child_name))
                     connector.connect(child_action, "triggered", self.create_add_child_callback(item, child_name))
                     add_child_menu.addAction(child_action)
 
             if add_child_menu.actions():
                 menu.addMenu(add_child_menu)
 
-
+        # Відображення контекстного меню
         menu.exec_(self.viewport().mapToGlobal(position))
 
     def get_element_path(self, item):
@@ -340,7 +340,7 @@ class CustomTreeView(QTreeView):
             return
         item = self.model.itemFromIndex(index)
         if item:
-
+            # Наприклад, встановлюємо нове значення (можна реалізувати через діалог)
             new_value = "Новe Значення"  # Український текст
             item.setText(new_value)
             item.setToolTip("Оновлене значення елемента")  # Український опис
@@ -389,9 +389,9 @@ class CustomTreeView(QTreeView):
 
         """
         
+        # log_calls(logFile)
 
-
-
+        # Отримання моделі дерева
         model = self.model
         if model is None:
             return
@@ -406,16 +406,16 @@ class CustomTreeView(QTreeView):
             if item is None:
                 return
 
-
+            # Перевірка, чи потрібно розкрити елемент
             if item.text() in self.elements_to_expand:
                 self.expand(index)
 
-
+            # Обхід дочірніх елементів
             for row in range(item.rowCount()):
                 child_index = model.index(row, 0, index)
                 expand_recursively(child_index)
 
-
+        # Початковий вузол
         root_index = model.index(0, 0)
         expand_recursively(root_index)
 
@@ -428,13 +428,13 @@ class CustomTreeView(QTreeView):
         log_msg(logFile)
         path = []
         while item:
-
+            # Отримуємо текст із першої колонки
             parent = item.parent()
             if parent:
-
+                # Беремо текст із колонки 0
                 key = parent.child(item.row(), 0).text()
             else:
-
+                # Якщо елемент кореневий
                 key = self.model.item(item.row(), 0).text()
             path.insert(0, key)
             item = parent
@@ -442,7 +442,7 @@ class CustomTreeView(QTreeView):
 
     def set_column_width(self, column_index, width_percentage):
 
-
+        # log_msg(logFile)
         total_width = self.viewport().width()
         column_width = int(total_width * width_percentage / 100)
         self.setColumnWidth(column_index, column_width)
@@ -549,110 +549,110 @@ class CustomTreeView(QTreeView):
             return
 
         item_CRS = self.model.itemFromIndex(index_CRS)
-
+        # ✔ 2025.01.30 10:32:42 CoordinateSystem
         log_msg(logFile, f"Знайдено вузол {item_CRS.text()}")
-
-
+        # Треба знайти дочірній елемент CoordinateSystem
+        # Якщо він не знайдений, то виходимо
         if item_CRS.rowCount() == 0:
             log_msg(logFile, f"Дочірній елемент CoordinateSystem не знайдено.")
             return
         log_msg(
             logFile, f"Елемент CoordinateSystem має {item_CRS.rowCount()} дочірніх елементів.")
-
+        # Знаходимо дочірній елемент CoordinateSystem
         item_CRS_child = item_CRS.child(0)
         log_msg(logFile, f"Дочірній елемент {item_CRS_child.text()}")
 
-
+        # Якщо стара CoordinateSystem SC63
         if item_CRS_child.text() == "SC63":
 
-
+            # Якщо нова CoordinateSystem SC63
             if value.startswith("SC63,"):
-
+                # то парсуємо новий район {X,C,P,T}
                 sc63_region = value.split(",")[1].strip()
                 log_msg(logFile, f"Новий SC63 район: {sc63_region}")
-
+                # Знаходимо старий район - дочірній елемент SC63
                 item_CRS_child_child = item_CRS_child.child(0)
-
+                # Логуємо район
                 log_msg(
                     logFile, f"Старий SC63 район {item_CRS_child_child.text()}")
-
+                # Оновлюємо район
                 item_CRS_child_child.setText(sc63_region)
-
+                # Логуємо район
                 log_msg(
                     logFile, f"Оновлений SC63 район {item_CRS_child_child.text()}")
-
+            # Якщо нова CoordinateSystem Local
             elif value.startswith("Local"):
-
+                # замінюємо SC63 на нову Local
                 item_CRS_child.setText("Local")
-
+                # знаходимо дочірній елемент Local
                 item_CRS_child_child = item_CRS_child.child(0)
-
+                # парсимо номер нової локальної CS, який знаходиться в дужках
                 local_CS_number = value[value.find("(") + 1:value.find(")")]
-
+                # Логуємо номер
                 log_msg(
                     logFile, f"Новий номер локальної CS: {local_CS_number}")
-
+                # Оновлюємо номер
                 item_CRS_child_child.setText(local_CS_number)
-
+            # Якщо нова CoordinateSystem інша
             else:
-
+                # видаляємо старий район
                 item_CRS_child.removeRows(0, item_CRS_child.rowCount())
-
+                # замінюємо SC63 на нову
                 item_CRS_child.setText(value)
-
+        # Якщо стара CoordinateSystem Local
         elif item_CRS_child.text() == "Local":
-
+            # Якщо нова CoordinateSystem SC63
             if value.startswith("SC63,"):
-
+                # замінюємо Local на нову SC63
                 item_CRS_child.setText("SC63")
-
+                # знаходимо дочірній елемент SC63
                 item_CRS_child_child = item_CRS_child.child(0)
-
+                # парсимо номер нової SC63, який знаходиться після коми
                 sc63_region = value.split(",")[1].strip()
-
+                # Логуємо номер
                 log_msg(logFile, f"Новий SC63 район: {sc63_region}")
-
+                # Оновлюємо номер
                 item_CRS_child_child.setText(sc63_region)
-
+            # Якщо нова CoordinateSystem Local
             elif value.startswith("Local"):
-
+                # парсимо номер нової локальної CS, який знаходиться в дужках
                 local_CS_number = value[value.find("(") + 1:value.find(")")]
-
+                # Логуємо номер
                 log_msg(
                     logFile, f"Новий номер локальної CS: {local_CS_number}")
-
+                # Оновлюємо номер
                 item_CRS_child.child(0).setText(local_CS_number)
-
+            # Якщо нова CoordinateSystem інша
             else:
-
+                # видаляємо старий номер
                 item_CRS_child.removeRows(0, item_CRS_child.rowCount())
-
+                # замінюємо Local на нову
                 item_CRS_child.setText(value)
-
+        # Якщо стара CoordinateSystem інша (не SC63, не Local)
         else:
-
+            # Якщо нова CoordinateSystem SC63
             if value.startswith("SC63,"):
-
+                # знаходимо новий район
                 sc63_region = value.split(",")[1].strip()
-
+                # Замінюємо стару CoordinateSystem на SC63
                 item_CRS_child.setText("SC63")
-
+                # Додаємо новий район
                 item_CRS_child.appendRow(
                     [QStandardItem(sc63_region), QStandardItem()])
-
+            # Якщо нова CoordinateSystem Local
             elif value.startswith("Local"):
-
+                # парсимо номер нової локальної CS, який знаходиться в дужках
                 local_CS_number = value[value.find("(") + 1:value.find(")")]
-
+                # Замінюємо стару CoordinateSystem на Local
                 item_CRS_child.setText("Local")
-
+                # Додаємо новий номер
                 item_CRS_child.appendRow(
                     [QStandardItem(local_CS_number), QStandardItem()])
-
+            # Якщо нова CoordinateSystem інша
             else:
-
+                # Замінюємо стару CoordinateSystem на нову
                 item_CRS_child.setText(value)
-
+        # Логуємо результат
         log_msg(logFile, f"Оновлений CoordinateSystem: {value}")
         return
 
@@ -665,9 +665,9 @@ class CustomTreeView(QTreeView):
             log_msg(logFile, "Елемент HeightSystem не знайдено у дереві.")
             return
         item_HeightSystem = self.model.itemFromIndex(index_HeightSystem)
-
+        # знаходимо дочірній елемент HeightSystem
         item_HeightSystem_child = item_HeightSystem.child(0)
-
+        # замінюємо його на новий
         item_HeightSystem_child.setText(value)
 
     def tree_MeasurementUnit_update(self, path, value):
@@ -679,9 +679,9 @@ class CustomTreeView(QTreeView):
             log_msg(logFile, "Елемент MeasurementUnit не знайдено у дереві.")
             return
         item_MeasurementUnit = self.model.itemFromIndex(index_MeasurementUnit)
-
+        # знаходимо дочірній елемент MeasurementUnit
         item_MeasurementUnit_child = item_MeasurementUnit.child(0)
-
+        # замінюємо його на новий
         item_MeasurementUnit_child.setText(value)
 
     def tree_CadastralZoneNumber_update(self, path, value):
@@ -729,57 +729,57 @@ class CustomTreeView(QTreeView):
         if not index_LocalAuthorityHead.isValid():
             log_msg(logFile, "Елемент LocalAuthorityHead не знайдено у дереві.")
             return
+        # Парсимо value Прізвище, Ім'я та (за потреби) По батькові мають містити тільки літери українського алфавіту.
+        # У Ім'я та По батькові допускаються крапки, якщо є ініціали (наприклад, І.І.)
+        # Якщо відсутній По батькові, то вказується тільки Прізвище та Ім'я
+        # Прізвище, Ім'я та (за потреби) По батькові мають бути розділені пробілами
+        # Прізвище, Ім'я та (за потреби) По батькові мають починатися з великої літери
+        # Прізвище, Ім'я та (за потреби) По батькові мають містити тільки літери українського алфавіту
 
-
-
-
-
-
-
-
+        # Перевіряємо валідність значення
         if not self.validate_full_name(value):
             log_msg(logFile, f"Невірний формат значення '{value}'")
             return
-
+        # Розділяємо значення на Прізвище, Ім'я та (за потреби) По батькові
         if len(value.split(" ")) == 2:
             surname, name = value.split(" ")
             MiddleName = ""
         else:
             surname, name, MiddleName = value.split(" ")
-
+        # Логуємо знайдені значення
         log_msg(
             logFile, f"Прізвище: {surname}, Ім'я: {name}, По батькові: {MiddleName}")
 
-
+        # Знаходимо елемент LocalAuthorityHead
         item_LocalAuthorityHead = self.model.itemFromIndex(
             index_LocalAuthorityHead)
-
+        # Знаходимо дочірній елемент LocalAuthorityHead LastName
         item_LocalAuthorityHead_child_0 = item_LocalAuthorityHead.child(0)
         pathLastName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/LocalAuthorityHead/LastName"
-
+        # Знаходимо індекс елемента LastName
         index_LocalAuthorityHead_child_0 = self.find_element_index(
             pathLastName)
-
+        # Змінюємо значення елемента у колонці 1
         item_LocalAuthorityHead_child_0.parent().child(item_LocalAuthorityHead_child_0.row(),
-
+                                                       # ✔ 2025.01.30 15:11:08
                                                        1).setText(surname)
-
+        # Знаходимо дочірній елемент LocalAuthorityHead FirstName
         item_LocalAuthorityHead_child_1 = item_LocalAuthorityHead.child(1)
         pathFirstName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/LocalAuthorityHead/FirstName"
-
+        # Знаходимо індекс елемента FirstName
         index_LocalAuthorityHead_child_1 = self.find_element_index(
             pathFirstName)
-
+        # Змінюємо значення елемента у колонці 1
         item_LocalAuthorityHead_child_1.parent().child(
             item_LocalAuthorityHead_child_1.row(), 1).setText(name)
-
-
+        # Якщо По батькові вказано
+        # Знаходимо дочірній елемент LocalAuthorityHead MiddleName
         item_LocalAuthorityHead_child_2 = item_LocalAuthorityHead.child(2)
         pathMiddleName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/LocalAuthorityHead/MiddleName"
-
+        # Знаходимо індекс елемента MiddleName
         index_LocalAuthorityHead_child_2 = self.find_element_index(
             pathMiddleName)
-
+        # Змінюємо значення елемента у колонці 1
         item_LocalAuthorityHead_child_2.parent().child(
             item_LocalAuthorityHead_child_2.row(), 1).setText(MiddleName)
 
@@ -791,52 +791,52 @@ class CustomTreeView(QTreeView):
         if not index_DKZRHead.isValid():
             log_msg(logFile, "Елемент DKZRHead не знайдено у дереві.")
             return
+        # Парсимо value Прізвище, Ім'я та (за потреби) По батькові мають містити тільки літери українського алфавіту.
+        # У Ім'я та По батькові допускаються крапки, якщо є ініціали (наприклад, І.І.)
+        # Якщо відсутній По батькові, то вказується тільки Прізвище та Ім'я
+        # Прізвище, Ім'я та (за потреби) По батькові мають бути розділені пробілами
+        # Прізвище, Ім'я та (за потреби) По батькові мають починатися з великої літери
+        # Прізвище, Ім'я та (за потреби) По батькові мають містити тільки літери українського алфавіту
 
-
-
-
-
-
-
-
+        # Перевіряємо валідність значення
         if not self.validate_full_name(value):
             log_msg(logFile, f"Невірний формат значення '{value}'")
             return
-
+        # Розділяємо значення на Прізвище, Ім'я та (за потреби) По батькові
         if len(value.split(" ")) == 2:
             surname, name = value.split(" ")
             MiddleName = ""
         else:
             surname, name, MiddleName = value.split(" ")
-
+        # Логуємо знайдені значення
         log_msg(
             logFile, f"Прізвище: {surname}, Ім'я: {name}, По батькові: {MiddleName}")
 
-
+        # Знаходимо елемент DKZRHead
         item_DKZRHead = self.model.itemFromIndex(index_DKZRHead)
-
+        # Знаходимо дочірній елемент DKZRHead LastName
         item_DKZRHead_child_0 = item_DKZRHead.child(0)
         pathLastName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/DKZRHead/LastName"
-
+        # Знаходимо індекс елемента LastName
         index_DKZRHead_child_0 = self.find_element_index(pathLastName)
-
+        # Змінюємо значення елемента у колонці 1
         item_DKZRHead_child_0.parent().child(item_DKZRHead_child_0.row(),
-
+                                             # ✔ 2025.01.30 15:11:08
                                              1).setText(surname)
-
+        # Знаходимо дочірній елемент DKZRHead FirstName
         item_DKZRHead_child_1 = item_DKZRHead.child(1)
         pathFirstName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/DKZRHead/FirstName"
-
+        # Знаходимо індекс елемента FirstName
         index_DKZRHead_child_1 = self.find_element_index(pathFirstName)
-
+        # Змінюємо значення елемента у колонці 1
         item_DKZRHead_child_1.parent().child(item_DKZRHead_child_1.row(), 1).setText(name)
-
-
+        # Якщо По батькові вказано
+        # Знаходимо дочірній елемент DKZRHead MiddleName
         item_DKZRHead_child_2 = item_DKZRHead.child(2)
         pathMiddleName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/DKZRHead/MiddleName"
-
+        # Знаходимо індекс елемента MiddleName
         index_DKZRHead_child_2 = self.find_element_index(pathMiddleName)
-
+        # Змінюємо значення елемента у колонці 1
         item_DKZRHead_child_2.parent().child(
             item_DKZRHead_child_2.row(), 1).setText(MiddleName)
 
@@ -848,7 +848,7 @@ class CustomTreeView(QTreeView):
         ref = element.get("ref")
 
         if ref:
-
+            # Якщо використовується ref, знайти елемент за ref
             ref_element = element.getroottree().xpath(
                 f"//xsd:element[@name='{ref}']", namespaces=ns)  # pylint: disable=line-too-long
             if ref_element:
@@ -859,33 +859,33 @@ class CustomTreeView(QTreeView):
             return
 
         if name:
-
+            # Формуємо повний шлях
             full_path = f"{full_path}/{name}".strip("/") if full_path else name
 
-
+            # Витягуємо документацію
             documentation = element.xpath(
                 './xsd:annotation/xsd:documentation', namespaces=ns)
             if documentation:
                 self.xsd_descriptions[full_path] = documentation[0].text.strip(
                 )
 
-
+            # Логування для перевірки
             print(f"Extracted: name = '{name}', path = '{full_path}'")
 
-
+        # Обробка вкладених структур у xsd:complexType
         complex_type = element.xpath('./xsd:complexType', namespaces=ns)
         if complex_type:
             for child in complex_type[0].xpath('./xsd:sequence/xsd:element | ./xsd:choice/xsd:element | ./xsd:all/xsd:element', namespaces=ns):  # pylint: disable=line-too-long
                 self.extract_descriptions(child, full_path, ns)
 
-
+        # Якщо елемент має атрибут type, обробляємо цей тип
         ref_type = element.get("type")
         if ref_type:
             if ref_type.startswith("xsd:"):
-
+                # Пропускаємо вбудовані типи (наприклад, xsd:string)
                 pass
             else:
-
+                # Обробка типу (complexType або simpleType)
                 ref_element = element.getroottree().xpath(
                     f"//xsd:complexType[@name='{ref_type}'] | //xsd:simpleType[@name='{ref_type}']", namespaces=ns)  # pylint: disable=line-too-long
                 if ref_element:
@@ -899,18 +899,18 @@ class CustomTreeView(QTreeView):
         Парсує XSD-файл і витягує описи для елементів.
         Формує словник, де ключ — повний шлях до елемента, значення — опис.
         """
-
+        # log_msg(logFile, )
 
         self.xsd_descriptions = {}
         try:
-
+            # Парсинг XSD
             xsd_tree = etree.parse(
                 path_to_xsd)  # pylint: disable=c-extension-no-member
             root = xsd_tree.getroot()
-
+            # Простір імен для xsd
             ns = {'xsd': 'http://www.w3.org/2001/XMLSchema'}
 
-
+            # Знаходимо кореневий елемент
             root_element = root.xpath(
                 "//xsd:element[@name='UkrainianCadastralExchangeFile']", namespaces=ns)  # pylint: disable=line-too-long
             if root_element:
@@ -923,20 +923,20 @@ class CustomTreeView(QTreeView):
             log_msg(
                 logFile, f"Помилка при парсингу XSD: {e}")  # pylint: disable=broad-except
 
-
+        # log_dict(logFile, self.xsd_descriptions, msg="xsd_descriptions")
         return self.xsd_descriptions
 
     def _add_element_to_tree(self, element, parent_item, full_path=""):
         """ Рекурсивно додає XML-елементи до моделі дерева, встановлюючи підказки.
         """
         name = etree.QName(element).localname
-
-
+        # log_msg(logFile, f"name = {name}")
+        # Оновлюємо повний шлях
         if full_path:
             full_path = f"{full_path}/{name}"
         else:
             full_path = name
-
+        # Створюємо елементи для моделі
         name_item = QStandardItem(name)
         value_item = QStandardItem(
             element.text.strip() if element.text else "")
@@ -950,19 +950,19 @@ class CustomTreeView(QTreeView):
         name_item.setData(0, Qt.UserRole + 2)
         value_item.setData(1, Qt.UserRole + 2)
 
-
+        # Встановлюємо підказку, якщо опис доступний
         description = self.xsd_descriptions.get(full_path, "")
         if description:
             name_item.setToolTip(description)
             value_item.setToolTip(description)
 
-
+        # Забороняємо редагування ключа (назви)
         name_item.setEditable(False)
         value_item.setEditable(False)
 
-
+        # Додаємо елементи до дерева
         parent_item.appendRow([name_item, value_item])
-
+        # Рекурсивно додаємо дочірні елементи
         for child in element:
             self._add_element_to_tree(child, name_item, full_path)
 
@@ -971,8 +971,8 @@ class CustomTreeView(QTreeView):
             path_to_xsd: str = "",
             tree: etree._ElementTree = None):
 
-
-
+        # Ця функція першопочатково створює електронне дерево xml
+        # при відкритті xml файла
         """
         Loads an XML file into a tree view and validates it against an XSD schema.
         Args:
@@ -982,8 +982,8 @@ class CustomTreeView(QTreeView):
             Exception: If there is an error loading or parsing the XML file.
         """
 
-
-
+        # Ця функція викликає рекурсивну функцію _add_element_to_tree
+        # log_calls(logFile, f"xml_path = {xml_path}\npath_to_xsd = {path_to_xsd}\ntree = {tree}")
 
         self.tree_row = 0
 
@@ -995,17 +995,17 @@ class CustomTreeView(QTreeView):
             else:
                 self.xml_tree = etree.parse(xml_path)
 
-
+            # Очищаємо існуючу модель дерева при повторному відкритті XML
             self.model.removeRows(0, self.model.rowCount())
 
             root = self.xml_tree.getroot()
 
-
-
+            # саме тут відбувається заповнення моделі дерева вкладки "Структура"
+            # даними з xml_tree
             self._add_element_to_tree(root, self.model.invisibleRootItem())
 
-
-
+            # після заповнення моделі дерева потрібно розкрити елементи 
+            # дерева, які призначені бути розкритими expand_initial_elements
 
         except Exception as e:
             log_msg(logFile, f"Помилка при завантаженні XML: {e}")
@@ -1023,14 +1023,14 @@ class CustomTreeView(QTreeView):
             Exception: If there is an error saving the XML file.
         """
 
-
-
-
-
-
-
-
-
+        # Метод save_xml_tree класу CustomTreeView відповідає 
+        # за збереження XML-дерева на диск.
+        # Він приймає об'єкт etree._ElementTree (xml_tree) 
+        # та шлях до файлу (xml_path).
+        # Він правильно використовує xml_tree.write() для 
+        # запису даних у файл.
+        # Але цей метод викликається лише при явній дії 
+        # користувача "Зберегти" або "Зберегти як".
 
         try:
             xml_tree.write(xml_path, encoding="utf-8", xml_declaration=True)
@@ -1045,9 +1045,9 @@ class CustomTreeView(QTreeView):
         """
             Знаходить індекс елемента у дереві на основі шляху або імені.
         """
-
+        # log_msg(logFile) # recursion
         if path:
-
+            # Логіка пошуку за шляхом
             current_index = QModelIndex()
             path_parts = path.split("/")  # Розділяємо шлях на частини
             for part in path_parts:
@@ -1056,18 +1056,18 @@ class CustomTreeView(QTreeView):
                     child_index = self.model.index(row, 0, current_index)
                     child_item = self.model.itemFromIndex(child_index)
                     if child_item and child_item.text() == part:
-
+                        # Переходимо на наступний рівень дерева
                         current_index = child_index
                         found = True
                         break
                 if not found:
-
+                    # Якщо будь-яка частина шляху не знайдена, повертаємо пустий індекс
                     return QModelIndex()
             return current_index
         elif element_name:
-
+            # Логіка пошуку за іменем
             for row in range(self.model.rowCount()):
-
+                # Припустимо, імена у першій колонці
                 item = self.model.item(row, 0)
                 if item and item.text() == element_name:
                     return self.model.indexFromItem(item)

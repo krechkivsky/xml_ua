@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 import os
 import sys
 import inspect
@@ -33,9 +33,9 @@ xml_file_name = ""
 
 
 
-
-
-
+# Custom objects know their class.
+# Function objects seem to know way too much, including modules.
+# Exclude modules as well.
 BLACKLIST = type, ModuleType, FunctionType
 
 def size(obj):
@@ -70,23 +70,23 @@ class Connections(QObject):
         """
         Встановлює з'єднання між сигналом та слотом, якщо воно ще не встановлено.
         """
-
+        # Перевіряємо, чи з'єднання вже існує
         if self.connection_established(sender, signal_name, slot):
             log_calls(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             QMessageBox.warning(None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             return  # Виходимо, якщо з'єднання вже є
 
         try:
-
+            # Отримуємо сигнал за назвою від об'єкта sender
             signal = getattr(sender, signal_name)
 
-
+            # Перевіряємо чи signal є сигналом або функцією
             if not isinstance(signal, pyqtSignal) and not callable(signal):
                  raise AttributeError(f"'{signal_name}' is not a signal or callable on '{type(sender).__name__}'")
 
             signal.connect(slot)
             self.connections.append((sender, signal_name, slot))
-
+            # log_calls(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
         except AttributeError as e:
             log_calls(logFile, f"Помилка встановлення з'єднання: {e}")
 
@@ -141,7 +141,7 @@ class Connections(QObject):
         return result
 
 
-
+# Створюємо глобальний екземпляр з'єднань
 connector = Connections()
 
 
@@ -165,7 +165,7 @@ def log_msg(logFile, msg=""):
     """ """
     filename = os.path.basename(inspect.stack()[1].frame.f_code.co_filename)
     lineno = sys._getframe().f_back.f_lineno
-
+    #logFile.write(f"\n### [{caller(2)}(): {msg}]({filename}#L{lineno})" )
     logFile.write(f"\n##### [{caller(2)}():]({filename}#L{lineno}) {msg}" )
     logFile.flush()
 
@@ -174,7 +174,7 @@ def get_call_stack(i: int):
     """Отримує стек викликів у вигляді рядка у зворотному порядку."""
     stack = inspect.stack()
     result = ""
-
+    # Ітеруємо по стеку у зворотному порядку, пропускаючи перші два фрейми
     i = 0
     for frame_info in reversed(stack[2:]):
         i += 1
@@ -185,7 +185,7 @@ def get_call_stack(i: int):
         func_name = frame.f_code.co_name
         if filename != "<string>":
             result += f"\n [{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
-
+        #result += f"[{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})\n"
 
     return result
 
@@ -194,9 +194,9 @@ def log_calls(logFile: str, msg: str = "") -> None:
     """ Записує повідомлення в лог-файл з інформацією про стек викликів.
     """
     stack_info = get_call_stack(2)
-
+    #log_message = f"\n#### Стек викликів:{stack_info} {msg}"
     log_message = f"{stack_info}→\n{msg} \n"
-
+    #log_message = f"\n## {stack_info}→\n{msg}"
     logFile.write(log_message)
     logFile.flush()
 
@@ -216,10 +216,10 @@ def geometry_to_string(geometry):
     """
     if not isinstance(geometry, QgsGeometry):
         return "Error: Input must be a QgsGeometry object."
+        # raise TypeError("Input must be a QgsGeometry object.")
 
-
-
-
+    # if not geometry.isValid():
+    #     return "Error: Invalid geometry."
 
     if geometry.isEmpty():
         return ""

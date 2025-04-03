@@ -1,4 +1,4 @@
-<img src="images/icon.png" width="50">
+![index.md](images/icon.png)
 
 ## Створення нового XML-файлу
 

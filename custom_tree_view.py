@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QWidget
 from PyQt5.QtWidgets import QVBoxLayout,QHBoxLayout, QMenuBar, QMenu, QAction
 from PyQt5.QtWidgets import QPushButton, QMessageBox, QToolButton, QStyle
@@ -15,29 +15,29 @@ from . import common
 class CustomTreeView(QTreeView):
     
     dataChangedSignal = pyqtSignal(str, str)  
-
+    # Signal to synchronize data changes
 
     def __init__(self, parent=None, table_view_metadata=None):
-
-
+        # table_view_metadata - резервування пераметра для отримання з батьківського
+        # класу лінку на таблицю з метаданими
         
         super().__init__(parent)
 
         logging(common.logFile, f"CustomTreeView: {self}")
         
         self.tableViewMetadata = table_view_metadata  
-
+        # Збереження посилання на tableViewMetadata у елемент класу
         
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["Елемент", "Значення"])
         self.setModel(self.model)
         self.xsd_descriptions = {}
 
-
+        # Налаштовуємо політику прокрутки
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         
-
+        # Політика контекстного меню
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         
@@ -49,30 +49,30 @@ class CustomTreeView(QTreeView):
             Завантажує XML у вигляд дерева та заповнює tableViewMetadata 
             даними розділу ServiceInfo.
         '''
-
+        # logging(common.logFile, f"table_view: {table_view}")
         parts = xml_path.split("/")
         xml_fn = parts[-1]
         parts = xsd_path.split("/")
         xsd_fn = parts[-1]
-
+        # logging(common.logFile, f"{xml_fn}, {xsd_fn}")
         try:
-
+            # Парсимо XSD та будуємо словник описів
             self.xsd_descriptions = self.load_xsd_descriptions(xsd_path)
             
-
+            # Парсимо XML
             xml_tree = etree.parse(xml_path)
 
-
+            # Валідація XML за допомогою XSD
             xsd_tree = etree.parse(xsd_path)
             xsd_schema = etree.XMLSchema(xsd_tree)
             
+            # if not xsd_schema.validate(xml_tree):
+                # logging(common.logFile, f"XML не відповідає XSD:\n{xsd_schema.error_log}")
 
-
-
-
+            # Очищаємо існуючу модель
             self.model.removeRows(0, self.model.rowCount())
 
-
+            # Заповнюємо дерево
             root = xml_tree.getroot()
 
             self._add_element_to_tree(root, self.model.invisibleRootItem())
@@ -80,7 +80,7 @@ class CustomTreeView(QTreeView):
             self.populate_tableview_metadata(xml_tree, table_view)
 
         except Exception as e:
-
+            # Обробка виключень (логування, повідомлення користувачу тощо)
             logging(common.logFile, f"Помилка при завантаженні XML: {e}")
 
         self.log_tree_structure()
@@ -90,24 +90,24 @@ class CustomTreeView(QTreeView):
         Парсує XSD-файл і витягує описи для елементів.
         Повертає словник, що зіставляє назви елементів з їх описами.
         """
-
+        # logging(common.logFile, f"xsd_path = {xsd_path}")
         descriptions = {}
         try:
             xsd_tree = etree.parse(xsd_path)
             root = xsd_tree.getroot()
             ns = {'xs': 'http://www.w3.org/2001/XMLSchema'}
 
-
+            # Знаходимо всі елементи з документацією
             for elem in root.xpath('//xs:element', namespaces=ns):
                 name = elem.get('name')
-
-
+                # logging(common.logFile, f"name = {name}")
+                # Знаходимо документацію всередині елемента
                 documentation = elem.xpath('.//xs:annotation/xs:documentation', namespaces=ns)
                 if documentation:
-
+                    # logging(common.logFile, f"description = {documentation[0].text.strip()}")
                     descriptions[name] = documentation[0].text.strip()
         except Exception as e:
-
+            # print(f"Помилка при парсингу XSD: {e}")
             logging(common.logFile, f"Помилка при парсингу XSD: {e}")
         return descriptions
 
@@ -115,37 +115,37 @@ class CustomTreeView(QTreeView):
         """
         Рекурсивно додає XML-елементи до моделі дерева.
         """
-
+        # Отримуємо назву елемента без простору імен
         name = etree.QName(element).localname
 
-
+        # Створюємо основний елемент
         name_item = QStandardItem(name)
 
-
+        # Забороняємо редагування в першій колонці
         name_item.setEditable(False)
 
-
+        # Встановлюємо значення (текст елемента)
         value = element.text.strip() if element.text else ""
-
+        # logging(common.logFile, f"value =  {str(value)}")
         value_item = QStandardItem(value)
 
-
+        # Встановлюємо підказку, якщо опис доступний
         description = self.xsd_descriptions.get(name, "")
-
+        # logging(common.logFile, f"description =  {description}")
         if description:
             name_item.setToolTip(description)
             value_item.setToolTip(description)
 
-
+        # Додаємо рядок до батьківського елемента
         parent_item.appendRow([name_item, value_item])
 
-
+        # Рекурсивно додаємо дочірні елементи
         for child in element:
             self._add_element_to_tree(child, name_item)
 
     def create_tree_item(self, xml_element, parent_path):
         """Рекурсивне створення дерева."""
-
+        # logging(common.logFile)
         full_path = f"{parent_path}/{xml_element.tag}" if parent_path else xml_element.tag
         ukr_name = self.ukr_descriptions.get(full_path, xml_element.tag)
 
@@ -181,12 +181,12 @@ class CustomTreeView(QTreeView):
             validate_action.triggered.connect(lambda: self.validate_value(item))
 
         elif column == 0:  # Колонка назв
-
-
+            # add_child_action = menu.addAction("Додати дочірній елемент")
+            # add_child_action.triggered.connect(lambda: self.add_child_item())
             pass
 
         delete_action = menu.addAction("Видалити елемент")
-
+        # delete_action.triggered.connect(lambda: self.delete_item(item))
         delete_action.triggered.connect(lambda: self.delete_item())
 
         menu.exec_(self.viewport().mapToGlobal(position))
@@ -200,7 +200,7 @@ class CustomTreeView(QTreeView):
             return
         item = self.model.itemFromIndex(index)
         if item:
-
+            # Наприклад, встановлюємо нове значення (можна реалізувати через діалог)
             new_value = "Новe Значення"  # Український текст
             item.setText(new_value)
             item.setToolTip("Оновлене значення елемента")  # Український опис
@@ -233,7 +233,7 @@ class CustomTreeView(QTreeView):
         Видаляє вибраний елемент.
         """
         index = self.currentIndex()
-
+        # logging(common.logFile)
         if not index.isValid():
             return
         item = self.model.itemFromIndex(index)
@@ -250,14 +250,14 @@ class CustomTreeView(QTreeView):
         Це також оновлює відповідне значення в таблиці.
         """
         if item.column() == 1:  # Оновлюємо тільки значення
-
+            # Отримує шлях до зміненого елемента в дереві через метод get_item_path
             path = self.get_item_path(item)
             value = item.text()
 
             logging(common.logFile, f"item path = {path}")
             logging(common.logFile, f"item value = {value}")
 
-
+            # Емітує сигнал dataChangedSignal для синхронізації змін із таблицею
             self.dataChangedSignal.emit(path, value)
 
     def expand_initial_elements(self):
@@ -267,9 +267,9 @@ class CustomTreeView(QTreeView):
             :param self: Віджет типу CustomTreeView.
             :param common.elements_to_expand: Список тегів елементів, які потрібно розкрити.
         """
-
+        # logging(common.logFile)
     
-
+        # Отримання моделі дерева
         model = self.model
         if model is None:
             return
@@ -284,16 +284,16 @@ class CustomTreeView(QTreeView):
             if item is None:
                 return
     
-
+            # Перевірка, чи потрібно розкрити елемент
             if item.text() in common.elements_to_expand:
                 self.expand(index)
     
-
+            # Обхід дочірніх елементів
             for row in range(item.rowCount()):
                 child_index = model.index(row, 0, index)
                 expand_recursively(child_index)
     
-
+        # Початковий вузол
         root_index = model.index(0, 0)
         expand_recursively(root_index)
 
@@ -303,7 +303,7 @@ class CustomTreeView(QTreeView):
         """
         path = []
         while item:
-
+            # Отримуємо текст із першої колонки
             parent = item.parent()
             if parent:
                 key = parent.child(item.row(), 0).text()  # Беремо текст із колонки 0
@@ -321,7 +321,7 @@ class CustomTreeView(QTreeView):
         :param column_index: Індекс колонки для зміни ширини.
         :param width_percentage: Ширина колонки у відсотках від загальної ширини TreeView (0-100).
         """
-
+        # logging(common.logFile, f"self: {str(self)}")
         total_width = self.viewport().width()
         column_width = int(total_width * width_percentage / 100)
         self.setColumnWidth(column_index, column_width)
@@ -344,7 +344,7 @@ class CustomTreeView(QTreeView):
                 path = key_item.text()
                 value = value_item.text()
 
-
+                # Знаходимо елемент у TreeView і оновлюємо його значення
                 index = self.find_element_index(path)
                 if index.isValid():
                     tree_item = self.model().itemFromIndex(index)
@@ -371,7 +371,7 @@ class CustomTreeView(QTreeView):
     
         for child in service_info_element:
             if child.tag == "FileID":
-
+                # Розбиваємо FileID на FileDate та FileGUID
                 file_date = child.find("FileDate")
                 file_guid = child.find("FileGUID")
     
@@ -382,7 +382,7 @@ class CustomTreeView(QTreeView):
                     value_item = QStandardItem(file_date.text.strip() if file_date.text else "")
                     key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
                     
-
+                    # Вимикаємо редагування для елементів таблиці
                     key_item.setEditable(False)
                     value_item.setEditable(True)
                     
@@ -395,7 +395,7 @@ class CustomTreeView(QTreeView):
                     value_item = QStandardItem(file_guid.text.strip() if file_guid.text else "")
                     key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
                     
-
+                    # Вимикаємо редагування для елементів таблиці
                     key_item.setEditable(False)
                     value_item.setEditable(True)
                     
@@ -407,7 +407,7 @@ class CustomTreeView(QTreeView):
                 value_item = QStandardItem(child.text.strip() if child.text else "")
                 key_item.setData(full_path, Qt.UserRole)  # Зберігаємо повний шлях
                 
-
+                # Вимикаємо редагування для елементів таблиці
                 key_item.setEditable(False)
                 value_item.setEditable(True)
                 
@@ -429,7 +429,7 @@ class CustomTreeView(QTreeView):
             logging(self.logFile, "Ключ або значення елемента таблиці відсутні.")
             return
     
-
+        # Отримуємо шлях із UserRole
         path = key_item.data(Qt.UserRole)
         if not path:
             logging(self.logFile, "Шлях елемента таблиці дорівнює None.")
@@ -437,12 +437,12 @@ class CustomTreeView(QTreeView):
     
         value = value_item.text()
     
-
+        # Оновлюємо відповідний елемент у TreeView
         index = self.find_element_index(path)
         if index.isValid():
             tree_item = self.model.itemFromIndex(index)
             if tree_item:
-
+                # Оновлюємо текст у колонці 1 (значення вузла)
                 tree_item.parent().child(tree_item.row(), 1).setText(value)
                 logging(common.logFile, f"Оновлено значення у дереві: {path} -> {value}")
         else:
@@ -501,7 +501,7 @@ class CustomTreeView(QTreeView):
         """
         metadata_model = self.tableViewMetadata.model()  # Отримуємо модель таблиці
         if metadata_model:
-
+            # Шукаємо елемент у таблиці за шляхом
             for row in range(metadata_model.rowCount()):
                 key_item = metadata_model.item(row, 0)
                 if key_item and key_item.data(Qt.UserRole) == path:
@@ -539,20 +539,20 @@ def log_list(list, name: str = ""):
     logFile.flush()
 
 def log_xml(logFile, element, filter_tag, level=0):
-
+    # Перевіряємо, чи потрібно обробляти цей вузол
     if filter_tag and element.tag != filter_tag:
         logFile.write("\n")
         return
 
-
+    # Друк тегу
     logFile.write("\n")
     indent = '  ' * level
     logFile.write(f"{indent}{element.tag}")
 
-
+    # Друк атрибутів
     for attribute, value in element.attrib.items():
         logFile.write(f" {attribute}->{value}")
 
-
+    # Обробка дочірніх елементів
     for child in element:
         log_xml(logFile, child, filter_tag, level + 1)
