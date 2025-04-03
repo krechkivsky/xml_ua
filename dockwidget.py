@@ -520,12 +520,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def process_action_new(self, tree):
         """
         """
+
+
+
+
+
+
+
+
+        
         log_calls(logFile)
+
+
+
+
+
+
+
 
         for i in reversed(range(self.tabWidget.count())):
 
             tab_name = self.tabWidget.tabText(i)
             widget = self.tabWidget.widget(i)
+
 
             if tab_name not in ("Структура", "Метадані", "Ділянка"):
                 self.tabWidget.removeTab(i)
@@ -997,6 +1014,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.process_group_click(item.name())
 
     def validate_xml_structure(self, xml_path):
+
+
+
+
+
+
+
+
+
+
 
 
 

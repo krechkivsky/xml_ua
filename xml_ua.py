@@ -730,7 +730,10 @@ class xml_ua:
 
     def on_open_tool(self): 
 
+        log_calls(logFile)
 
+
+        
         if not QgsProject.instance().fileName():
             self.iface.messageBar().pushMessage(
                 "XML-UA",

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 /***************************************************************************
  xml_uaDockWidget
@@ -34,7 +34,7 @@ from lxml import etree
 from xml.etree import ElementTree as ET
 from qgis.core import QgsProject, QgsVectorLayer, QgsFeature, QgsGeometry, QgsPointXY, QgsLineString, QgsPolygon, QgsField
 
-# from qgis.PyQt.QtCore import pyqtSignal
+
 from PyQt5.QtCore import pyqtSignal
 
 from .custom_tree_view import CustomTreeView
@@ -96,12 +96,12 @@ def save_tree_view_to_xml(tree_view, xmlPath):
 
             add_elements_to_dom(element, child_item)
 
-    # Створюємо кореневий елемент та додаємо до документа
+
     root_element = doc.createElement(root_item.text())
     doc.appendChild(root_element)
     add_elements_to_dom(root_element, root_item)
 
-    # Збереження документа у файл
+
     with open(xmlPath, 'w', encoding='utf-8') as file:
         file.write('<?xml version="1.0" encoding="utf-8"?>\n  ' + doc.toString(2))  # 4 — це відступ для читабельності
 
@@ -178,8 +178,8 @@ def add_points_to_qgis(xmlPath):
     provider.addAttributes([
     QgsField("UIDP", QVariant.String),
     QgsField("PN", QVariant.String),
-    #QgsField("X", QVariant.String),
-    #QgsField("Y", QVariant.String),
+
+
     QgsField("H", QVariant.String),
     QgsField("MX", QVariant.String),
     QgsField("MY", QVariant.String),
@@ -190,13 +190,13 @@ def add_points_to_qgis(xmlPath):
     for point_data in pointsData:
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(point_data["y"]), float(point_data["x"]))))
-        #logging(logFile, " point_data['y'] = " + point_data["y"])
+
             
         feature.setAttributes([
             point_data["uid"],
             point_data["pn"],
-            #point_data["x"],
-            #point_data["y"],
+
+
             point_data["h"],
             point_data["mx"],
             point_data["my"],
@@ -204,9 +204,9 @@ def add_points_to_qgis(xmlPath):
             point_data["description"]])
         provider.addFeature(feature)
 
-    #logging(logFile, " pointsData = " + str(pointsData))
 
-    # Додавання шару до проекту QGIS
+
+
     QgsProject.instance().addMapLayer(layer)
 
     
@@ -220,27 +220,27 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
     def __init__(self):
         """Конструктор."""
         super().__init__()
-        # logging(common.logFile)
+
         self.setupUi(self)
         self.xsd_path = common.xsd_path
-        # Ініціалізація вкладки дерева
-        # Перевіряємо, чи існує старий treeViewXML
+
+
         old_tree_view = self.findChild(QTreeView, "treeViewXML")
         if old_tree_view:
-            # Видалити старий віджет із менеджера компоновки
+
             layout = self.tabXML.layout()
             if layout:
                 layout.removeWidget(old_tree_view)
-            # Від'єднати й знищити
+
             old_tree_view.setParent(None)
             old_tree_view.deleteLater()
 
-        # Ініціалізація таблиці Метаданих
+
         self.tableViewMetadata = self.findChild(QTableView, "tableViewMetadata")
         logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
 
-        # Додаємо новий CustomTreeView
-        # self.treeViewXML = CustomTreeView(self.tabXML)
+
+
         self.treeViewXML = CustomTreeView(self.tabXML, table_view_metadata=self.tableViewMetadata)
         
         self.treeViewXML.setObjectName("treeViewXML")  # Залишаємо те саме ім'я
@@ -251,7 +251,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         self.treeViewXML.dataChangedSignal.connect(self.on_tree_view_data_changed)
 
         
-        # Виклик функцій для додавання меню
+
         self.add_menu_buttons()
 
 
@@ -278,7 +278,7 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
                 break
 
     def closeEvent(self, event):
-        # Логування при закритті плагіну
+
         logging(common.logFile)
         self.closingPlugin.emit()
         event.accept()
@@ -288,56 +288,56 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         Додає дві кнопки з випадаючими меню в основний інтерфейс QDockWidget, 
         включаючи стандартні іконки Qt і користувацьку іконку для дії перевірки синтаксису.
         """
-        # Створюємо перше меню з іконками
-        # logging(common.logFile)
+
+
         menu1 = QMenu("Меню 1", self)
     
-        # Стандартні дії з іконками
+
         action_new = QAction(self.style().standardIcon(QStyle.SP_FileIcon), "Новий", self)
         action_open = QAction(self.style().standardIcon(QStyle.SP_DirOpenIcon), "Відкрити", self)
         action_save = QAction(self.style().standardIcon(QStyle.SP_DialogSaveButton), "Зберегти", self)
         action_save_as = QAction(self.style().standardIcon(QStyle.SP_DialogSaveButton), "Зберегти як...", self)
     
-        # Додавання користувацької іконки для дії перевірки синтаксису
+
         custom_icon_path = os.path.dirname(__file__) + "/images/check32x32.png"  # Задайте шлях до іконки
         action_check = QAction(QIcon(custom_icon_path), "Перевірити", self)
     
-        # Додаємо дії до меню
+
         menu1.addAction(action_new)
         menu1.addAction(action_open)
         menu1.addAction(action_save)
         menu1.addAction(action_save_as)
     
-        # Додаємо горизонтальний розділювач
+
         menu1.addSeparator()
     
-        # Додаємо дію перевірки синтаксису з користувацькою іконкою
+
         menu1.addAction(action_check)
     
-        # Створюємо першу кнопку меню
+
         menu_button1 = QToolButton(self)
         menu_button1.setText("Файл")  # Іконка або текст для кнопки
         menu_button1.setMenu(menu1)
         menu_button1.setPopupMode(QToolButton.InstantPopup)
         menu_button1.setFixedSize(44, 24)  # Обмеження розміру кнопки
     
-        # Створюємо друге меню для довідкових дій
+
         menu2 = QMenu("Меню 2", self)
         action_help = QAction(self.style().standardIcon(QStyle.SP_MessageBoxQuestion), "Допомога", self)
         action_about = QAction(self.style().standardIcon(QStyle.SP_MessageBoxInformation), "Про програму", self)
     
-        # Додаємо дії до другого меню
+
         menu2.addAction(action_help)
         menu2.addAction(action_about)
     
-        # Створюємо другу кнопку меню
+
         menu_button2 = QToolButton(self)
         menu_button2.setText("Допомога")  # Іконка або текст для кнопки
         menu_button2.setMenu(menu2)
         menu_button2.setPopupMode(QToolButton.InstantPopup)
         menu_button2.setFixedSize(64, 24)  # Обмеження розміру кнопки
     
-        # Створюємо контейнерний віджет для кнопок і горизонтальний макет
+
         button_container = QWidget(self)
         button_container.setMinimumWidth(150)
         button_layout = QHBoxLayout(button_container)
@@ -346,13 +346,13 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         button_layout.addWidget(menu_button2)
         button_layout.addStretch()  # Додаємо розтягнення для вирівнювання кнопок ліворуч
     
-        # Основний макет для QDockWidget
+
         main_layout = QVBoxLayout(self)
         main_layout.addWidget(button_container)
         main_layout.addStretch()  # Відступ знизу, щоб кнопки залишались зверху
         self.setLayout(main_layout)
     
-        # Підключення обробників дій
+
         action_new.triggered.connect(lambda: print("Створено новий документ"))
         action_open.triggered.connect(self.process_action_open)
         action_save.triggered.connect(self.process_action_save)
@@ -365,14 +365,14 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         
         """Обробка події відкриття файлу XML."""
         xml_path, _ = QFileDialog.getOpenFileName(self, "Відкрити XML файл", "", "XML файли (*.xml)")
-        # logging(common.logFile, f"xml_path = {xml_path}")
+
         if not xml_path:
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
     
-        # logging(common.logFile, f"self.tableViewMetadata = {self.tableViewMetadata}")
+
         
-        # self.treeViewXML.load_xml_to_tree_view(xml_path, self.xsd_path, self.tableViewMetadata)
+
         
         self.load_data(xml_path, self.xsd_path)
         
@@ -380,8 +380,8 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         self.treeViewXML.expand_initial_elements()
         self.treeViewXML.set_column_width(0, 75)
 
-        #get_points_xml(xml_path)
-        #add_points_to_qgis(xml_path)
+
+
         
         projectLayers = xmlUaLayers(xml_path)
 
@@ -395,13 +395,13 @@ class xml_uaDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         folder_path = QFileDialog.getExistingDirectory(None, "Виберіть папку для збереження")
         
         if folder_path:
-            # Додаємо ім'я файлу до обраного шляху
+
             full_path = f"{folder_path}/{treeViewKadNum}.xml"
             QMessageBox.information(None, "Шлях для збереження", f"Файл буде збережено як: {full_path}")
             save_tree_view_to_xml(treeViewXml, full_path)
             return 
         else:
-            # Якщо користувач скасував вибір
+
             QMessageBox.warning(None, "Відміна", "Папка не вибрана.")
             return None        
         
