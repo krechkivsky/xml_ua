@@ -1,0 +1,32 @@
+name: Розгортання MkDocs на GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # або master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Вивантажити код
+        uses: actions/checkout@v3
+
+      - name: Налаштувати Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.x # або ваша бажана версія
+
+      - name: Встановити залежності
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material
+
+      - name: Зібрати сайт MkDocs
+        run: mkdocs build
+
+      - name: Розгорнути на GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
