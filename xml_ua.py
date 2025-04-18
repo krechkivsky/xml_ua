@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 /***************************************************************************
  xml_ua
@@ -21,14 +21,19 @@
  *                                                                         *
  ***************************************************************************/
 """
+
 import os
 import os.path
 import math
 import copy
 
-from qgis.core import Qgis, QgsGeometry, QgsFeature, QgsWkbTypes, QgsMapLayer
-
+from qgis.core import Qgis
+from qgis.core import QgsGeometry
+from qgis.core import QgsFeature
+from qgis.core import QgsWkbTypes
+from qgis.core import QgsMapLayer
 from qgis.core import QgsProject
+from qgis.core import QgsVectorLayer
 from qgis.core import QgsVectorLayerEditUtils
 from qgis.core import QgsLayerTreeGroup
 from qgis.core import QgsRasterLayer
@@ -54,14 +59,14 @@ from xml.etree import ElementTree as ET
 
 from qgis.core import QgsWkbTypes
 from qgis.utils import iface
-#from PyQt5.QtWidgets import QMessageBox
 
-# Initialize Qt resources from file resources.py
+
+
 from .resources import *
 
-# Import the code for the DockWidget
+
 from .dockwidget import xml_uaDockWidget
-#from .layers import xmlUaLayers
+
 
 from .common import size
 from .common import logFile
@@ -72,8 +77,54 @@ from .common import xml_template
 from .common import geometry_to_string
 
 
+
 class xml_ua:
     """QGIS Plugin Implementation."""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def __init__(self, iface): # after load QGIS, without project 
@@ -84,19 +135,9 @@ class xml_ua:
             application at run time.
         :type iface: QgsInterface
         """
-        # Save reference to the QGIS interface
-        # log_calls(logFile, f"\nself: {self}\niface: {iface}")
-        # Які атрибути має клас iface?
-        # iface - це об'єкт, який містить інтерфейс QGIS
-        # Цей об'єкт передається в конструктор плагіна
-        # і надає можливість взаємодії з додатком QGIS під час виконання
-        # Цей об'єкт містить методи та властивості, які дозволяють
-        # взаємодіяти з інтерфейсом QGIS, такі як додавання дій, меню,
-        # тулбарів, відкриття та закриття вікон, та інше.
-        # крім того, він містить посилання на проект QGIS, який відкрито
+
         self.iface = iface
         self.project = None
-        # self.temporary_layer_ids = []
         self.xml_layers = None
         self.plugin_dir = os.path.dirname(__file__)
         locale = QSettings().value('locale/userLocale')[0:2]
@@ -106,7 +147,6 @@ class xml_ua:
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
 
-        # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&xml_ua')
         self.toolbar = None 
@@ -114,27 +154,24 @@ class xml_ua:
         self.dockwidget = None
         self.dockwidget_visible = False
         self.new_xml = ""
+        self.added_layer = None
 
-        # Додаємо словник для зберігання QgsVectorLayerEditUtils
-        # потрібний для відслідковування дій користувача по
-        # зміні топології 
-        self.layer_edit_utils = {}
 
-        # TODO: Gemini у рекомендаціях НЕ поставила + у 2-х рядках:
-        # Відключаємо обробники сигналів зміни топології
-        #✔️ 2025.03.27 15:35
-        # self.disconnect_layer_signals()
- 
-        # Підключаємо обробник до сигналу про додавання шару
-        # 1. підключаємо on_layers_added до сигналу layersAdded
-        # 2. користувач додає новий шар -> сигнал layersAdded
-        # 3. Сигнал layersAdded викликає метод on_layers_added 
-        # 4. on_layers_added перевіряє, чи є доданий шар векторним
-        # 5. викликається connect_layer_signal, який підключає сигнал 
-        #    geometryChanged до цього шару.
-        # 6. connect_layer_signals підключає сигнал geometryChanged 
-        #    до шарів, які вже є в проекті на момент його виклику.
+
+
+
+
+
+
+
+        self.existing_layer_ids = set()
+
+
+
+
         QgsProject.instance().layersAdded.connect(self.on_layers_added)
+
+
 
     def tr(self, message): # after load QGIS, without project
         """Get the translation for a string using Qt translation API.
@@ -147,8 +184,8 @@ class xml_ua:
         :returns: Translated version of message.
         :rtype: QString
         """
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        # log_msg(logFile, "xml_ua")
+
+
         return QCoreApplication.translate('xml_ua', message)
 
 
@@ -232,16 +269,16 @@ class xml_ua:
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
         log_calls(logFile)
-        #QMessageBox.warning(self, "xml_ua", "onClosePlugin")
 
-        # disconnects
+
+
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
 
-        # remove this statement if dockwidget is to remain
-        # for reuse if plugin is reopened
-        # Commented next statement since it causes QGIS crashe
-        # when closing the docked window:
-        # self.dockwidget = None
+
+
+
+
+
         self.dockwidget = None
 
         self.pluginIsActive = False
@@ -249,111 +286,67 @@ class xml_ua:
 
     def unload(self):
         log_calls(logFile, f"actions = {self.actions}")
-        # Видаляємо дії та тулбар з інтерфейсу QGIS
+
         for action in self.actions:
             self.iface.removePluginVectorMenu(
                 self.tr(u'&xml_ua'),
                 action)
             self.iface.removeToolBarIcon(action)
-        # Видаляємо тулбар, якщо він існує
+
         if self.toolbar:
             log_calls(logFile, f"removed toolbar {self.toolbar}")
             self.iface.mainWindow().removeToolBar(self.toolbar)  # Використовуємо mainWindow()
             self.toolbar = None  # Очищаємо посилання на тулбар
 
-        # Відключаємо обробники сигналів зміни топології
-        self.disconnect_layer_signals()
- 
-        #✔️ 2025.03.25 11:41 Gemini:
-        # не зовсім зрозуміло: для чого при вигрузці 
-        # плагіна підключати обробник
-        # Підключаємо обробник до сигналу про додавання шару
-        QgsProject.instance().layersAdded.connect(self.on_layers_added)
 
-
-
-
-    def disconnect_layer_signals(self):
-
-        """
-        Відключає сигнали відстеження змін у шарах всіх відкритих XML.
-        """
-
-        # 
-        #✔️ 2025.03.25 09:54
-        # Додано відключення від сигналу geometryChanged шару
-        # Метод connect_layer_signals тепер підключає сигнал 
-        # geometryChanged кожного векторного шару до методу 
-        # on_layer_geometry_changed.
-        # Коли геометрія фічі змінюється, викликається метод 
-        # on_layer_geometry_changed.
-        #✔️ 2025.03.27 13:19
-        # Викликається з:
-        # 2. __init__ (в кінці) TODO: Перевірити, чи потрібно в __init__
-        # 1. connect_layer_signals (в початку)
-        # 3. unload (в кінці)
-        
-        log_calls(logFile)
-        project = QgsProject.instance()
-        root = project.layerTreeRoot()
-
-        if self.dockwidget and hasattr(self.dockwidget, 'opened_xmls'):
-            for xml_data in self.dockwidget.opened_xmls:
-                group_name = xml_data.group_name
-                group = root.findGroup(group_name)
-
-                if group:
-                    # Ітеруємо по всіх дочірніх елементах групи
-                    for child in group.children():
-                        if isinstance(child, QgsLayerTreeLayer):
-                            layer = child.layer()
-                            # Перевіряємо, чи це векторний шар
-                            if layer.type() == QgsMapLayer.VectorLayer:
-                                # Відключаємо сигнал committedChangesFinished
-                                try:
-                                    # Corrected: Disconnect from the layer, not the data provider
-                                    connector.disconnect(layer, "committedChangesFinished", self.on_layer_changes_committed)
-                                    log_msg(logFile, f"Відключено сигнал для шару: {layer.name()} в групі: {group_name}")
-                                except TypeError as e:
-                                    log_msg(logFile, f"Помилка відключення сигналу: {e}")
-
-                                try:
-                                    connector.disconnect(layer, "geometryChanged", self.on_layer_geometry_changed)
-                                except TypeError as e:
-                                    log_msg(logFile, f"Помилка відключення сигналу: {e}")
-
-                                # # Відключаємо сигнал editingStarted
-                                # try:
-                                #     connector.disconnect(layer, "editingStarted", self.on_layer_editing_started)
-                                # except TypeError as e:
-                                #     log_msg(logFile, f"Помилка відключення сигналу: {e}")
-                                # log_msg(logFile, f"Відключено сигнал для шару: {layer.name()} в групі: {group_name}")
-
-        # Очищаємо словник QgsVectorLayerEditUtils
-        self.layer_edit_utils.clear()
-
-    # Gemini:
     def on_layers_added(self, layers):
-
         """
-        Обробник сигналу про додавання шарів до проекту.
+        Обробник сигналу про додавання шарів до проекту.  Підключає сигнали лише до нових шарів.
         """
+        log_calls(logFile, f"{layers[0].name()}")
 
-        # TODO: 
 
-        # отримує СПИСОК layers (ДОДАНИХ❓ шарів) як аргумент.
-        # Для кожного шару в списку перевіряється, чи є він 
-        # векторним (layer.type() == QgsMapLayer.VectorLayer).
-        # Якщо шар векторний, викликається метод 
-        # connect_layer_signal(layer), щоб підключити 
-        # до нього обробник сигналу geometryChanged.
+        existing_layer_ids = set(QgsProject.instance().mapLayers().keys())
 
-        log_calls(logFile)
         for layer in layers:
+
+            layer_name = layer.name()
+            self.added_layer = layer
+
             if layer.type() == QgsMapLayer.VectorLayer:
-                # Перевіряємо, чи шар належить до однієї з груп у self.dockwidget.opened_xmls
-                if self.is_layer_in_opened_xmls_group(layer):
-                    self.connect_layer_signal(layer)
+
+
+                layer.featureAdded.connect(self.on_feature_added)
+                layer.featureDeleted.connect(self.on_feature_removed)
+                layer.geometryChanged.connect(self.on_qeometry_changed)
+
+
+
+
+
+
+
+
+        existing_layer_ids.update(layer.id() for layer in layers)
+
+
+    def on_feature_added(self, feature_id):
+        layer = self.added_layer  
+        feature = layer.getFeature(feature_id)
+        log_calls(logFile, f"'{layer.name()}'")
+
+
+    def on_feature_removed(self, feature_id):
+        layer = self.added_layer  
+        feature = layer.getFeature(feature_id)
+        log_calls(logFile, f"'{layer.name()}'")
+
+    
+    def on_qeometry_changed(self, feature_id, geometry):
+        layer = self.added_layer  
+        feature = layer.getFeature(feature_id)
+        log_calls(logFile, f"'{layer.name()}' {geometry}")
+
 
 
     def is_layer_in_opened_xmls_group(self, layer):
@@ -366,6 +359,10 @@ class xml_ua:
         Returns:
             bool: True, якщо шар належить до однієї з груп, інакше False.
         """
+
+        layer_name = layer.name()
+        log_calls(logFile, f"'{layer_name}'")
+
         if not self.dockwidget or not hasattr(self.dockwidget, 'opened_xmls'):
             return False
 
@@ -384,27 +381,6 @@ class xml_ua:
         return False
 
 
-    def connect_layer_signal(self, layer):
-
-        """
-        Підключає сигнал geometryChanged до шару.
-        """
-
-        #✔️ 2025.03.27 13:50
-        # TODO: Не викликається НІКОЛИ
-        #✔️ 2025.03.25 11:58
-        # Gemini:
-        # новий метод, який відповідає за підключення сигналу 
-        # geometryChanged до конкретного шару.
-        # Він приймає об'єкт шару (layer) як аргумент.
-        # Викликає connector.connect(...), щоб підключити 
-        # сигнал geometryChanged до лямбда-функції, яка, в свою чергу, 
-        # викликає self.on_layer_geometry_changed(...).
-
-        log_calls(logFile)
-        connector.connect(layer, "geometryChanged", lambda feature_id, geometry, layer_id=layer.id(): self.on_layer_geometry_changed(layer_id, feature_id, geometry))
-
-
     def run(self):
         """
         Executes the plugin's main functionality.
@@ -420,12 +396,14 @@ class xml_ua:
             None
         """
 
+
+
         log_calls(logFile)
 
-        # Перевіряємо чи проект відкритий
+
         if not QgsProject.instance().fileName():
             log_msg(logFile, "Немає відкритого проекту. Плагін не буде запущено.")
-            # Optionally show a message to the user
+
             self.iface.messageBar().pushMessage(
                 "XML-UA",
                 "Плагін вимагає відкритого проекту.",
@@ -433,7 +411,7 @@ class xml_ua:
             )
             return
 
-        # log_msg(logFile, "Шукаємо існуючий док віджет...")
+
         existing_dockwidget = self.iface.mainWindow().findChild(xml_uaDockWidget, "")
         if existing_dockwidget:
             self.dockwidget = existing_dockwidget
@@ -443,263 +421,25 @@ class xml_ua:
             if not self.pluginIsActive:
                 self.pluginIsActive = True
 
-                # log_msg(logFile, f"self.dockwidget: {self.dockwidget}")
+
                 if self.dockwidget is None:
-                    # Викликаємо конструктор xml_uaDockWidget
-                    # який викликає конструктори xml_uaTreeView, xml_uaTableViewMetadata, xml_uaTableViewParcel
-                    self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), plugin = self)  
+
+
+                    
+
+                    self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
+
+
                     self.dockwidget.closingPlugin.connect(self.onClosePlugin)
                     self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
                 else:
                     if self.dockwidget.parent is None:
                         self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
 
-        # Gemini:
-        self.connect_layer_signals()
+
+
 
         self.dockwidget.show()    
-
-    
-
-
-    def connect_layer_signals(self):
-
-        #✔️ 2025.03.27 14:26 
-        # TODO: Перевірити, чи потрібна взагалі connect_layer_signals
-        #✔️ 2025.03.25 12:03
-        # Викликається з:
-        # 1. on_open_tool (в кінці)
-        # 2. run (в кінці) TODO: Перевірити, чи потрібно в run
-
-        #✔️ 2025.03.27 14:16
-        # TODO: виклик у on_open_tool викликає
-        # масові помилки disconnect_layer_signals:
-        # Tdisconnect(a0: QMetaObject.Connection): 
-        # argument 1 has unexpected type 'QgsVectorLayer'
-        # disconnect(self): too many arguments
-
-
-        # Піключає сигнал до всіх шарів усіх груп opened_xmls
-        # connect_layer_signals підключає обробник лише до шарів, 
-        # які існують на момент його виклику.
-        # Для шарів, створених після виклику connect_layer_signals, 
-        # обробник підключається завдяки сигналу layersAdded та 
-        # методу on_layers_added.
-
-        # TODO: Повинен викликатися після кожного додавання шару?
-
-        # Коротке пояснення логіки:
-        # Метод connect_layer_signals підключає сигнал 
-        # geometryChanged кожного векторного шару до методу 
-        # on_layer_geometry_changed.
-        # Коли геометрія фічі змінюється, викликається 
-        # метод on_layer_geometry_changed.
-        # У методі on_layer_geometry_changed отримується 
-        # шар, фіча та нова геометрія.
-        # Далі викликається метод 
-        # update_xml_with_new_geometry 
-        # в доквіджеті, якому передаються дані про зміну геометрії.
-        # Метод disconnect_layer_signals відключає сигнал 
-        # geometryChanged шару.
-
-        """
-        Підключає сигнали для відстеження змін у шарах групи.
-        """
-
-        #✔️ 2025.03.25 09:54
-        # Додано виклик connector.connect(layer, "geometryChanged", self.on_layer_geometry_changed) 
-        # для підключення сигналу geometryChanged шару 
-        # до методу on_layer_geometry_changed. 
-        # Це робиться для кожного векторного шару, знайденого в групі.
-
-        log_calls(logFile)
-
-        # Видаляємо попередні з'єднання
-        #✔️ 2025.03.27 16:09 Здається відключати не потрібно
-        # self.disconnect_layer_signals()
-
-        project = QgsProject.instance()
-        root = project.layerTreeRoot()
-
-        if self.dockwidget and hasattr(self.dockwidget, 'opened_xmls'):
-            for xml_data in self.dockwidget.opened_xmls:
-                group_name = xml_data.group_name
-                group = root.findGroup(group_name)
-
-                if group:
-                    for child in group.children():
-                        if isinstance(child, QgsLayerTreeLayer):
-                            layer = child.layer()
-                            if layer.type() == QgsMapLayer.VectorLayer:
-                                # Corrected: Connect to the layer, not the data provider
-                                # connector.connect(layer, "geometryChanged", self.dockwidget.on_layer_geometry_changed)
-                                # Лямбда-функція, яку ми використовуємо для підключення 
-                                # до сигналу geometryChanged, отримує layer_id як аргумент. 
-                                # Цей layer_id є ідентифікатором шару, в якому відбулася зміна 
-                                # геометрії.
-                                connector.connect(layer, "geometryChanged", lambda feature_id, geometry, layer_id=layer.id(): self.on_layer_geometry_changed(layer_id, feature_id, geometry))
-
-
-    def on_layer_geometry_changed(self, layer_id, feature_id, geometry):
-
-        """
-        Обробник події зміни геометрії фічі шару.
-        """
-
-        # log_calls(logFile, f"layer_id: {layer_id}, feature_id: {feature_id}, geometry: {geometry}")
-        log_calls(logFile)
-
-        # Отримуємо шар за його ID
-        layer = QgsProject.instance().mapLayer(layer_id)
-        if not layer:
-            log_msg(logFile, f"Шар з ID {layer_id} не знайдено.")
-            return
-
-        # Тут потрібно додати логіку для оновлення XML-файлу
-        # на основі нової геометрії
-        if self.dockwidget:
-            self.dockwidget.update_xml_with_new_geometry(layer, feature_id, geometry)
-
-
-    def connect_feature_changed_signal(self, layer):
-        """
-        Підключає сигнал featureChanged до шару, якщо він ще не підключений.
-        """
-
-        log_msg(logFile, f"Attempting to connect featureChanged for layer: {layer.name()}")
-
-        if not connector.connection_established(layer, "featureChanged", self.on_feature_changed):
-            connector.connect(layer, "featureChanged", self.on_feature_changed)
-            log_msg(logFile, f"Successfully connected featureChanged for layer: {layer.name()}")
-        else:
-            log_msg(logFile, f"featureChanged already connected for layer: {layer.name()}")
-
-
-    def on_feature_changed(self, feature_id):
-        # Обробник сигналу featureChanged
-        """
-        Обробник сигналу featureChanged.
-        Викликається, коли змінюється геометрія об'єкта.
-        """
-        log_calls(logFile)
-        log_msg(logFile, f"on_feature_changed called! Feature ID: {feature_id}")
-        log_msg(logFile, f"Sender: {self.sender()}")
-        if self.sender():
-            log_msg(logFile, f"Sender name: {self.sender().name()}")
-            log_msg(logFile, f"Sender is in edit mode: {self.sender().isEditable()}")
-
-        project = QgsProject.instance()
-
-        # Отримуємо шар, який відправив сигнал
-        # Клас xml_ua має доступ до self.sender() 
-        # завдяки механізму сигналів і слотів, 
-        # який використовується в бібліотеці PyQt 
-        layer = self.sender()
-        if not layer:
-            log_msg(logFile, f"Шар не знайдено.")
-            return
-
-        log_msg(logFile, f"Змінено геометрію об'єкта з ID: {feature_id} в шарі: {layer.name()}")
-        # Тут можна додати код для синхронізації геометрії
-        self.synchronize_geometry(layer, feature_id)
-
-
-    # Додано: Функція синхронізації геометрії
-    def synchronize_geometry(self, layer, feature_id):
-        """
-        Функція для синхронізації геометрії між шарами.
-        """
-        log_calls(logFile)
-        log_msg(logFile, f"Синхронізація геометрії для об'єкта з ID: {feature_id} в шарі: {layer.name()}")
-        # Тут буде код для синхронізації геометрії
-        pass
-
-
-    def connect_layer_signals_for_layer(self, layer):
-        """
-        Підключає сигнали для відстеження змін у шарі.
-        """
-
-        # Підключає сигнали початку і завершення редагування
-        # Викликається у методах layers.py з параметром layer
-        # після створення шару і додавання його до групи
-        
-        log_calls(logFile)
-
-        # Перевіряємо, чи це векторний шар
-        if layer.type() == QgsMapLayer.VectorLayer:
-            # Перевіряємо, чи вже підключено сигнал
-            # Corrected: Connect to the layer, not the data provider
-            if not connector.connection_established(layer, "committedChangesFinished", self.on_layer_changes_committed):
-                # Підключаємо сигнал committedChangesFinished
-                try:
-                    # Corrected: Connect to the layer, not the data provider
-                    connector.connect(layer, "committedChangesFinished", self.on_layer_changes_committed)
-                    # Створюємо QgsVectorLayerEditUtils для шару
-                    self.layer_edit_utils[layer.id()] = QgsVectorLayerEditUtils(layer)
-                    log_msg(logFile, f"Підключено сигнал committedChangesFinished для шару: {layer.name()}")
-                except TypeError as e:
-                    log_msg(logFile, f"Помилка підключення сигналу: {e}")
-                except AttributeError as e:
-                    log_msg(logFile, f"Помилка підключення сигналу: {e}")
-
-            # Додано: Підключаємо сигнал featureChanged
-            # Підключаємо сигнал editingStarted
-            # if not connector.connection_established(layer, "editingStarted", self.on_layer_editing_started):
-            #     connector.connect(layer, "editingStarted", self.on_layer_editing_started)
-            #     log_msg(logFile, f"Підключено сигнал editingStarted для шару: {layer.name()}")
-            # self.connect_feature_changed_signal(layer)
-
-
-
-
-    def on_layer_changes_committed(self, layer_id, added_features, changed_features, deleted_features):
-        """
-        Обробник сигналу committedChangesFinished.
-        Викликається, коли зміни в шарі зафіксовані.
-        """
-        log_calls(logFile)
-        project = QgsProject.instance()
-        # Corrected: Get the layer from the sender
-        layer = self.sender()
-        if not layer:
-            log_msg(logFile, f"Шар не знайдено.")
-            return
-
-        log_msg(logFile, f"Зміни зафіксовано в шарі: {layer.name()}")
-
-        # Обробка доданих об'єктів
-        for feature_id in added_features:
-            feature = layer.getFeature(feature_id)
-            if feature.geometry().wkbType() == QgsWkbTypes.Point:
-                log_msg(logFile, f"Додано точку з ID: {feature_id}")
-            else:
-                log_msg(logFile, f"Додано об'єкт з ID: {feature_id}")
-
-        # Обробка змінених об'єктів
-        for feature_id, changes in changed_features.items():
-            feature = layer.getFeature(feature_id)
-            if feature.geometry().wkbType() == QgsWkbTypes.Point:
-                log_msg(logFile, f"Змінено положення точки з ID: {feature_id}")
-            else:
-                log_msg(logFile, f"Змінено об'єкт з ID: {feature_id}")
-
-        # Обробка видалених об'єктів
-        for feature_id in deleted_features:
-            log_msg(logFile, f"Видалено об'єкт з ID: {feature_id}")
-
-
-    # def on_layer_editing_started(self):
-
-    #     """
-    #     Обробник сигналу editingStarted.
-    #     Викликається, коли шар переходить в режим редагування.
-    #     """
-
-    #     log_calls(logFile)
-    #     layer = self.sender()
-    #     log_msg(logFile, f"Редагування шару розпочато: {layer.name()}")
-    #     QMessageBox.warning(self.iface.mainWindow(), "Редагування", f"Редагування шару розпочато: {layer.name()}")
 
 
     def on_save_tool(self):
@@ -731,8 +471,8 @@ class xml_ua:
     def on_open_tool(self): 
 
         log_calls(logFile)
-        # Обробка дії "Відкрити XML"
-        # Перевіряємо, чи проект відкритий
+
+
         
         if not QgsProject.instance().fileName():
             self.iface.messageBar().pushMessage(
@@ -742,13 +482,15 @@ class xml_ua:
             )
             return
 
-        # 
+
         self.run()
 
-        # Підключення відслідковування дій 
-        # по зміні топології (перенесено сюди)
+
+
         self.dockwidget.process_action_open()
-        self.connect_layer_signals()
+
+
+
 
 
     def on_clear_tool(self):
@@ -758,12 +500,12 @@ class xml_ua:
             This method calls clear_widget_data() and remove_temporary_layers() to 
             remove data from the plugin's dock widget and the QGIS project.
         """
-        # Обробка дії "Очистити дані"
+
         log_msg(logFile)
-        # викликаємо методи очищення даних віджета та проекту
+
         self.clear_widget_data()
-        # викликаємо метод очищення даних проекту 
-        # видалення тимчасових шарів
+
+
         self.remove_temporary_layers()
 
 
@@ -775,32 +517,32 @@ class xml_ua:
 
         log_msg(logFile)
 
-        # root = QgsProject.instance().layerTreeRoot()
-        # if self.xml_layers:  # Check if xml_layers is not None
-        #     group = root.findGroup(self.xml_layers.group_name)
-        #     if group:
-        #         root.removeChildNode(group)
 
-        # Close all tabs except specified ones
+
+
+
+
+
+
         tabs_to_keep = ["Структура", "Метадані", "Ділянка"]
         for i in range(self.dockwidget.tabWidget.count() -1, -1, -1): # Зворотній порядок!
             tab_name = self.dockwidget.tabWidget.tabText(i)
             if tab_name not in tabs_to_keep:
-                # self.dockwidget.tabWidget.removeTab(i)
+
                 if self.dockwidget.tabWidget.count() > 0:
-                    #QMessageBox.warning(self.iface.mainWindow(), "clear_widget_data", f"видаляємо таб №{i} {tab_name}")
+
                     self.dockwidget.tabWidget.removeTab(i)
 
         self.dockwidget.closed_tabs = []
 
         self.update_restore_tabs_action() # update menu after removing tab
  
-        # Clear data in TreeView and TableViews (if they exist)
+
         try:
             tree_model = self.dockwidget.treeViewXML.model
             meta_model = self.dockwidget.tableViewMetadata.model()
             parcel_model = self.dockwidget.tableViewParcel.model()
-            #set headers after clearing
+
             for model in [tree_model, meta_model, parcel_model]:
                 if model.rowCount() > 0:
                     model.removeRows(0, model.rowCount())
@@ -821,12 +563,12 @@ class xml_ua:
 
             Reference: on_clear_tool
         """
-        # потрібно очистити проект від тимчасових шарів
+
 
         log_calls(logFile, "Очистка даних проекту...")
         project = QgsProject.instance()
         root = project.layerTreeRoot()
-        # 1. Remove temporary layers
+
         layers_to_remove = []
         for layer_id, layer in project.mapLayers().items():
             if layer.dataProvider().name() == 'memory':
@@ -844,9 +586,9 @@ class xml_ua:
                     if len(child.children()) == 0:
                         groups_to_remove.append(child)
             for group_to_remove in groups_to_remove:
-                # log_msg(logFile, f"Видалено порожню групу: {group_to_remove.name()}")
+
                 group.removeChildNode(group_to_remove)
-        # Видалення порожніх груп
+
         remove_empty_groups(root)
 
 
@@ -856,10 +598,10 @@ class xml_ua:
             - Creates the dock widget if it doesn't exist.
         """
 
-        # log_calls(logFile)
+
 
         if self.dockwidget is None:
-            #self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow())
+
             self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), plugin=self) # Додано parent
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget) # Or your preferred area
@@ -871,50 +613,50 @@ class xml_ua:
 
     def initGui(self):
 
-        # log_calls(logFile)
 
-        # Шукаємо тулбар з ім'ям "xml_ua" та класом "QToolBar"
+
+
         existing_toolbar = self.iface.mainWindow().findChild(QToolBar, "xml_ua")
 
         if existing_toolbar:
-            #log_msg(logFile, f"Тулбар '{existing_toolbar.objectName()}' вже існує. Використовуємо його.")
+
             self.toolbar = existing_toolbar  # Використовуємо знайдений тулбар
         else:
-            #log_msg(logFile, f"Тулбар 'xml_ua' не знайдено. Створюємо новий.")
+
             self.toolbar = self.iface.addToolBar(u'xml_ua') # Переносимо сюди
             self.toolbar.setObjectName(u'xml_ua') # І сюди
 
-        # Тепер ми впевнені, що self.toolbar існує (новий або вже існуючий)
-        # Далі створюємо меню і кнопки, та додаємо їх на тулбар
+
+
 
         icon_path = ':/plugins/xml_ua/icon.png'
         self.tools_menu = QMenu(self.iface.mainWindow())
 
         self.action_new_tool = QAction("Новий", self.iface.mainWindow())
-        # Отримуємо стандартну іконку "Новий" з QGIS
+
         new_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_FileIcon)
         self.action_new_tool.setIcon(new_icon)
 
 
         self.action_open_tool = QAction("Відкрити", self.iface.mainWindow())
 
-        # Отримуємо стандартну іконку "Відкрити" з QGIS
+
         open_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_DirOpenIcon)
         self.action_open_tool.setIcon(open_icon)
 
         self.action_save_tool = QAction("Зберегти", self.iface.mainWindow())
-        # Отримуємо стандартну іконку "Зберегти" з QGIS
+
         save_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_DialogSaveButton)
         self.action_save_tool.setIcon(save_icon)
 
         self.action_save_as_tool = QAction("Зберегти як...", self.iface.mainWindow())
-        # Отримуємо стандартну іконку "Зберегти як..." з QGIS
+
         save_as_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_DialogSaveButton)
         self.action_save_as_tool.setIcon(save_as_icon)
 
 
         self.action_check_tool = QAction("Перевірити", self.iface.mainWindow())
-        # Отримуємо стандартну іконку "Перевірити версію QGIS" з QGIS
+
         check_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_MessageBoxInformation)
         self.action_check_tool.setIcon(check_icon)
         self.action_clear_data = QAction("Очистити дані", self.iface.mainWindow())
@@ -945,11 +687,11 @@ class xml_ua:
 
         connector.connect(self.tools_button, "clicked", self.show_dockwidget)
 
-        # тут завершується завантаження плагіна
-        # log_msg(logFile,  connector.list_all())
-        # log_msg(logFile, "Завантаження плагіна завершено\n---")
 
-        # self.remove_temporary_layers()
+
+
+
+
 
 
     def update_restore_tabs_action(self):
@@ -973,62 +715,63 @@ class xml_ua:
 
         log_calls(logFile)
 
-        # 03.19 TODO: Чи потрібно❓ У якій послідовності❓
-        # без show_dockwidget() self.dockwidget == None
+
+
         if not self.dockwidget: self.show_dockwidget()
-        # self.clear_widget_data()
+
 
         selected_feature = self.get_selection()
         if not selected_feature: return
         tree = self.set_intro_metric(selected_feature)
 
-        # Зберігаємо дерево з ПОПЕРЕДНЬОЮ метрикою 
+
         self.new_xml = self.save_tree_with_intro_metric(tree)
         if not self.new_xml:
             log_calls(logFile, f"Не збережено дерево з ПОПЕРЕДНЬОЮ метрикою")
             return
 
-        # 03.19 TODO: 
-        # надалі треба додати повну метрику:
-        # угіддя, обмеження, суміжники
+
+
+
         self.set_tree_full_metric(tree)
         
 
-        # тут вже має бути повна метрика 
+
         self.dockwidget.process_action_new(tree)
+
 
     def set_tree_full_metric(self, tree):
 
-        # Передається tree !!! 
-        # Пошук, додавання, видалення root = tree.getroot()
 
-        # Встановлення остаточної метрики - геометричної конфігурації
-        #   точки і лінії додаються у ВИКЛЮЧНО складі фіч ?
-        #   НЕ МОЖУТЬ додаватись окремо!!!
-        #
-        # 03.19 TODO: після додавання кожної фічі 
-        # перерахунок точок і відрізків з перенумерацією
-        #
-        # 03.19 TODO: Перевірка на топологічні помилки:
-        # 1.Контроль вузлів
-        #  1.1.Якщо точки ближче подвійної помилки - запит яку видалити
-        #  1.2.Якщо точки співпадають - видалення другої з повідомленням на панелі
-        #
-        # 2.Контроль створних точок
-        #   (лише після перевстановлення усіх ліній) 
-        #
-        # 3.Контроль балансу площ
-        #
-        # 4.Контроль перекриття і виходу за межі
-        #
-        # 03.19 TODO: Алгоритм додавання нових фіч
-        #  Підказки показуються на панелі
-        #  до дії користувача ??? 
-        #✔️ 2025.03.19 18:23 реалізовано попередньо ділянку
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         log_calls(logFile, f"tree: {size(tree)} B")  
 
-        # Додаємо до дерева угіддя      
+
         self.add_land_parcels(tree)
 
         return tree
@@ -1036,49 +779,49 @@ class xml_ua:
 
     def add_land_parcels(self, tree):
 
-        #✔️ 2025.03.19 20:32
-        # 1.сформувати структуру полігону залишку ділянки початково = ділянка
-        # 2.Висвітлити на панелі повідомлень постійне (не зникаюче) повідомлення
-        # "Виділіть полігон угіддя"
-        # 3.перехопити подію виділення на полотні qgis, зняти повідомлення
-        # 4.якщо виділений об'єкт полігон або мультиполігон 
-        # перевірити чи виділений полігон є підмножиною полігона залишку ділянки
-        # 5.якщо так додати угіддя і знайти різницю залишку ділянки і угіддя
-        # якщо ні перехід на 2.
-        # 6.якщо площа різниці == 0 завершити додавання угідь
-        # якщо ні - залишок = різниця перехід на 2. 
+
+
+
+
+
+
+
+
+
+
+
 
         log_calls(logFile, f"tree: {size(tree)} B")
 
-        # 1. Initialize the Remainder Polygon
+
         parcel_polygon = self.get_parcel_polygon()
         if parcel_polygon is None:
             return tree  # Error already handled in get_parcel_polygon
 
         remainder_polygon = parcel_polygon
 
-        # 2. Persistent Message
+
         message_bar = self.iface.messageBar()
         message_bar_item = message_bar.createMessage("Виділіть полігон угіддя")
         message_bar.pushWidget(message_bar_item, Qgis.Info, 0)  # 0 for persistent
 
         while True:
-            # 3. Selection Event (using a helper function)
+
             selected_polygon = self.wait_for_polygon_selection()
             if selected_polygon is None:
                 message_bar.clearWidgets()
                 return tree  # User canceled
 
-            # 4. Subset Check
+
             if not selected_polygon.within(remainder_polygon):
                 QMessageBox.warning(None, "Помилка", "Виділений полігон не є частиною залишку ділянки.")
                 continue  # Go back to step 2
 
-            # 5. Add Land Use and Find the Difference
+
             self.add_land_use_to_xml(tree, selected_polygon)
             difference = remainder_polygon.difference(selected_polygon)
 
-            # 6. Looping
+
             if difference.isEmpty():
                 break  # All land use areas are covered
             else:
@@ -1086,6 +829,7 @@ class xml_ua:
 
         message_bar.clearWidgets()
         return tree
+
 
     def get_parcel_polygon(self):
         """
@@ -1101,20 +845,21 @@ class xml_ua:
         if geometry.wkbType() == QgsWkbTypes.Polygon:
             return geometry
         elif geometry.wkbType() == QgsWkbTypes.MultiPolygon:
-            # Assuming you want to treat the multipolygon as a single polygon
+
             return geometry
         else:
             QMessageBox.warning(None, "Помилка", "Неправильний тип геометрії угіддя.")
             return None
 
+
     def wait_for_polygon_selection(self):
         """
         Waits for the user to select a polygon on the QGIS canvas.
         """
-        # TODO: Implement a proper way to wait for a selection event.
-        # This is a placeholder that just gets the current selection.
-        # You'll need to use signals and slots to make this work correctly.
-        # For now, it will just get the current selection, which is not ideal.
+
+
+
+
         selected_feature = self.get_selection()
         if not selected_feature:
             return None
@@ -1127,20 +872,21 @@ class xml_ua:
             QMessageBox.warning(None, "Помилка", "Неправильний тип геометрії угіддя.")
             return None
 
+
     def add_land_use_to_xml(self, tree, land_use_polygon):
         """
         Adds a land use polygon to the XML tree.
         """
         log_calls(logFile)
-        # TODO: Implement the logic to add the land use polygon to the XML.
-        # This is a placeholder. You'll need to:
-        # 1. Create the necessary XML elements (e.g., <LandUse>, <Boundary>, etc.).
-        # 2. Add the polygon's coordinates to the XML.
-        # 3. Handle different land use types (if needed).
-        # 4. Update point and line numbering if necessary.
-        # 5. Add the land use polygon to the correct location in the XML tree.
 
-        # Example: Add a simple <LandUse> element (replace with your actual logic)
+
+
+
+
+
+
+
+
         parcel_info_element = tree.find(".//CadastralQuarterInfo/Parcels/ParcelInfo")
         if parcel_info_element is None:
             log_msg(logFile, "Не знайдено елемент ParcelInfo.")
@@ -1149,27 +895,27 @@ class xml_ua:
 
         land_use_element = ET.SubElement(parcel_info_element, "LandUse")
         ET.SubElement(land_use_element, "Type").text = "Unknown"  # Replace with actual type
-        # ... add more elements as needed ...
 
-        # Example: Add the polygon's coordinates (replace with your actual logic)
-        # You'll need to convert the QgsGeometry to the appropriate XML format.
-        # This is just a very basic example:
+
+
+
+
         if land_use_polygon.wkbType() == QgsWkbTypes.Polygon:
             for point in land_use_polygon.asPolygon()[0]:
-                # ... add point to XML ...
+
                 pass
         elif land_use_polygon.wkbType() == QgsWkbTypes.MultiPolygon:
             for polygon in land_use_polygon.asMultiPolygon():
                 for point in polygon[0]:
-                    # ... add point to XML ...
-                    pass
-        # ... add more elements as needed ...
-        # Створити розділ tree
-        # /UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/LandsParcel/LandParcelInfo/MetricInfo/Externals
-        # і скопіювати у нього вміст елемента
-        # /UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Externals
 
-        # Знаходимо елемент, з якого будемо копіювати дані
+                    pass
+
+
+
+
+
+
+
         source_element = tree.find(
             ".//CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Externals"
         )
@@ -1178,7 +924,7 @@ class xml_ua:
             QMessageBox.warning(None, "Помилка", "Не знайдено елемент ParcelMetricInfo/Externals.")
             return tree
 
-        # Знаходимо батьківський елемент, куди будемо додавати новий розділ
+
         parent_element = tree.find(
             ".//CadastralQuarterInfo/Parcels/ParcelInfo"
         )
@@ -1187,19 +933,19 @@ class xml_ua:
             QMessageBox.warning(None, "Помилка", "Не знайдено батьківський елемент для LandsParcel.")
             return tree
 
-        # Створюємо новий елемент LandsParcel
+
         lands_parcel_element = ET.SubElement(parent_element, "LandsParcel")
 
-        # Створюємо новий елемент LandParcelInfo
+
         land_parcel_info_element = ET.SubElement(lands_parcel_element, "LandParcelInfo")
 
-        # Створюємо новий елемент MetricInfo
+
         metric_info_element = ET.SubElement(land_parcel_info_element, "MetricInfo")
 
-        # Створюємо новий елемент Externals
+
         externals_element = ET.SubElement(metric_info_element, "Externals")
 
-        # Копіюємо вміст з source_element в externals_element
+
         for child in source_element:
             externals_element.append(copy.deepcopy(child))
 
@@ -1208,21 +954,8 @@ class xml_ua:
         return tree
 
 
-    def on_layer_tree_double_clicked(self, index):
-        """
-        This method is called when a user double-clicks on an item in the layer tree.
-        It checks if the item is a group and calls the switch_to_group method of the dockwidget.
-        Args:
-            index: The index of the item in the layer tree that was double-clicked.
-        """
-        item = self.iface.layerTreeView().layerTreeModel().itemFromIndex(index)
-        if isinstance(item, QgsLayerTreeGroup):
-            group_name = item.name()
-            self.dockwidget.switch_to_group(group_name)
-
-
     def get_selection(self):
-        # ChatGPT
+
         """
         Перевіряє, чи вибрано геометричний об'єкт типу полігон або мультиполігон.
 
@@ -1233,17 +966,17 @@ class xml_ua:
 
         log_calls(logFile)
 
-        # Отримуємо всі шари проекту
+
         layers = QgsProject.instance().mapLayers().values()
 
-        # Збираємо всі вибрані об'єкти з усіх шарів
+
         selected_features = []
         for layer in layers:
-            # Перевіряємо, чи це векторний шар
+
             if layer.type() == layer.VectorLayer:  
                 selected_features.extend(layer.selectedFeatures())
 
-        # Перевіряємо, чи є вибрані об'єкти
+
         if not selected_features:
             QMessageBox.warning(None, 
                 "Помилка", 
@@ -1251,7 +984,7 @@ class xml_ua:
             log_calls(logFile, "Виділіть полігон меж земельної ділянки.")
             return None
 
-        # Перевіряємо кількість вибраних об'єктів
+
         if len(selected_features) > 1:
             QMessageBox.warning(None, 
                 "Помилка", 
@@ -1259,7 +992,7 @@ class xml_ua:
             log_calls(logFile, "Треба вибрати лише один полігон.")
             return None
 
-        # Перевіряємо тип геометрії вибраного об'єкта
+
         selected_feature = selected_features[0]
         geometry_type = selected_feature.geometry().wkbType()
         if geometry_type not in (QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon):
@@ -1269,7 +1002,7 @@ class xml_ua:
             log_calls(logFile, f"Межі земельної ділянки повинні бути полігоном або мультиполігоном.")
             return None
 
-        # Якщо всі перевірки пройдено, повертаємо вибраний об'єкт
+
         log_calls(logFile, f"Вибраний об'єкт: {size(selected_feature)} B\n" + geometry_to_string(selected_feature.geometry()))
         return selected_feature
 
@@ -1280,19 +1013,19 @@ class xml_ua:
         Створює новий XML файл на основі шаблону, додаючи точки та лінії з вибраного об'єкта.
         """
 
-        # парсимо геометрію і додаємо розділи точок і ліній
-        #✔️ 2025.03.21 11:03
-        # з QGIS полігона або  мультиполігона витягуємо текст X, Y
-        # додаємо інші атрибути точки XML: UIDP, H,... 
-        #✔️ 2025.03.20 07:33
-        # на даний момент ще нема угідь, обмежень суміжників
-        # і попередня геометрія співпадає з геометрією ділянки 
-        # /UkrainianCadastralExchangeFile/InfoPart/MetricInfo/PointInfo
-        # /UkrainianCadastralExchangeFile/InfoPart/MetricInfo/Polyline
-        # У qgis замкнутість полігона визначається: перша точка == останній
-        # у xml замкнутість полігона визначається значенням <Closed>true</Closed>
-        # у розділі ../Lines 
-        # тому останню точку selected_feature не додаємо
+
+
+
+
+
+
+
+
+
+
+
+
+
          
 
         log_calls(logFile, f"Отриманий об'єкт: {size(selected_feature)} B")
@@ -1305,7 +1038,7 @@ class xml_ua:
             QMessageBox.warning(None, "Помилка", "Не вибрано жодного об'єкта.")
             return
 
-        # Визначаємо тип геометрії
+
         geometry = selected_feature.geometry()
         geometry_type = geometry.wkbType()
 
@@ -1313,10 +1046,10 @@ class xml_ua:
             QMessageBox.warning(None, "Помилка", "Геометрія повинна бути полігоном або мультиполігоном.")
             return
 
-        # Отримуємо точки з геометрії
-        # points_list: список списків бо додаються 
-        # елементи-списки елементів типу QgsPointXY
-        # 
+
+
+
+
         points_list = []
         internals_points_list = []
         if geometry_type == QgsWkbTypes.Polygon:
@@ -1327,35 +1060,35 @@ class xml_ua:
                 for internal_ring in polygon[1:]:
                     internals_points_list.append(internal_ring)
 
-        # Відкриваємо та парсимо шаблон
+
         if not os.path.exists(xml_template):
             QMessageBox.critical(None, "Помилка", f"Шаблон {xml_template} не знайдено.")
             return
 
-        # Створюємо шаблон дерева
+
         tree = ET.parse(xml_template)
         root = tree.getroot()
 
-        # Видаляємо з шаблону дерева елементи Point (якщо існують)
-        # у майбутньому користувач може створювати свої шаблони  
+
+
         point_info = root.find(".//InfoPart/MetricInfo/PointInfo")
         if point_info is not None:
             for point in point_info.findall("Point"):
                 point_info.remove(point)
 
-        # Додаємо нові точки в загальний розділ дерева 
-        # де описуються всі точки
-        # додаючи необхідні, передбачені XSD атрибути
+
+
+
         uidp_counter = 1
         for points in points_list:
-            # Видаляємо останню точку для збереження XML
+
             points_without_last = points[:-1] if len(points) > 1 else points
             for point in points_without_last:
                 point_element = ET.SubElement(point_info, "Point")
                 ET.SubElement(point_element, "UIDP").text = str(uidp_counter)
                 ET.SubElement(point_element, "PN").text = str(uidp_counter)
                 ET.SubElement(point_element, "DeterminationMethod").text = "GPS"
-                # При записі треба міняти місцями X <-> Y
+
                 ET.SubElement(point_element, "X").text = f"{point.y():.3f}"
                 ET.SubElement(point_element, "Y").text = f"{point.x():.3f}"
                 ET.SubElement(point_element, "H").text = "0.00"
@@ -1365,14 +1098,14 @@ class xml_ua:
                 ET.SubElement(point_element, "Description").text = ""
                 uidp_counter += 1
         for points in internals_points_list:
-            # Видаляємо останню точку для збереження XML
+
             points_without_last = points[:-1] if len(points) > 1 else points
             for point in points_without_last:
                 point_element = ET.SubElement(point_info, "Point")
                 ET.SubElement(point_element, "UIDP").text = str(uidp_counter)
                 ET.SubElement(point_element, "PN").text = str(uidp_counter)
                 ET.SubElement(point_element, "DeterminationMethod").text = "GPS"
-                # При записі треба міняти місцями X <-> Y
+
                 ET.SubElement(point_element, "X").text = f"{point.y():.3f}"
                 ET.SubElement(point_element, "Y").text = f"{point.x():.3f}"
                 ET.SubElement(point_element, "H").text = "0.00"
@@ -1382,24 +1115,24 @@ class xml_ua:
                 ET.SubElement(point_element, "Description").text = ""
                 uidp_counter += 1
 
-        # Видаляємо всі існуючі елементи PL з 
-        # загального розділу дерева опису всіх ліній 
+
+
         polyline_info = root.find(".//InfoPart/MetricInfo/Polyline")
         if polyline_info is not None:
             for pl in polyline_info.findall("PL"):
                 polyline_info.remove(pl)
 
-        # Додаємо нові лінії в загальний розділ дерева де описуються всі лінії
+
         ulid_counter = 1
         for points in points_list:
-            # Якщо з списку не видалити останню точку,
-            # буде додана остання лінія з нульовою довжиною 
+
+
             points_without_last = points[:-1] if len(points) > 1 else points
             for i in range(len(points_without_last)):
                 start_point = points_without_last[i]
-                # % - залишок від ділення
-                # (i + 1) % len(points) == i, (при i + 1) <= len(points)
-                # (i + 1) % len(points) == 0, (при i + 1) == len(points) 
+
+
+
                 end_point = points[(i + 1) % len(points)]  
                 length = math.sqrt((end_point.x() - start_point.x())**2 + (end_point.y() - start_point.y())**2)
 
@@ -1407,18 +1140,18 @@ class xml_ua:
                 ET.SubElement(pl_element, "ULID").text = str(ulid_counter)
                 points_element = ET.SubElement(pl_element, "Points")
                 ET.SubElement(points_element, "P").text = str(i + 1)
-                # Corrected line: Use len(points_without_last) instead of len(points)
+
                 ET.SubElement(points_element, "P").text = str((i + 2) if (i + 1) < len(points_without_last) else 1)
                 ET.SubElement(pl_element, "Length").text = f"{length:.2f}"
                 ulid_counter += 1
         for points in internals_points_list:
-            # Remove the last point to avoid duplication
+
             points_without_last = points[:-1] if len(points) > 1 else points
             for i in range(len(points_without_last)):
                 start_point = points_without_last[i]
-                # % - залишок від ділення
-                # (i + 1) % len(points) == i, (при i + 1) <= len(points)
-                # (i + 1) % len(points) == 0, (при i + 1) == len(points)
+
+
+
                 end_point = points[(i + 1) % len(points)]
                 length = math.sqrt((end_point.x() - start_point.x()) ** 2 + (end_point.y() - start_point.y()) ** 2)
 
@@ -1426,24 +1159,24 @@ class xml_ua:
                 ET.SubElement(pl_element, "ULID").text = str(ulid_counter)
                 points_element = ET.SubElement(pl_element, "Points")
                 ET.SubElement(points_element, "P").text = str(i + 1)
-                # Corrected line: Use len(points_without_last) instead of len(points)
+
                 ET.SubElement(points_element, "P").text = str((i + 2) if (i + 1) < len(points_without_last) else 1)
                 ET.SubElement(pl_element, "Length").text = f"{length:.2f}"
                 ulid_counter += 1
 
-        #✔️ 2025.03.20 07:52
-        # Для полігону, єдиного полігону у мультиполігоні без анклавів
-        # (внутрішніх полігонів - пустот)
-        # і зовнішнього полігону у мультиполігоні з анклавами треба сформувати розділ
-        # /UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Externals/Boundary/Lines
-        # додаючи інформацію про всі лінії selected_feature як
-        # <Line>
-        #   <ULID>1</ULID>
-        # </Line> ...до розділу
-        # і <Closed>true</Closed>
-        # враховуючи, що файл створюється, і проміжні розділи можуть не існувати
-        # за наявності анклавів у мультиполігоні вони додаються аналогічно у розділ
-        # /UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Externals/Internals/Boundary/Lines
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         def add_boundary_lines(points_list, parent_element, is_internal=False):
             """Додає лінії до розділу Boundary/Lines або Internals/Boundary/Lines."""
@@ -1466,27 +1199,27 @@ class xml_ua:
             if lines_element is None:
                 lines_element = ET.SubElement(boundary_element, "Lines")
             else:
-                # Очищаємо існуючі лінії, якщо вони є
+
                 for line in lines_element.findall("Line"):
                     lines_element.remove(line)
 
             ulid_counter = 1
             for points in points_list:
-                # Remove the last point to avoid duplication
+
                 points_without_last = points[:-1] if len(points) > 1 else points
                 for i in range(len(points_without_last)):
                     line_element = ET.SubElement(lines_element, "Line")
                     ET.SubElement(line_element, "ULID").text = str(ulid_counter)
                     ulid_counter += 1
 
-            # Додаємо елемент Closed
+
             closed_element = boundary_element.find("Closed")
             if closed_element is None:
                 ET.SubElement(boundary_element, "Closed").text = "true"
             else:
                 closed_element.text = "true"
 
-        # Знаходимо або створюємо необхідні елементи
+
         cadastral_quarter_info = root.find(".//CadastralQuarterInfo")
         if cadastral_quarter_info is None:
             cadastral_zone_info = root.find(".//CadastralZoneInfo")
@@ -1516,9 +1249,9 @@ class xml_ua:
         if externals_element is None:
             externals_element = ET.SubElement(parcel_metric_info_element, "Externals")
 
-        # Додаємо лінії зовнішнього контуру вибраного об'єкта
+
         add_boundary_lines(points_list, externals_element)
-        # Додаємо лінії внутрішніх контурів (анклавів)  вибраного об'єкта
+
         if internals_points_list:
             add_boundary_lines(internals_points_list, externals_element, is_internal=True)
 
@@ -1530,22 +1263,22 @@ class xml_ua:
 
     def save_tree_with_intro_metric(self, tree):
 
-        # Встановлюємо назву майбутнього файлу
-        # Зберігаємо дерево з ПОПЕРЕДНЬОЮ метрикою 
+
+
 
         log_calls(logFile, f"tree before saving: {size(tree)} B")
 
-        # Запитуємо у користувача шлях для збереження нового XML файлу
+
         save_path, _ = QFileDialog.getSaveFileName(None, "Зберегти XML файл", "", "XML файли (*.xml)")
         if not save_path:
-            #QMessageBox.warning(None, "Помилка", "Шлях для збереження не вибрано.")
+
             log_calls(logFile, "Шлях для збереження не вибрано.")
             return None
 
 
-        # Зберігаємо новий XML файл
+
         tree.write(save_path, encoding="utf-8", xml_declaration=True)
-        # QMessageBox.information(None, "Успіх", f"Новий XML файл збережено за адресою: {save_path}")
+
         log_calls(logFile, f"Новий XML файл збережено за адресою: {save_path}")
         self.dockwidget.full_xml_file_name = save_path
         log_calls(logFile, f"tree after saving: {size(tree)} B")

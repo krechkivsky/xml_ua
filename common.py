@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 import os
 import sys
 import inspect
@@ -21,23 +21,19 @@ from gc import get_referents
 from xmlschema import XMLSchema
 
 
-
-
-
-logFile = open(os.path.dirname(__file__) + "/xml_ua.md", "w")
+logFile = open(os.path.dirname(__file__) + "/log.md", "w")
 ini_path = os.path.dirname(__file__) + "/templates/xml_ua.ini"
 docs_path = os.path.dirname(__file__) + "/templates/docs_list.ini"
+fields_path = os.path.dirname(__file__) + "/templates/field_dicts.ini"
 xsd_path = os.path.dirname(__file__) + "/templates/UAXML.xsd"
 xml_template = os.path.dirname(__file__) + "/templates/template.xml"
 xml_file_name = ""
 
 
 
-# Custom objects know their class.
-# Function objects seem to know way too much, including modules.
-# Exclude modules as well.
-BLACKLIST = type, ModuleType, FunctionType
 
+
+BLACKLIST = type, ModuleType, FunctionType
 def size(obj):
     """sum size of object & members."""
     if isinstance(obj, BLACKLIST):
@@ -64,29 +60,48 @@ class Connections(QObject):
 
     def __init__(self):
         super().__init__()
-        self.connections = []  # Зберігаємо кортежі (sender, signal_name, slot)
+
+        self.connections = []  
 
     def connect(self, sender, signal_name, slot):
         """
         Встановлює з'єднання між сигналом та слотом, якщо воно ще не встановлено.
         """
-        # Перевіряємо, чи з'єднання вже існує
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        log_calls(logFile, f"Встановлення з'єднання:\n\t {type(sender).__name__}, \n\t'{signal_name}', \n\t{slot.__name__}")
+
+
         if self.connection_established(sender, signal_name, slot):
             log_calls(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             QMessageBox.warning(None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
-            return  # Виходимо, якщо з'єднання вже є
+
+            return  
 
         try:
-            # Отримуємо сигнал за назвою від об'єкта sender
-            signal = getattr(sender, signal_name)
 
-            # Перевіряємо чи signal є сигналом або функцією
+            signal = getattr(sender, signal_name)
+            log_msg(logFile, f"Отримано сигнал: {signal}")
+
+
             if not isinstance(signal, pyqtSignal) and not callable(signal):
                  raise AttributeError(f"'{signal_name}' is not a signal or callable on '{type(sender).__name__}'")
 
             signal.connect(slot)
             self.connections.append((sender, signal_name, slot))
-            # log_calls(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+
         except AttributeError as e:
             log_calls(logFile, f"Помилка встановлення з'єднання: {e}")
 
@@ -141,8 +156,9 @@ class Connections(QObject):
         return result
 
 
-# Створюємо глобальний екземпляр з'єднань
+
 connector = Connections()
+
 
 
 def get_object_name_from_frame(obj, frame):
@@ -165,7 +181,7 @@ def log_msg(logFile, msg=""):
     """ """
     filename = os.path.basename(inspect.stack()[1].frame.f_code.co_filename)
     lineno = sys._getframe().f_back.f_lineno
-    #logFile.write(f"\n### [{caller(2)}(): {msg}]({filename}#L{lineno})" )
+
     logFile.write(f"\n##### [{caller(2)}():]({filename}#L{lineno}) {msg}" )
     logFile.flush()
 
@@ -174,7 +190,7 @@ def get_call_stack(i: int):
     """Отримує стек викликів у вигляді рядка у зворотному порядку."""
     stack = inspect.stack()
     result = ""
-    # Ітеруємо по стеку у зворотному порядку, пропускаючи перші два фрейми
+
     i = 0
     for frame_info in reversed(stack[2:]):
         i += 1
@@ -185,7 +201,7 @@ def get_call_stack(i: int):
         func_name = frame.f_code.co_name
         if filename != "<string>":
             result += f"\n [{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
-        #result += f"[{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})\n"
+
 
     return result
 
@@ -194,9 +210,9 @@ def log_calls(logFile: str, msg: str = "") -> None:
     """ Записує повідомлення в лог-файл з інформацією про стек викликів.
     """
     stack_info = get_call_stack(2)
-    #log_message = f"\n#### Стек викликів:{stack_info} {msg}"
+
     log_message = f"{stack_info}→\n{msg} \n"
-    #log_message = f"\n## {stack_info}→\n{msg}"
+
     logFile.write(log_message)
     logFile.flush()
 
@@ -216,10 +232,10 @@ def geometry_to_string(geometry):
     """
     if not isinstance(geometry, QgsGeometry):
         return "Error: Input must be a QgsGeometry object."
-        # raise TypeError("Input must be a QgsGeometry object.")
 
-    # if not geometry.isValid():
-    #     return "Error: Invalid geometry."
+
+
+
 
     if geometry.isEmpty():
         return ""
@@ -271,7 +287,6 @@ def geometry_to_string(geometry):
     return result_string.strip() + "\n"
 
 
-
 class CaseSensitiveConfigParser(configparser.ConfigParser):
     def optionxform(self, optionstr):
         return optionstr
@@ -281,7 +296,6 @@ config.read(ini_path, encoding="utf-8")
 config_docs = CaseSensitiveConfigParser(strict=False)
 config_docs.read(docs_path, encoding="utf-8")
 
-
 metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileGUID",
@@ -290,3 +304,268 @@ metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverIdentifier",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/Software",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/SoftwareVersion"]
+
+
+category_raw = {
+    "100" : "Землі сільськогосподарського призначення",
+    "200" : "Землі житлової та громадської забудови",
+    "300" : "Землі природно-заповідного та іншого природоохоронного призначення",
+    "400" : "Землі оздоровчого призначення",
+    "500" : "Землі рекреаційного призначення",
+    "600" : "Землі історико-культурного призначення",
+    "700" : "Землі лісогосподарського призначення",
+    "800" : "Землі водного фонду",
+    "900" : "Землі промисловості, транспорту, електронних комунікацій, енергетики,оборони та іншого призначення"
+}
+
+
+category_map = {
+
+    f"{code} {label}": code for code, label in category_raw.items()
+}
+
+
+
+purpose_raw = {
+    "01.00" : "Категорія: землі сільськогосподарського призначення",
+    "01.01" : "Для ведення товарного сільськогосподарського виробництва",
+    "01.02" : "Для ведення фермерського господарства",
+    "01.03" : "Для ведення особистого селянського господарства",
+    "01.04" : "Для ведення підсобного сільського господарства",
+    "01.05" : "Для індивідуального садівництва",
+    "01.06" : "Для колективного садівництва",
+    "01.07" : "Для городництва",
+    "01.08" : "Для сінокосіння і випасання худоби",
+    "01.09" : "Для дослідних і навчальних цілей",
+    "01.10" : "Для пропаганди передового досвіду ведення сільського господарства",
+    "01.11" : "Для надання послуг у сільському господарстві",
+    "01.12" : "Для розміщення інфраструктури оптових ринків с/г продукції",
+    "01.13" : "Для іншого сільськогосподарського призначення",
+    "01.14" : "Для 01.01-01.13, 01.15-01.19 та для природно-заповідного фонду",
+    "01.15" : "Земельні ділянки запасу під сільськогосподарськими будівлями і дворами",
+    "01.16" : "Земельні ділянки під полезахисними лісовими смугами",
+    "01.17" : "Земельні ділянки запасу (не надані у власність або користування)",
+    "01.18" : "Земельні ділянки загального користування (польові дороги, прогони)",
+    "01.19" : "Земельні ділянки під громадськими сіножатями та громадськими пасовищами",
+    "02.00" : "Категорія: земельні ділянки житлової і громадської забудови",
+    "02.01" : "Для будівництва і обслуговування житлового будинку, госп. будівель і споруд",
+    "02.02" : "Для колективного житлового будівництва",
+    "02.03" : "Для будівництва і обслуговування багатоквартирного житлового будинку",
+    "02.04" : "Для будівництва і обслуговування будівель тимчасового проживання",
+    "02.05" : "Для будівництва індивідуальних гаражів",
+    "02.06" : "Для колективного гаражного будівництва",
+    "02.07" : "Для іншої житлової забудови",
+    "02.08" : "Для 02.01-02.07, 02.09-02.12 та природно-заповідного фонду",
+    "02.09" : "Паркінги та автостоянки у житловій та громадській забудові",
+    "02.10" : "Для багатоквартирного житлового будинку з об’єктами",
+    "02.11" : "Земельні ділянки запасу",
+    "02.12" : "Внутрішньоквартальні проїзди, пішохідні зони",
+    "03.00" : "Категорія: земельні ділянки громадської забудови",
+    "03.01" : "Будівлі органів державної влади та органів місцевого самоврядування",
+    "03.02" : "Для будівництва та обслуговування будівель закладів освіти",
+    "03.03" : "Для будівництва та обслуговування будівель закладів охорони здоров’я",
+    "03.04" : "Будівлі громадських та релігійних організацій",
+    "03.05" : "Заклади культурно-просвітницького обслуговування",
+    "03.06" : "Будівлі екстериторіальних організацій та органів",
+    "03.07" : "Для будівництва та обслуговування будівель торгівлі",
+    "03.08" : "Об’єкти туристичної інфраструктури та закладів громадського харчування",
+    "03.09" : "Для будівництва та обслуговування будівель кредитно-фінансових установ",
+    "03.10" : "Адміністративні будинки, офіси",
+    "03.11" : "Для будівництва та обслуговування будівель і споруд закладів науки",
+    "03.12" : "Будівлі закладів комунального обслуговування",
+    "03.13" : "Будівель закладів побутового обслуговування",
+    "03.14" : "Для розміщення та постійної діяльності органів і підрозділів ДСНС",
+    "03.15" : "Для будівництва та обслуговування інших будівель громадської забудови",
+    "03.16" : "Для 03.01-03.15, 03.17-03.20 та природно-заповідного фонду",
+    "03.17" : "Заклади з обслуговування відвідувачів об’єктів рекреаційного призначення",
+    "03.18" : "Для розміщення та експлуатації установ/місць виконання покарань",
+    "03.19" : "Земельні ділянки запасу н/п",
+    "03.20" : "Внутрішньоквартальні проїзди, пішохідні зони",
+    "04.00" : "Категорія: землі природно-заповідного фонду",
+    "04.01" : "Для збереження та використання біосферних заповідників",
+    "04.02" : "Для збереження та використання природних заповідників",
+    "04.03" : "Для збереження та використання національних природних парків",
+    "04.04" : "Для збереження та використання ботанічних садів",
+    "04.05" : "Для збереження та використання зоологічних парків",
+    "04.06" : "Для збереження та використання дендрологічних парків",
+    "04.07" : "Для збереження та використання парків-пам’яток садово-паркового мистецтва",
+    "04.08" : "Для збереження та використання заказників",
+    "04.09" : "Для збереження та використання заповідних урочищ",
+    "04.10" : "Для збереження та використання пам’яток природи",
+    "04.11" : "Для збереження та використання регіональних ландшафтних парків",
+    "05.00" : "Категорія: Землі іншого природоохоронного призначенняя",
+    "05.01" : "Земельні ділянки іншого природоохоронного призначенняя",
+    "06.00" : "Категорія: землі оздоровчого призначення",
+    "06.01" : "Для будівництва і обслуговування санаторно-оздоровчих закладів",
+    "06.02" : "Для розробки родовищ природних лікувальних ресурсів",
+    "06.03" : "Для інших оздоровчих цілей",
+    "06.04" : "Для цілей підрозділів 06.01-06.03, 06.05 та природно-заповідного фонду",
+    "06.05" : "Земельні ділянки запасу",
+    "07.00" : "Категорія: землі рекреаційного призначення",
+    "07.01" : "Для будівництва та обслуговування об’єктів рекреаційного призначення",
+    "07.02" : "Для будівництва та обслуговування об’єктів фізичної культури і спорту",
+    "07.03" : "Для індивідуального дачного будівництва",
+    "07.04" : "Для колективного дачного будівництва",
+    "07.05" : "Для 07.01-07.04, 07.06-07.09 та природно-заповідного фонду",
+    "07.06" : "Для збереження, використання та відтворення зелених зон і насаджень",
+    "07.07" : "Земельні ділянки запасу",
+    "07.08" : "Земельні ділянки загального користування - зелені насадження",
+    "07.09" : "Земельні ділянки загального користування відведені під місця поховання",
+    "08.00" : "Категорія: землі історико-культурного призначення",
+    "08.01" : "Для забезпечення охорони об’єктів культурної спадщини",
+    "08.02" : "Для розміщення та обслуговування музейних закладів",
+    "08.03" : "Для іншого історико-культурного призначення",
+    "08.04" : "Для 08.01-08.03, 08.05 та природно-заповідного фонду",
+    "08.05" : "Земельні ділянки запасу",
+    "09.00" : "Категорія: землі лісогосподарського призначення",
+    "09.01" : "Для ведення лісового господарства і пов’язаних з ним послуг",
+    "09.02" : "Для іншого лісогосподарського призначення",
+    "09.03" : "Для 09.01-09.02, 09.04-09.05 та природно-заповідного фонду",
+    "09.04" : "Для лісогосподарських підприємств, установ, організацій",
+    "09.05" : "Земельні ділянки запасу",
+    "10.00" : "Категорія: землі водного фонду",
+    "10.01" : "Для експлуатації та догляду за водними об’єктами",
+    "10.02" : "Для облаштування та догляду за прибережними захисними смугами",
+    "10.03" : "Для експлуатації та догляду за смугами відведення",
+    "10.04" : "Для гідротехнічних, інших водогосподарських споруд і каналів",
+    "10.05" : "Для догляду за береговими смугами водних шляхів",
+    "10.06" : "Для сінокосіння",
+    "10.07" : "Для рибогосподарських потреб",
+    "10.08" : "Для культурно-оздоровчих потреб",
+    "10.09" : "Для проведення науково-дослідних робіт",
+    "10.10" : "Для гідротехнічних, гідрометричних та лінійних споруд",
+    "10.11" : "Для санаторіїв у межах прибережних захисних смуг",
+    "10.12" : "Для 10.01-10.11, 10.13-10.16 природно-заповідного фонду",
+    "10.13" : "Земельні ділянки запасу",
+    "10.14" : "Водні об’єкти загального користування",
+    "10.15" : "Земельні ділянки під пляжами",
+    "10.16" : "Земельні ділянки під громадськими сіножатями",
+    "11.00" : "Категорія: землі промисловості, транспорту, оборони та ін.",
+    "11.01" : "Будівелі та споруди підприємствам, що пов’язані з користуванням надрами",
+    "11.02" : "Будівелі та споруди підприємств промисловості",
+    "11.03" : "Будівелі та споруди будівельних організацій та підприємств",
+    "11.04" : "Будівелі та споруди технічної інфраструктури",
+    "11.05" : "Для 11.01-11.04, 11.06-11.08 та  природно-заповідного фонду",
+    "11.06" : "Земельні ділянки запасу",
+    "11.07" : "Зелені насадження спеціального призначення",
+    "11.08" : "Для цілей поводження з відходами",
+    "12.00" : "Категорія: земельні ділянки транспорту",
+    "12.01" : "Будівлі і споруди залізничного транспорту",
+    "12.02" : "Будівлі і споруди морського транспорту",
+    "12.03" : "Будівлі і споруди річкового транспорту",
+    "12.04" : "Будівлі і споруди автомобільного транспорту та дорожнього господарства",
+    "12.05" : "Будівлі і споруди авіаційного транспорту",
+    "12.06" : "Об’єкти трубопроивідного транспорту",
+    "12.07" : "Будівлі і споруди міського електротранспорту",
+    "12.08" : "Будівлі і споруди додаткових транспортних послуг",
+    "12.09" : "Будівлі і споруди іншого наземного транспорту",
+    "12.10" : "Для 12.01-12.09, 12.11-12.13 та природно-заповідного фонду",
+    "12.11" : "Для розміщення та експлуатації об’єктів дорожнього сервісу",
+    "12.12" : "Земельні ділянки запасу",
+    "12.13" : "Земельні ділянки загального користування (вулиці, майдани, проїзди...)",
+    "13.00" : "Категорія: землі пошти і електронних комунікацій",
+    "13.01" : "Для розміщення та експлуатації об’єктів і споруд електронних комунікацій",
+    "13.02" : "Для розміщення та експлуатації будівель та споруд поштового зв’язку",
+    "13.03" : "Для розміщення та експлуатації інших технічних засобів",
+    "13.04" : "Для 13.01-13.03, 13.05-13.06 та природно-заповідного фонду",
+    "13.05" : "ДС спеціального зв’язку та захисту інформації України",
+    "13.06" : "Земельні ділянки запасу",
+    "14.00" : "Категорія: землі енергетики",
+    "14.01" : "Для об’єктів енергогенеруючих підприємств, установ і організацій",
+    "14.02" : "Для об’єктів передачі електричної та теплової енергії",
+    "14.03" : "Для 14.01-14.02, 14.04-14.06 таприродно-заповідного фонду",
+    "14.04" : "Земельні ділянки запасу",
+    "14.05" : "Земельні ділянки загального користування зелених насаджень",
+    "14.06" : "Земельні ділянки загального користування, для поводження з відходами",
+    "15.00" : "Категорія: землі оборони",
+    "15.01" : "Для розміщення та постійної діяльності Збройних Сил",
+    "15.02" : "Для розміщення та постійної діяльності Національної гвардії",
+    "15.03" : "Для Державної прикордонної служби",
+    "15.04" : "Для розміщення та постійної діяльності Служби безпеки",
+    "15.05" : "Для Державної спеціальної служби транспорту",
+    "15.06" : "Для Служби зовнішньої розвідки України",
+    "15.07" : "Для інших військових формувань",
+    "15.08" : "Для 15.01-15.07, 15.09-15.11 таприродно-заповідного фонду",
+    "15.09" : "Для об'єктів МВС",
+    "15.10" : "Для об'єктів Національної поліції",
+    "15.11" : "Для об'єктів Міноборони",
+    "16.00" : "Категорія: Землі запасу",
+    "17.00" : "Категорія: Землі резервного фонду",
+    "18.00" : "Категорія: Землі загального користування",
+    "19.00" : "Категорія: Для 16.00-18.00 та природно-заповідного фонду",
+}
+
+
+purpose_map = {
+    f"{code} {label}": code for code, label in purpose_raw.items()
+}
+
+
+
+
+code_raw = {
+    "100": "Приватна власність",
+    "200": "Державна власність",
+    "300": "Комунальна власність",
+}
+
+code_map = {
+    f"{code} {label}": code for code, label in code_raw.items()
+}
+
+
+
+parcel_field2path = {
+    "ParcelID": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID",
+    "Description": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Description",
+    "AreaSize": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/Size",
+    "AreaUnit": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/MeasurementUnit",
+
+
+
+
+
+
+
+
+
+
+
+    "DeterminationMethod": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/DeterminationMethod",
+    "Region": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Region",
+    "Settlement": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Settlement",
+    "District": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
+
+
+
+
+
+    "ParcelLocation": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
+    "StreetType": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetType",
+    "StreetName": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetName",
+    "Building": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Building",
+    "Block": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Block",
+    "AdditionalInfo": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/AdditionalInfoBlock/AdditionalInfo",
+    "Category": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Category",
+    "Purpose": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Purpose",
+    "Use": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Use",
+    "Code": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/OwnershipInfo/Code"
+}
+
+
+
+determination_map = {
+    "<ExhangeFileCoordinates/>": "За координатами обмінного файлу",
+    "<DocExch/>": "Згідно із правовстановлювальним документом",
+    "<Calculation><CoordinateSystem><SC42/></CoordinateSystem></Calculation>": "Переобчислення з 'СК-42' (6 град зона)",
+    "<Calculation><CoordinateSystem><SC42_3/></CoordinateSystem></Calculation>": "Переобчислення з 'СК-42' (3 град зона)",
+    "<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>": "Переобчислення з 'УСК2000'",
+    "<Calculation><CoordinateSystem><WGS84/></CoordinateSystem></Calculation>": "Переобчислення з 'WGS84'",
+    "<Calculation><CoordinateSystem><SC63><X/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-X'",
+    "<Calculation><CoordinateSystem><SC63><C/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-C'",
+    "<Calculation><CoordinateSystem><SC63><P/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-P'",
+    "<Calculation><CoordinateSystem><SC63><T/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-T'",
+
+}
+
+

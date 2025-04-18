@@ -1,8 +1,12 @@
-# -*- coding: utf-8 -*-
+
 
 import os
 
+from qgis.core import Qgis
 from qgis.core import QgsLayerTreeGroup
+
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.utils import iface
 
 
 from qgis.core import QgsLineString
@@ -15,10 +19,11 @@ from qgis.core import QgsVectorLayer
 from qgis.core import QgsField
 from qgis.core import QgsFeature
 from qgis.core import QgsPointXY
+from qgis.core import QgsEditorWidgetSetup
 
-
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.PyQt.QtWidgets import QDialog, QMessageBox
+from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtWidgets import QInputDialog
 
 from lxml import etree
 from xml.etree import ElementTree as ET
@@ -26,12 +31,16 @@ from xml.etree import ElementTree as ET
 from .common import logFile
 from .common import log_msg
 from .common import log_calls
+from .common import category_map
+from .common import purpose_map
+from .common import code_map
+
 
 class xmlUaLayers:
 
-    # це атрибут класу він збільшується на 1 в конструкторі
-    # і таким чином формує унікальний ідентифікатор кожного
-    # екземпляру класу, який створюється для кожного xml
+
+
+
     _id_counter = 0
 
     def __init__(self, 
@@ -39,32 +48,39 @@ class xmlUaLayers:
                 tree = None, 
                 plugin=None):
 
-        # xmlFilePath - для формування назви групи шарів
-        # tree        - розпарсене дерево xml
-        # plugin      _ для підключення обробника редагування геометрії
 
-        # __init__  виклик конструктора з dockwidget.py:process_action_open
-        # обох викликах tree розпарсений
+
+
+
+
+
         
         self.plugin = plugin  
 
         xmlUaLayers._id_counter += 1
 
-        # унікальний ідентифікатор екземпляра класу
+
         self.id = xmlUaLayers._id_counter
 
-        log_calls(logFile, f"id = {str(self.id)}")
+        log_calls(logFile, f"Новий xmlUaLayers з id {str(self.id)}")
 
-        # ініціюємо список назв шарів QGIS
+
+
+
+        self.block_attribute_handling = False
+
+
         self.layers = QgsProject.instance().mapLayers().values()
 
-        # отримання кореня дерева шарів
+
         self.layers_root = QgsProject.instance().layerTreeRoot()
         
         self.xmlFilePath: str = xmlFilePath
+        self.plugin_dir = os.path.dirname(__file__)
+        
         self.fileNameNoExt: str = os.path.splitext(os.path.basename(xmlFilePath))[0]
 
-        # генеруємо унікальне ім'я групи шарів, в яку будуть поміщені шари xml  
+
         self.group_name = self.generate_group_name(self.fileNameNoExt)
 
         if tree is None:
@@ -103,22 +119,20 @@ class xmlUaLayers:
         self.add_restrictions()
 
         self.add_adjacents()
-
-
     def generate_group_name(self, base_name):
 
         """
         Формує назву групи на основі базової назви, додаючи суфікс, якщо група з такою назвою вже існує.
         """
 
-        # log_calls(logFile, f"base_name = {base_name}")
+
         
         group_name = base_name
 
         existing_groups = [group.name() for group in self.layers_root.findGroups()]
 
         if group_name not in existing_groups:
-            # log_calls(logFile, f"group_name = {group_name}")
+
             return group_name
 
         suffix = 1
@@ -128,26 +142,29 @@ class xmlUaLayers:
         group_name = f"{base_name}#{suffix}"
         log_msg(logFile, f"group_name = {group_name}")
         return group_name
-
-
     def create_group(self):
+        """
+        Creates a group for XML layers, restricting renaming and subgroup addition.
+        This method performs the following actions:
+        - Creates a new group in the layer tree with the specified group name.
+        - Sets the group to be read-only, preventing renaming or adding subgroups.
+        - Updates the list of layers and the root of the layer tree.
+        - Moves the newly created group to the top of the layer tree.
+        Returns:
+            None
+        """
 
-        # log_calls(logFile)
-        #self.group = self.layers_root.findGroup(self.group_name)
         self.group = self.layers_root.addGroup(self.group_name)
         cloned_group = self.group.clone()
         self.layers_root.removeChildNode(self.group)
         self.layers_root.insertChildNode(0, cloned_group)
         self.group = cloned_group
-        # log_calls(logFile, f"{self.group_name} створено і переміщено на початок дерева ш.")
 
-        # оновлення шарів та кореня дерева шарів
+
         self.layers = QgsProject.instance().mapLayers().values()
         self.layers_root = QgsProject.instance().layerTreeRoot()
 
         return
-
-
     def read_points(self):
         """
         Imports points from an XML structure and stores them in two attributes: 
@@ -189,7 +206,7 @@ class xmlUaLayers:
                     pass
                 else:
                     dmt = dm.tag
-                    # log_calls(logFile, " dmt: '" + dmt + "'")
+
                 break
             x = point.find("X").text if point.find("X") is not None else None
             y = point.find("Y").text if point.find("Y") is not None else None
@@ -215,24 +232,22 @@ class xmlUaLayers:
 
             self.qgisPoints[uidp] = QgsPointXY(float(x), float(y))
 
-        # log_calls(logFile, "xmlPoints")
-        # log_calls(logFile, "qgisPoints")
+
+
 
         return
-
-
     def add_pickets(self):
         """
         Imports picket points from XML data and adds them as a new layer to the QGIS project.
         Ensures the layer "Пікети" is added only once to the specified group.
         """
-        # log_calls(logFile)
+
         layer_name = "Пікети"
 
-        # Check if layer already exists in the group
+
         group = self.layers_root.findGroup(self.group_name)
         existing_layer = None
-        if group:  # Check if the group exists
+        if group:
             for child in group.children():
                 if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
                     existing_layer = child.layer()
@@ -287,8 +302,6 @@ class xmlUaLayers:
             provider.addFeature(feature)
 
         return
-
-
     def read_lines(self):
         """
 
@@ -298,7 +311,7 @@ class xmlUaLayers:
         :rtype: None
         """
 
-        # log_calls(logFile)
+
 
         self.qgisLines = {}
         self.xmlLines = []
@@ -320,11 +333,9 @@ class xmlUaLayers:
 
             self.qgisLines[ulid] = [self.qgisPoints[uidp] for uidp in points_uidp ]
 
-        # log_msg(logFile, "\n    ULID [Point list]:" + logstr )
+
 
         return
-
-
     def add_zone(self):
         """
         Imports zones from the XML file and adds them as a new layer to the QGIS project,
@@ -332,19 +343,19 @@ class xmlUaLayers:
         If the layer already exists, it's removed and recreated.
         """        
         
-        # log_calls(logFile)
+
         layer_name = "Кадастрова зона"
 
-        # Check if the layer already exists in the group
+
         group = self.layers_root.findGroup(self.group_name)  # Corrected to use findGroup
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
             log_calls(logFile, f"Група '{self.group_name}' створена.")
         else:
-            # log_calls(logFile, f"Група '{self.group_name}' знайдена.")
+
             pass
 
-        # Check if the layer already exists in the group
+
         existing_layer = None
 
         for child in group.children():
@@ -352,10 +363,10 @@ class xmlUaLayers:
                 existing_layer = child.layer()
                 break
 
-        # log_calls(logFile, f"existing_layer = {existing_layer}")
-        # log_calls(logFile, f"self.group_name = {self.group_name}")
 
-        # Remove the existing layer if found
+
+
+
         if existing_layer:
             self.removeLayer(layer_name, self.group_name) # remove existing layer from group
 
@@ -363,7 +374,7 @@ class xmlUaLayers:
 
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, layer_name, "memory")
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/zone.qml")
-        # log_calls(logFile, f"layer = {layer}")
+
 
 
         if not layer.isValid():
@@ -395,35 +406,33 @@ class xmlUaLayers:
             feature.setAttributes([zone_id])
             layer_provider.addFeature(feature)
 
-        # root.addLayer(layer)  # No need for addMapLayer anymore
 
-        # Add the layer to the project but *not* directly to the layer tree:
+
+
         QgsProject.instance().addMapLayer(layer, False) 
 
 
-        # # Move the layer to the top of its group (after adding it to the root)        
-        # root = QgsProject.instance().layerTreeRoot()
-        # tree_layer = root.findLayer(layer.id())  # Retrieve the tree layer
-        # if tree_layer:
-        #     group.insertChildNode(0, tree_layer) # Now insert it at the top
-        # else:
-        #     log_msg(logFile, f"Error: Could not find tree layer for '{layer_name}'")
 
-        # # Ensure the group exists:
 
-        # log_calls(logFile, f"group = {group}")
+
+
+
+
+
+
+
+
+
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # # Add the layer *only* to the group:
+
         group.addLayer(layer)  # Use addLayer directly on the group
 
         self.last_to_first(group)
 
         self.added_layers.append(layer)
         return
-
-
     def last_to_first(self, group):
         """Moves the last child node of a layer tree group to the first position."""
         if group is None:
@@ -440,8 +449,6 @@ class xmlUaLayers:
 
         group.insertChildNode(0, cloned_last_child)
         group.removeChildNode(last_child)
-
-
     def linesToCoordinates(self, lines_element):
         """ Формує список координат замкненого полігону на основі ULID ліній 
             і їх точок.
@@ -453,12 +460,12 @@ class xmlUaLayers:
                 list: Список координат замкненого полігону.
         """
 
-        # log_calls(logFile)
+
         
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
 
-        # Зчитати всі ULID ліній
+
         lines = []
 
         logstr = ''
@@ -466,7 +473,7 @@ class xmlUaLayers:
         for line in lines_element.findall(".//Line"):
             i += 1
             ulid = line.find("ULID").text
-            # logstr += '\n\t' + ulid + '. '+ str(line)
+
             logstr += '\n\t' + ulid + '. '
 
             if ulid and ulid in self.qgisLines:
@@ -475,9 +482,9 @@ class xmlUaLayers:
                 raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
                 raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
-        # log_calls(logFile, "\n\t   ULID:" + logstr)
 
-        # Формуємо замкнений полігон
+
+
         if not lines:
             return []
 
@@ -488,7 +495,7 @@ class xmlUaLayers:
         used_lines.add(current_line[0])
 
         while len(used_lines) < len(lines):
-            # Пошук наступної лінії, що з'єднується
+
             for ulid, coords in lines:
                 if ulid in used_lines:
                     continue
@@ -503,100 +510,437 @@ class xmlUaLayers:
             else:
                 raise ValueError("Неможливо сформувати замкнений полігон — деякі лінії не з'єднуються.")
 
-        # Замикання полігону
+
         if polygon_coordinates[0] != polygon_coordinates[-1]:
             polygon_coordinates.append(polygon_coordinates[0])
 
         return polygon_coordinates
-
-
     def coordToPolygon(self, coordinates):
         """
         Формує полігон із заданого списку координат.
         """
 
-        # log_calls(logFile)
+
 
         logstr = ''
         i = 0
         for point in coordinates:
             i += 1
             logstr += f"\n\t {str(i)}. {point.x():.2f}, {point.y():.2f}"
-        # log_calls(logFile, "\n\tcoordinates: " + logstr)
+
 
         line_string = QgsLineString([QgsPointXY(y, x) for x, y in coordinates])
 
         polygon = QgsPolygon()
         polygon.setExteriorRing(line_string)  # Додавання зовнішнього кільця
         return polygon
+    def add_parcel(self): # Варіант 2 з розширеними атрибутами
+        log_msg(logFile, "Варіант 2 з розширеними атрибутами")
 
+        parcel_info = self.root.find(".//Parcels/ParcelInfo")
+        if parcel_info is None:
+            return
 
-    def add_parcel(self):
+        metric_info = parcel_info.find("ParcelMetricInfo")
+        if metric_info is None:
+            return
 
-        # log_msg(logFile)
 
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, "Ділянка", "memory")
+
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/parcel.qml")
+
         layer_provider = layer.dataProvider()
+
+
+
+
+
+
+
+
+
+
+
+        layer.setCustomProperty("xml_layer_id", self.id)
+        layer.attributeValueChanged.connect(lambda fid, idx, val, l=layer: self.handle_parcel_attribute_change(l, fid, idx, val))
+
+
+
+
         fields = [
+
             QgsField("ParcelID", QVariant.String),
-            QgsField("Area", QVariant.Double),
-            QgsField("Owners", QVariant.String),
+
+            QgsField("Description", QVariant.String),
+
+            QgsField("AreaSize", QVariant.Double),
+
+            QgsField("AreaUnit", QVariant.String),
+
+            QgsField("DeterminationMethod", QVariant.String),
+
+            QgsField("Region", QVariant.String),
+
+            QgsField("Settlement", QVariant.String),
+
+            QgsField("District", QVariant.String),
+
+            QgsField("ParcelLocation", QVariant.String),
+
+            QgsField("StreetType", QVariant.String),
+
+            QgsField("StreetName", QVariant.String),
+
+            QgsField("Building", QVariant.String),
+
+            QgsField("Block", QVariant.String),
+
+            QgsField("AdditionalInfo", QVariant.String),
+
+            QgsField("Category", QVariant.String),
+
+            QgsField("Purpose", QVariant.String),
+
+            QgsField("Use", QVariant.String),
+
+            QgsField("Code", QVariant.String),
         ]
+
+
+        aliases = {
+
+            "ParcelID": "Номер ділянки",
+
+            "Description": "Опис",
+
+            "AreaSize": "Площа",
+
+            "AreaUnit": "Одиниця виміру",
+
+            "DeterminationMethod": "Спосіб визначення площі",
+
+            "Region": "Регіон",
+
+            "Settlement": "Назва населеного пункту",
+
+            "District": "Назва району",
+
+            "ParcelLocation": "Відношення до населеного пункту",
+
+            "StreetType": "Тип (вулиця, проспект, провулок тощо)",
+
+            "StreetName": "Назва вулиці",
+
+            "Building": "Номер будинку",
+
+            "Block": "Номер корпусу",
+
+            "AdditionalInfo": "Додаткова інформація",
+
+            "Category": "Категорія земель",
+
+            "Purpose": "Цільове призначення (використання)",
+
+            "Use": "Цільове призначення згідно із документом",
+
+            "Code": "Код форми власності",
+        }
+
+
         layer_provider.addAttributes(fields)
         layer.updateFields()
 
-        parcel_id = self.root.find(".//Parcels/ParcelInfo/ParcelMetricInfo/ParcelID").text
-        # log_calls(logFile, "\n\tparcel_id = " + parcel_id)
+        if len(fields) == len(aliases):
+            for field_name, alias in aliases.items():
+                log_msg(logFile, f"{layer.fields().indexOf(field_name)}. {field_name}, {alias}")
+                layer.setFieldAlias(layer.fields().indexOf(field_name), alias)
+        else:
+            log_msg(logFile, "Кількість полів не відповідає кількості псевдонімів.")
 
-        for parcel in self.root.findall(".//Parcels/ParcelInfo/ParcelMetricInfo"):
 
-            # Зовнішні межі
-            externals_element = parcel.find(".//Externals/Boundary/Lines")
-            # log_calls(logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
-            if externals_element is not None:
-                external_coords = self.linesToCoordinates(externals_element)
+        index = layer.fields().indexOf("Category")
+        if index >= 0:
+            setup = QgsEditorWidgetSetup("ValueMap", {
+                "map": category_map,
+                "UseMap": "true"
+            })
+            layer.setEditorWidgetSetup(index, setup)
 
-                logstr = ''
-                i = 0
-                for point in external_coords:
-                    i += 1
-                    logstr += f"\n\t {str(i)}. {point.x():.2f}, {point.y():.2f}"
-                # log_calls(logFile, "\n\t external_coords: " + logstr)
 
-            internals_element = parcel.find(".//Internals/Boundary/Lines")
-            # log_calls(logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
-            internal_coords_list = []
-            if internals_element is not None:
-                internal_coords_list.append(self.linesToCoordinates(internals_element))
+        index = layer.fields().indexOf("Purpose")
+        if index >= 0:
+            setup = QgsEditorWidgetSetup("ValueMap", {
+                "map": purpose_map,
+                "UseMap": "true"
+            })
+            layer.setEditorWidgetSetup(index, setup)
 
-            polygon = self.coordToPolygon(external_coords)
-            for internal_coords in internal_coords_list:
-                polygon.addInteriorRing(internal_coords)
 
-            feature = QgsFeature()
-            feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([parcel_id])
-            layer_provider.addFeature(feature)
+        index = layer.fields().indexOf("Code")
+        if index >= 0:
+            setup = QgsEditorWidgetSetup("ValueMap", {
+                "map": code_map,
+                "UseMap": "true"
+            })
+            layer.setEditorWidgetSetup(index, setup)
 
-        QgsProject.instance().addMapLayer(layer, False) # Додаємо шар до проекту, але не до дерева шарів
+
+        parcel_id = metric_info.findtext("ParcelID", "")
+        description = metric_info.findtext("Description", "")
+        area_size = metric_info.findtext("Area/Size", "")
+        area_unit = metric_info.findtext("Area/MeasurementUnit", "")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        def get_determination_method_label(self):
+            from .common import determination_map  # Імпортуємо тут або на початку модуля
+
+            det_elem = self.root.find(".//ParcelMetricInfo/Area/DeterminationMethod")
+            if det_elem is None or not len(det_elem):
+                return ""
+
+
+            if det_elem.find("ExchangeFileCoordinates") is not None:
+                return determination_map.get("<ExhangeFileCoordinates/>", "За координатами обмінного файлу")
+
+
+            if det_elem.find("DocExch") is not None:
+                return determination_map.get("<DocExch/>", "Згідно із правовстановлювальним документом")
+
+
+            calculation = det_elem.find("Calculation/CoordinateSystem")
+            if calculation is not None:
+
+                if calculation.find("SC42") is not None:
+                    return determination_map.get("<Calculation><CoordinateSystem><SC42/></CoordinateSystem></Calculation>", "Переобчислення з 'СК-42' (6 град зона)")
+                if calculation.find("SC42_3") is not None:
+                    return determination_map.get("<Calculation><CoordinateSystem><SC42_3/></CoordinateSystem></Calculation>", "Переобчислення з 'СК-42' (3 град зона)")
+                if calculation.find("USC2000") is not None:
+                    return determination_map.get("<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>", "Переобчислення з 'УСК2000'")
+                if calculation.find("WGS84") is not None:
+                    return determination_map.get("<Calculation><CoordinateSystem><WGS84/></CoordinateSystem></Calculation>", "Переобчислення з 'WGS84'")
+                if calculation.find("Local") is not None:
+                    msk_text = calculation.findtext("Local", "").strip()
+                    return f"Переобчислення з місцевої системи координат '{msk_text}'"
+                if calculation.find("SC63") is not None:
+                    sc63 = calculation.find("SC63")
+
+                    if sc63.find("X") is not None:
+                        return determination_map.get("<Calculation><CoordinateSystem><SC63><X/></SC63></CoordinateSystem></Calculation>", "Переобчислення з 'SC63-X'")
+                    if sc63.find("C") is not None:
+                        return determination_map.get("<Calculation><CoordinateSystem><SC63><C/></SC63></CoordinateSystem></Calculation>", "Переобчислення з 'SC63-C'")
+                    if sc63.find("P") is not None:
+                        return determination_map.get("<Calculation><CoordinateSystem><SC63><P/></SC63></CoordinateSystem></Calculation>", "Переобчислення з 'SC63-P'")
+                    if sc63.find("T") is not None:
+                        return determination_map.get("<Calculation><CoordinateSystem><SC63><T/></SC63></CoordinateSystem></Calculation>", "Переобчислення з 'SC63-T'")
+
+            return "Невідомо"
+        area_method = get_determination_method_label(self)
+        log_msg(logFile, f"Метод визначення площі = {area_method}")
+
+
+
+        ns = ""
+
+
+
+        determination_variants = [
+            "За координатами обмінного файлу",
+            "Згідно із правовстановлювальним документом",
+            "Переобчислення з 'СК-42' (6 град зона)",
+            "Переобчислення з 'СК-42' (3 град зона)",
+            "Переобчислення з 'УСК2000'",
+            "Переобчислення з 'WGS84'",
+            "Переобчислення з 'SC63-X'",
+            "Переобчислення з 'SC63-C'",
+            "Переобчислення з 'SC63-P'",
+            "Переобчислення з 'SC63-T'",
+
+            "Переобчислення з місцевої системи координат"  
+        ]
+
+        value_map = {v: v for v in determination_variants}
+
+        index = layer.fields().indexOf("DeterminationMethod")
+        if index != -1:
+            setup = QgsEditorWidgetSetup("ValueMap", {"map": value_map, "UseMap": "true"})
+            layer.setEditorWidgetSetup(index, setup)
+
+        region = metric_info.findtext("../ParcelLocationInfo/Region", "")
+        settlement = metric_info.findtext("../ParcelLocationInfo/Settlement", "")
+        district = metric_info.findtext("../ParcelLocationInfo/District", "")
+
+
+
+
+
+
+        location_info = parcel_info.find("ParcelLocationInfo/ParcelLocation", ns)
+        parcel_location = ""
+        if location_info is not None:
+            if location_info.find("Rural", ns) is not None:
+                parcel_location = "За межами населеного пункту"
+            elif location_info.find("Urban", ns) is not None:
+                parcel_location = "У межах населеного пункту"
+        street_type = location_info.findtext("../ParcelAddress/StreetType", "")
+        street_name = location_info.findtext("../ParcelAddress/StreetName", "")
+        building = location_info.findtext("../ParcelAddress/Building", "")
+        block = location_info.findtext("../ParcelAddress/Block", "")
+        additional_info = location_info.findtext("../AdditionalInfoBlock/AdditionalInfo", "")
+        category = parcel_info.findtext("CategoryPurposeInfo/Category", "")
+        purpose = parcel_info.findtext("CategoryPurposeInfo/Purpose", "")
+        use = parcel_info.findtext("CategoryPurposeInfo/Use", "")
+        code = parcel_info.findtext("OwnershipInfo/Code", "")
+
+
+
+
+
+
+        externals_element = metric_info.find(".//Externals/Boundary/Lines")
+        if externals_element is not None:
+            external_coords = self.linesToCoordinates(externals_element)
+        else:
+            external_coords = []
+
+        internals_element = metric_info.find(".//Internals/Boundary/Lines")
+        internal_coords_list = []
+        if internals_element is not None:
+            internal_coords_list.append(self.linesToCoordinates(internals_element))
+
+        polygon = self.coordToPolygon(external_coords)
+        for internal_coords in internal_coords_list:
+            polygon.addInteriorRing(internal_coords)
+
+
+        feature = QgsFeature(layer.fields())
+        feature.setGeometry(QgsGeometry(polygon))
+        feature.setAttributes([
+            parcel_id,
+            description,
+            float(area_size) if area_size else None,
+            area_unit,
+            area_method,
+            region,
+            settlement,
+            district,
+            parcel_location,
+            street_type,
+            street_name,
+            building,
+            block,
+            additional_info,
+            category,
+            purpose,
+            use,
+            code,
+            ])
+        
+        layer_provider.addFeature(feature)
+
+        QgsProject.instance().addMapLayer(layer, False)
+
+
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
-        self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        self.group.addChildNode(tree_layer)
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
-        self.last_to_first(group) 
+        self.last_to_first(group)
+
+        
+
+    def handle_parcel_attribute_change(self, layer, fid, field_index, new_value):
+        
 
 
+
+        log_calls(logFile, f"🚩{self.block_attribute_handling}")
+        if self.block_attribute_handling:
+            return  # Якщо прапорець стоїть — ігноруємо зміну
+                  
+        if layer.customProperty("xml_layer_id") != self.id:
+
+            return
+
+        field_name = layer.fields()[field_index].name()
+
+        if field_name == "DeterminationMethod":
+            if new_value == "Переобчислення з місцевої системи координат":
+                msk_number, ok = QInputDialog.getText(
+                    None,
+                    "Реєстраційний номер МСК",
+                    "Введіть номер місцевої системи координат (наприклад, 0501):"
+                )
+                if ok and msk_number.strip():
+                    new_label = f"Переобчислення з місцевої системи координат 'МСК {msk_number.strip()}'"
+
+
+
+
+
+                    layer.blockSignals(True)
+                    layer.changeAttributeValue(fid, field_index, new_label)
+                    layer.blockSignals(False)
+
+                    self.block_attribute_handling = True 
+
+
+                    self.update_determination_method_from_form(new_label)
+
+                    layer.triggerRepaint()
+
+                    self.show_message("Спосіб обчислення площі ділянки:", new_label)
+                else:
+                    log_msg(logFile, "❗ Номер МСК не введено — зміна скасована")
+                return
+            else:
+                self.update_determination_method_from_form(new_value)
+            return
+
+
+
+
+        xpath = self.parcel_field_xpaths.get(field_name)
+        if xpath:
+            element = self.root.find(xpath)
+            if element is not None:
+                element.text = str(new_value)
+                self.xml_dirty = True
+    def update_determination_method_from_form(self, new_value):
+
+
+
+
+        return
+    def show_message(self, header, message):
+        iface.messageBar().pushMessage(
+            header,  # Заголовок
+            message,  # Текст повідомлення
+            level=Qgis.Success,  # Тип повідомлення (зелений фон)
+            duration=0  # 0 секунд — повідомлення буде жити вічно, поки не закриють
+        )
     def last_to_first(self, group):
         """Переміщує останній дочірній вузол групи шарів на першу позицію."""
         if group is None:
@@ -613,28 +957,24 @@ class xmlUaLayers:
 
         group.insertChildNode(0, cloned_last_child) # Вставляємо клон на першу позицію
         group.removeChildNode(last_child) # Видаляємо оригінальний останній дочірній вузол
-
-
     def get_full_name(self, person_element):
 
-        # log_msg(logFile)
+
 
         if person_element is None:
             return ""  # Якщо елемент не знайдено, повертаємо порожній рядок
 
-        # Отримуємо окремі частини і перевіряємо, чи вони існують
+
         last_name = person_element.find("LastName").text if person_element.find("LastName") is not None else ""
         first_name = person_element.find("FirstName").text if person_element.find("FirstName") is not None else ""
         middle_name = person_element.find("MiddleName").text if person_element.find("MiddleName") is not None else ""
 
-        # Формуємо повне ім'я
+
         full_name = f"{last_name} {first_name} {middle_name}".strip()
         return full_name
-
-
     def add_quartal(self):
 
-        # log_calls(logFile)
+
 
         quarter_info = {}
         quarter_number = self.root.find(".//CadastralQuarterInfo/CadastralQuarterNumber").text
@@ -669,7 +1009,7 @@ class xmlUaLayers:
 
         for quarter in self.root.findall(".//CadastralQuarterInfo"):
             externals_element = quarter.find(".//Externals/Boundary/Lines")
-            # log_calls(logFile, "\n\t.//Externals/Boundary/Lines\n\t" + str(externals_element))
+
             if externals_element is not None:
                 external_coords = self.linesToCoordinates(externals_element)
 
@@ -678,10 +1018,10 @@ class xmlUaLayers:
                 for point in external_coords:
                     i += 1
                     logstr += f"\n\t {str(i)}. {point.x():.2f}, {point.y():.2f}"
-                # log_calls(logFile, "\n\t external_coords: " + logstr)
+
 
             internals_element = quarter.find(".//Internals/Boundary/Lines")
-            # log_calls(logFile, "\n\t.//Internals/Boundary/Lines\n\t" + str(externals_element))
+
 
             internal_coords_list = []
             if internals_element is not None:
@@ -701,8 +1041,8 @@ class xmlUaLayers:
             auth_head_full_name = self.get_full_name(auth_head)
             dkzr_head_full_name = self.get_full_name(dkzr_head)
 
-            # log_calls(logFile, f"Auth Head: {auth_head_full_name}")
-            # log_calls(logFile, f"DKZR Head: {dkzr_head_full_name}")
+
+
 
         features = []
         feature = QgsFeature(layer.fields())
@@ -712,33 +1052,32 @@ class xmlUaLayers:
         feature.setAttribute("LocalAuthorityHead", auth_head_full_name)
         feature.setAttribute("DKZRHead", dkzr_head_full_name)
 
-        # Додаємо об'єкт до списку
+
         features.append(feature)
 
-        # Оновити шар
+
         layer.triggerRepaint()
 
         layer_provider.addFeatures(features)
 
-        # Додаємо шар до проекту, але не до дерева шарів
+
         QgsProject.instance().addMapLayer(layer, False) 
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
+
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group) 
-
-
     def last_to_first(self, group):
         """Переміщує останній дочірній вузол групи шарів на першу позицію."""
         if group is None:
@@ -755,8 +1094,6 @@ class xmlUaLayers:
 
         group.insertChildNode(0, cloned_last_child) # Вставляємо клон на першу позицію
         group.removeChildNode(last_child) # Видаляємо оригінальний останній дочірній вузол
-
-
     def removeLayer(self, layer_name, group_name=None):
         """
             Removes a layer with the given name from a specified group 
@@ -771,7 +1108,7 @@ class xmlUaLayers:
                     of the layer tree. Defaults to None.
 
         """
-        # log_calls(logFile, f"'{layer_name}'")
+
 
         root = QgsProject.instance().layerTreeRoot()
 
@@ -783,7 +1120,7 @@ class xmlUaLayers:
                 log_calls(logFile, f"'{group_name}' не знайдена. \nШар '{layer_name}' не видалено.")
                 return
 
-        # Знаходимо шар у батьківському вузлі (групі або корені) за іменем
+
         for child in parent.children():
             if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
                 layer_id = child.layerId()  # Отримуємо ID шару карти
@@ -792,33 +1129,32 @@ class xmlUaLayers:
                 log_calls(logFile, f"Шар '{layer_name}' видалено з групи {group_name}") 
                 return  # Виходимо з функції після видалення шару
 
-        # log_calls(logFile, f"Шар '{layer_name}' не знайдено в групі {group_name}")
-
 
     def add_lines(self):
 
-        # log_calls(logFile)
+
 
         layer_name = "Лінії XML"
-        # log_msg(logFile, " layer_name = " + layer_name)
+
         self.removeLayer(layer_name)
         layer = QgsVectorLayer("LineString?crs=" + self.crsEpsg, layer_name, "memory")
 
         if layer.isValid():
             layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/lines.qml")
-            # додаємо шар до проекту, але не до дерева шарів
+
             QgsProject.instance().addMapLayer(layer, False)
             tree_layer = QgsLayerTreeLayer(layer)
             
-            # Додаємо шар до групи
+
             self.group.addChildNode(tree_layer) 
-            log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-            # Підключаємо обробник сигналів для шару
-            if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-            # Оновлюємо список шарів 
+            log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
             self.added_layers.append(tree_layer)
-            # Переміщуємо шар на верх групи
-            # self.last_to_first(group) 
+
+
 
         else:
             QMessageBox.critical(self, "xml_ua", "Виникла помилка при створенні шару ліній.")
@@ -834,20 +1170,20 @@ class xmlUaLayers:
             x = float(point.find("X").text)
             y = float(point.find("Y").text)
             self.qgisLinesXML[uidp] = QgsPointXY(y, x)
-            # log_msg(logFile, " self.qgisLinesXML[" + uidp + "] = " + str(self.qgisLinesXML[uidp]))
 
-        # Додаємо полілінії на шар
+
+
         for pl in self.root.findall(".//PL"):
             point_ids = [p.text for p in pl.find("Points").findall("P")]
             line_ULID = pl.find("ULID")
             line_length = pl.find("Length")
-            # log_msg(logFile, " line_ULID = " + line_ULID.text)
+
             polyline_points = [self.qgisLinesXML[pid] for pid in point_ids if pid in self.qgisLinesXML]
             fields = layer.fields()
             feature = QgsFeature(fields)
             feature["ULID"] = line_ULID.text
             feature["Length"] = line_length.text
-            # log_msg(logFile, " feature['ULID'] = " + feature["ULID"])
+
             feature.setGeometry(QgsGeometry.fromPolylineXY(polyline_points))
             provider.addFeatures([feature])
         
@@ -856,14 +1192,12 @@ class xmlUaLayers:
         layer.triggerRepaint(deferredUpdate = True)
 
         return
-
-
     def add_lands(self):
         """
         Імпортує угіддя з XML-файлу та додає їх як новий шар до проекту QGIS.
         Враховує, що угідь може бути декілька.
         """
-        # log_msg(logFile)
+
 
         layer_name = "Угіддя"
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, layer_name, "memory")
@@ -883,14 +1217,14 @@ class xmlUaLayers:
             size_element = lands_parcel.find("./Area/Size")
             size = float(size_element.text) if size_element is not None and size_element.text else None
 
-            # Зовнішні межі
+
             externals_element = lands_parcel.find(".//Externals/Boundary/Lines")
             if externals_element is not None:
                 external_coords = self.lines_element2polygone(externals_element)
             else:
                 external_coords = []
 
-            # Внутрішні межі
+
             internals_element = lands_parcel.find(".//Internals/Boundary/Lines")
             internal_coords_list = []
             if internals_element is not None:
@@ -907,27 +1241,26 @@ class xmlUaLayers:
 
         QgsProject.instance().addMapLayer(layer, False)  # Додаємо шар до проекту, але не до дерева шарів
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
+
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group) 
-
-
     def add_leases(self):
         """
         Імпортує дані про оренду з XML-файлу та додає їх як новий шар до проекту QGIS.
         """
-        # log_calls(logFile)
+
 
         layer_name = "Оренда"
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, layer_name, "memory")
@@ -952,14 +1285,14 @@ class xmlUaLayers:
             area_element = lease.find(".//LeaseAgreement/Area")
             area = float(area_element.text) if area_element is not None and area_element.text else None
 
-            # Отримуємо зовнішні межі з об'єкта (оренди)
+
             externals_element = lease.find(".//Externals/Boundary/Lines")
             if externals_element is not None:
                 external_coords = self.lines_element2polygone(externals_element)
             else:
                 external_coords = []
 
-            # Внутрішні межі
+
             internals_element = lease.find(".//Internals/Boundary/Lines")
             internal_coords_list = []
             if internals_element is not None:
@@ -976,27 +1309,26 @@ class xmlUaLayers:
 
         QgsProject.instance().addMapLayer(layer, False)  # Додаємо шар до проекту, але не до дерева шарів
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
+
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group) 
-
-
     def add_subleases(self):
         """
         Імпортує дані про суборенду з XML-файлу та додає їх як новий шар до проекту QGIS.
         """
-        # log_calls(logFile)
+
 
         layer_name = "Суборенда"
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, layer_name, "memory")
@@ -1019,14 +1351,14 @@ class xmlUaLayers:
             area_element = sublease.find(".//Area")
             area = float(area_element.text) if area_element is not None and area_element.text else None
 
-            # Отримуємо зовнішні межі з об'єкта (суборенди)
+
             externals_element = sublease.find(".//Externals/Boundary/Lines")
             if externals_element is not None:
                 external_coords = self.lines_element2polygone(externals_element)
             else:
                 external_coords = []
 
-            # Внутрішні межі
+
             internals_element = sublease.find(".//Internals/Boundary/Lines")
             internal_coords_list = []
             if internals_element is not None:
@@ -1043,27 +1375,26 @@ class xmlUaLayers:
 
         QgsProject.instance().addMapLayer(layer, False)  # Додаємо шар до проекту, але не до дерева шарів
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
+
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group) 
-
-
     def add_restrictions(self):
         """
         Імпортує дані про обмеження з XML-файлу та додає їх як новий шар до проекту QGIS.
         """
-        # log_calls(logFile)
+
 
         layer_name = "Обмеження"
         layer = QgsVectorLayer("MultiPolygon?crs=" + self.crsEpsg, layer_name, "memory")
@@ -1089,14 +1420,14 @@ class xmlUaLayers:
             start_date = restriction.find(".//RestrictionTerm/Time/StartDate").text if restriction.find(".//RestrictionTerm/Time/StartDate") is not None else None
             expiration_date = restriction.find(".//RestrictionTerm/Time/ExpirationDate").text if restriction.find(".//RestrictionTerm/Time/ExpirationDate") is not None else None
 
-            # Отримуємо зовнішні межі з об'єкта (обмеження)
+
             externals_element = restriction.find(".//Externals/Boundary/Lines")
             if externals_element is not None:
                 external_coords = self.lines_element2polygone(externals_element)
             else:
                 external_coords = []
 
-            # Внутрішні межі
+
             internals_element = restriction.find(".//Internals/Boundary/Lines")
             internal_coords_list = []
             if internals_element is not None:
@@ -1111,27 +1442,26 @@ class xmlUaLayers:
             feature.setAttributes([restriction_code, restriction_name, start_date, expiration_date])
             layer_provider.addFeature(feature)
 
-        # Додаємо шар до проекту, але не до дерева шарів
+
         QgsProject.instance().addMapLayer(layer, False)  
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
+
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group) 
-
-
     def lines_element2polygone(self, lines_element):
-        # Останній варіант
+
         """ Формує список координат замкненого полігону на основі ULID ліній
             і їх точок.
 
@@ -1143,12 +1473,12 @@ class xmlUaLayers:
                 list: Список координат замкненого полігону.
         """
 
-        # log_calls(logFile, f"lines_element = {lines_element.tag}")
+
 
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
 
-        # Зчитати всі ULID ліній
+
         lines = []
 
         logstr = ''
@@ -1156,7 +1486,7 @@ class xmlUaLayers:
         for line in lines_element.findall(".//Line"):
             i += 1
             ulid = line.find("ULID").text
-            # logstr += '\n\t' + ulid + '. '+ str(line)
+
             logstr += '\n\t' + ulid + '. '
 
             if ulid and ulid in self.qgisLines:
@@ -1165,48 +1495,48 @@ class xmlUaLayers:
                 raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
                 raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
-        # log_calls(logFile, "\n\t   ULID:" + logstr)
-
-        # i = 0
-        # for line in lines:
-        #     log_msg(logFile, f"lines[{i}][0] = {lines[i][0]}")
-        #     log_msg(logFile, f"lines[{i}][1] = {lines[i][1]}")
-        #     i += 1
 
 
 
-        # Формуємо замкнений полігон
+
+
+
+
+
+
+
+
         if not lines:
             return []
 
         polygon_coordinates = []
         used_lines = set()
 
-        # Перевірка наявності хоча б однієї лінії
+
         current_line_ulid = lines[0][0]  # Отримуємо ULID першої лінії
         current_line_coords = lines[0][1]  # Отримуємо координати першої лінії
 
-        # Додати точки першої лінії
+
         polygon_coordinates.extend(current_line_coords)
         used_lines.add(current_line_ulid)
 
         while len(used_lines) < len(lines):
             found_next_line = False
-            # Пошук наступної лінії, що з'єднується
+
             for ulid, coords in lines:
                 if ulid in used_lines:
                     continue
-                # Перевірка наявності точок в polygon_coordinates
+
                 if not polygon_coordinates:
                     raise ValueError("polygon_coordinates is empty")
-                # З'єднання кінця попередньої лінії з початком наступної
+
                 if coords[0] == polygon_coordinates[-1]:
                     polygon_coordinates.extend(coords[1:])
                     used_lines.add(ulid)
                     current_line_ulid = ulid
                     found_next_line = True
                     break
-                # З'єднання кінця попередньої лінії з кінцем наступної
+
                 elif coords[-1] == polygon_coordinates[-1]:
                     polygon_coordinates.extend(reversed(coords[:-1]))
                     used_lines.add(ulid)
@@ -1214,19 +1544,17 @@ class xmlUaLayers:
                     found_next_line = True
                     break
             if not found_next_line:
-                # Якщо не знайдено наступної лінії, перевіряємо, чи можна замкнути полігон
+
                 if polygon_coordinates[0] == polygon_coordinates[-1]:
                     return polygon_coordinates
                 else:
                     raise ValueError("Неможливо сформувати замкнений полігон — деякі лінії не з'єднуються.")
 
-        # Замикання полігону
+
         if polygon_coordinates[0] != polygon_coordinates[-1]:
             polygon_coordinates.append(polygon_coordinates[0])
 
         return polygon_coordinates
-
-
     def lines_element2polyline(self, lines_element):
         """
 
@@ -1240,22 +1568,22 @@ class xmlUaLayers:
         Returns:
             list: Список координат полілінії.
         """
-        # Формує список координат полілінії 
-        # на основі ULID ліній та їх точок.
-        # На відміну від lines_element2polygone, 
-        # не перевіряє полілінію на замкнутість.
-        # Полілінія може бути як замкнутою, так і незамкнутою.
-        #✔️ 2025.03.27 13:32
-        # Викликається з add_adjacents
-        # має специфічні особливості, характерні
-        # для використання в обробці інформації про суміжників
+
+
+
+
+
+
+
+
+
 
         log_calls(logFile)
 
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
 
-        # Зчитати всі ULID ліній
+
         lines = []
 
         logstr = ''
@@ -1272,37 +1600,37 @@ class xmlUaLayers:
                 raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
                 raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
-        # log_msg(logFile, "\nlines: \n" + logstr)
 
-        # Створюємо пустий список координат polyline
+
+
         polyline = []
 
         if not lines:
-            # raise ValueError("Нема суміжників.")
+
             QMessageBox.critical(self, "xml_ua", "Нема суміжників.")
             return None
 
-        # Якщо в lines 1 елемент і polyline пустий - анклав - вертаємо lines_element2polygone(lines_element)
+
         if len(lines) == 1:
             return self.lines_element2polygone(lines_element)
 
-        # Глибокі копії lines[0][1], ..., lines[0][-1] додаються в кінець polyline у прямому порядку
+
         polyline.extend([QgsPointXY(point.x(), point.y()) for point in lines[0][1]])
 
-        # Видаляємо lines[0]
+
         lines.pop(0)
 
-        # Якщо lines пустий - завершення
+
         if not lines:
             return polyline
 
         while lines:
             found_next_line = False
 
-            # Шукаємо співпадіння polyline[-1] (кінець) з початками залишку lines[0][1],...lines[-1][1]
+
             for i, (ulid, coords) in enumerate(lines):
                 if coords[0] == polyline[-1]:
-                    # Додаємо точки, крім першої (щоб уникнути дублювання)
+
                     polyline.extend([QgsPointXY(point.x(), point.y()) for point in coords[1:]])
                     lines.pop(i)
                     found_next_line = True
@@ -1311,10 +1639,10 @@ class xmlUaLayers:
             if found_next_line:
                 continue
 
-            # Шукаємо співпадіння polyline[-1] (кінець) з кінцями залишку lines[0][-1],...lines[-1][-1]
+
             for i, (ulid, coords) in enumerate(lines):
                 if coords[-1] == polyline[-1]:
-                    # Додаємо точки в зворотньому порядку, крім останньої
+
                     polyline.extend([QgsPointXY(point.x(), point.y()) for point in reversed(coords[:-1])])
                     lines.pop(i)
                     found_next_line = True
@@ -1323,10 +1651,10 @@ class xmlUaLayers:
             if found_next_line:
                 continue
 
-            # Шукаємо співпадіння polyline[0] (початок) з кінцями залишку lines[0][-1],...lines[-1][-1]
+
             for i, (ulid, coords) in enumerate(lines):
                 if coords[-1] == polyline[0]:
-                    # Додаємо точки в зворотньому порядку, крім останньої
+
                     polyline = [QgsPointXY(point.x(), point.y()) for point in reversed(coords[:-1])] + polyline
                     lines.pop(i)
                     found_next_line = True
@@ -1335,10 +1663,10 @@ class xmlUaLayers:
             if found_next_line:
                 continue
 
-            # Шукаємо співпадіння polyline[0] (початок) з початками залишку lines[0][1],...lines[-1][1]
+
             for i, (ulid, coords) in enumerate(lines):
                 if coords[0] == polyline[0]:
-                    # Додаємо точки, крім першої (щоб уникнути дублювання)
+
                     polyline = [QgsPointXY(point.x(), point.y()) for point in coords[1:]] + polyline
                     lines.pop(i)
                     found_next_line = True
@@ -1354,11 +1682,9 @@ class xmlUaLayers:
             i += 1
             log_str += f"{i}. {coordinate.x():.2f}, {coordinate.y():.2f}\n"
             log_str_coords += f"{i}. {coordinate} \n"
-        log_msg(logFile, "polyline_coordinates (x, y): \n" + log_str)
+
 
         return polyline
-
-
     def add_adjacents(self):
         """
         Імпортує дані про суміжників з XML-файлу та додає їх як новий шар до проекту QGIS.
@@ -1367,7 +1693,7 @@ class xmlUaLayers:
         log_calls(logFile)
 
         layer_name = "Суміжник"
-        # Видаляємо шар, якщо він вже існує
+
         self.removeLayer(layer_name)
         layer = QgsVectorLayer("LineString?crs=" + self.crsEpsg, layer_name, "memory")
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/adjacent.qml")
@@ -1379,7 +1705,7 @@ class xmlUaLayers:
         layer_provider.addAttributes(fields)
         layer.updateFields()
 
-        # знаходимо елемент Суміжників у дереві
+
         adjacents = self.root.find(".//AdjacentUnits")
         if adjacents is None:
             log_msg(logFile, "Розділ AdjacentUnits відсутній. Суміжники не імпортовано.")
@@ -1387,11 +1713,11 @@ class xmlUaLayers:
 
         for adjacent in adjacents.findall(".//AdjacentUnitInfo"):
 
-            # Знаходимо значення параметрів суміжника
-            # Отримуємо кадастровий номер
+
+
             cadastral_number = adjacent.find(".//CadastralNumber").text if adjacent.find(".//CadastralNumber") is not None else None
 
-            # Визначаємо власника
+
             proprietor = ""
             natural_person = adjacent.find(".//Proprietor/NaturalPerson/FullName")
             legal_entity = adjacent.find(".//Proprietor/LegalEntity")
@@ -1404,11 +1730,11 @@ class xmlUaLayers:
             elif legal_entity is not None:
                 proprietor = legal_entity.find("Name").text if legal_entity.find("Name") is not None else ""
 
-            # Отримуємо межі суміжника
+
             boundary_element = adjacent.find(".//AdjacentBoundary/Lines")
             if boundary_element is not None:
 
-                # Отримуємо координати полілінії
+
                 try:
                     boundary_coords = self.lines_element2polyline(boundary_element)
                 except ValueError as e:
@@ -1420,11 +1746,11 @@ class xmlUaLayers:
                 for point in boundary_coords:
                     i += 1
                     logstr += f"\n\t {str(i)}. {point.x():.2f}, {point.y():.2f}"
-                log_msg(logFile, f"\n{proprietor}: " + logstr)
+                log_msg(logFile, f"\n{proprietor}: " + logstr + "\n")
 
                 if len(boundary_coords) >= 2:
-                    # Створюємо QgsLineString з QgsPointXY
-                    # line_string = QgsLineString([QgsPointXY(point.x(), point.y()) for point in boundary_coords])
+
+
                     line_string = QgsLineString([QgsPointXY(point.y(), point.x()) for point in boundary_coords])
                     feature = QgsFeature()
                     feature.setGeometry(QgsGeometry(line_string))
@@ -1440,25 +1766,24 @@ class xmlUaLayers:
 
         QgsProject.instance().addMapLayer(layer, False)  # Додаємо шар до проекту, але не до дерева шарів
         tree_layer = QgsLayerTreeLayer(layer)
-        # Get the group directly or create it if it doesn't exist:
+
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group)
 
         layer.updateExtents()
         layer.triggerRepaint()
-
-
     def display_test_line(self):
         """
         Відображає тестову лінію на полотні QGIS.
@@ -1472,7 +1797,7 @@ class xmlUaLayers:
         layer.loadNamedStyle(os.path.dirname(__file__) + "/templates/lines.qml")
         layer_provider = layer.dataProvider()
 
-        # Точки для тестової лінії
+
         points = [
             QgsPointXY(5428619.05, 1260119.11),
             QgsPointXY(5428738.27, 1260179.85),
@@ -1481,34 +1806,35 @@ class xmlUaLayers:
             QgsPointXY(5428934.09, 1260193.32),
         ]
 
-        # Створюємо QgsLineString
+
         line_string = QgsLineString(points)
 
-        # Створюємо QgsFeature
+
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry(line_string))
 
-        # Додаємо QgsFeature до шару
+
         layer_provider.addFeature(feature)
 
-        # Додаємо шар до проекту
+
         QgsProject.instance().addMapLayer(layer, False)
         tree_layer = QgsLayerTreeLayer(layer)
         group = self.layers_root.findGroup(self.group_name)
         if group is None:
             group = self.layers_root.addGroup(self.group_name)
 
-        # Додаємо шар до групи
+
         self.group.addChildNode(tree_layer) 
-        log_msg(logFile, f"Додано шар {layer.name()} до групи {self.group.name()}")
-        # Підключаємо обробник сигналів для шару
-        if self.plugin: self.plugin.connect_layer_signals_for_layer(layer)
-        # Оновлюємо список шарів 
+        log_msg(logFile, f"Додано шар {layer.name()}")
+
+
+
+
         self.added_layers.append(tree_layer)
-        # Переміщуємо шар на верх групи
+
         self.last_to_first(group) 
 
-        # Оновлюємо екстенти та перемальовуємо шар
+
         layer.updateExtents()
         layer.triggerRepaint()
 

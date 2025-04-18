@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 from qgis.PyQt.QtCore import Qt
 
 from qgis.PyQt.QtGui import QStandardItem
@@ -27,12 +27,12 @@ class TableViewLegalEntity(QTableView):
 
 
     def populate_legal_entity(self, xml_tree, entity):
-        # log_msg(logFile, f"start")
+
         self.items_model.removeRows(0, self.items_model.rowCount())
         elements = xml_tree.findall(entity)
-        # log_msg(logFile, f"entity = {entity}")
-        # log_msg(logFile, f"elements = {elements}")
-        # log_msg(logFile, f"num of elements {len(elements)}")
+
+
+
         
         for element in elements:
             self.add_name(element)

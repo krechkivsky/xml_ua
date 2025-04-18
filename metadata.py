@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """Таблиця метаданих """
 import os
 import uuid
@@ -68,33 +68,33 @@ class TableViewMetadata(QTableView):
                 table_item_changed: Handles changes to table items.
         """
         super().__init__(parent) 
-        # log_msg(logFile, "TableViewMetadata")
+
         self.parent = parent 
         self.table_block_change_flag = False  # Локальний флаг для запобігання циклічним змінам
-        # log_calls(logFile, f"🚩 {self.table_block_change_flag}")
 
-        # Змінити висоту горизонтального заголовка
+
+
         self.horizontalHeader().setFixedHeight(30)
         self.verticalHeader().setDefaultSectionSize(30)
 
-        # Підключення обробника правого кліку
+
         self.setContextMenuPolicy(Qt.CustomContextMenu)
-        #self.customContextMenuRequested.connect(self.table_right_click)
+
         connector.connect(self, "customContextMenuRequested", self.table_right_click)
 
 
-        # Підключення обробника подвійного кліку
-        #self.doubleClicked.connect(self.table_double_click)
+
+
         connector.connect(self, "doubleClicked", self.table_double_click)
         self.tooltips = dict(config['metaDataTooltips'])
 
-        # ✔ 2025.01.31 08:41:52
+
         self.items_model = QStandardItemModel()
         self.setModel(self.items_model)
         self.items_model.setHorizontalHeaderLabels(["Елемент", "Значення"])
 
-        # Підключення обробника змін даних у комірках
-        #self.items_model.itemChanged.connect(self.table_item_changed)
+
+
         connector.connect(self.items_model, "itemChanged", self.table_item_changed)
 
 
@@ -124,15 +124,15 @@ class TableViewMetadata(QTableView):
         Finally:
             Resets the table_block_change_flag to False and logs the reset status.
         """
-        # TODO: 2025.01.22 06:41
-        #    В методі можна виконати обробку:
-        #       - оновлення інших компонентів 
-        #       - перевірку валідності
-        #       - встановлення червоного фону
-        #       - логування змін.
-        # TODO:2025.01.22 07:04 тимчасово заблокувати сигнал
-        # self.items_model.blockSignals(True) - Вимкнення сигналів
-        # self.items_model.blockSignals(False)  # Увімкнення сигналів
+
+
+
+
+
+
+
+
+
 
         log_msg(logFile, f"{cell.text()}")
         log_msg(logFile, f"table 🚩 {self.table_block_change_flag}")
@@ -145,16 +145,16 @@ class TableViewMetadata(QTableView):
         log_msg(logFile, f"table 🚩 {self.table_block_change_flag}")
 
         try:
-            # ✅ 2025.01.30 01:34:57 row i key_cell непотрібні
-            # ✅ 2025.01.30 02:09:30 у key_cell знаходиться не тег, а опис тегу з XSD
-            # row = cell.row()
-            # key_cell = self.items_model.cell(row, 0)
+
+
+
+
             value = cell.text()
             full_path = cell.data(Qt.UserRole)
             tag = full_path.split("/")[-1]
             log_msg(logFile,f"тег комірки: {tag}")
 
-            # ✅ 2025.01.30 01:35:57 вибір функції для оновлення дерева по останньому тегу
+
             if tag == "FileDate":
                 self.parent.treeViewXML.tree_FileDate_update(full_path[1:], value)
             if tag == "FileGUID":
@@ -188,9 +188,9 @@ class TableViewMetadata(QTableView):
 
 
             log_msg(logFile, "Пвернення з функції tree_XXXXX_update()")
-            # ✅ 2025.01.30 02:02:55 можливо сигнал не потрібний
-            # log_msg(logFile, f"емітуємо сигнал dataChangedInTable.emit({full_path}, {value})")
-            # self.dataChangedInTable.emit(full_path, value)
+
+
+
         finally:
             self.table_block_change_flag = False
             log_msg(logFile, f"table 🚩 {self.table_block_change_flag}")
@@ -199,8 +199,8 @@ class TableViewMetadata(QTableView):
 
     def on_tree_item_text_changed_metadata(self, full_path, value):
         """ Оновлення таблиці при зміні дерева
-            # Викликається з конструктора xml_uaDockWidget 
-            # слот для сигналу dataChangedInTree
+
+
         """
         log_msg(logFile, "value = {value}")
         log_msg(logFile, f"table 🚩 {self.table_block_change_flag}")
@@ -210,11 +210,11 @@ class TableViewMetadata(QTableView):
         self.table_block_change_flag = True
         log_msg(logFile, f"table 🚩 {self.table_block_change_flag}")
         try:
-            # for row in range(self.items_model.rowCount()):
-            #     key_item = self.items_model.item(row, 0)
-            #     if key_item.text() == full_path:
-            #         self.items_model.item(row, 1).setData(value, Qt.EditRole)
-            #         break
+
+
+
+
+
             row = self.get_row_from_path(full_path)
             log_msg(logFile, "row = {row}, value = {value}")
             self.items_model.item(row, 1).setData(value, Qt.EditRole)
@@ -229,7 +229,7 @@ class TableViewMetadata(QTableView):
             по повному шляху елемента дерева у форматі без початкового слеша
         """
         log_msg(logFile)
-        #log_msg(logFile, f"full_path = {full_path}")
+
         if full_path == "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate":    return 0
         if full_path == "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileGUID":   return 1
         if full_path == "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FormatVersion":     return 2
@@ -254,14 +254,14 @@ class TableViewMetadata(QTableView):
         """
         log_msg(logFile)
         if not index.isValid():
-            # log_msg(logFile, "Клік поза межами таблиці")
+
             return
 
         row = index.row()
         column = index.column()
         value = self.items_model.data(index)  # Отримуємо значення з моделі
 
-        # QMessageBox.warning(None, "Повідомлення", f"Подвійний клік на рядку {row}, колонці {column}, значення: {value}")
+
         log_msg(logFile, f"{value}")
         log_msg(logFile, f"table 🚩 {self.table_block_change_flag}")
 
@@ -272,56 +272,56 @@ class TableViewMetadata(QTableView):
         index = self.indexAt(position)  # Отримуємо QModelIndex за позицією
         log_msg(logFile, f"index({index.column()}, {index.row()})")
         if not index.isValid():
-            # log_msg(logFile, "Клік поза межами таблиці")
+
             pass
         if index.column() == 1:
             if index.row() == 0: # FileDate
-                # log_msg(logFile, f"FileDate ({index.column()}, {index.row()})")
+
                 menu = QMenu()
                 generate_date_action = menu.addAction("Дата формування файлу")
                 action = menu.exec_(self.viewport().mapToGlobal(position))
                 if action == generate_date_action:
-                    # log_msg(logFile, "Вибір пункту контекстного меню Дата формування файлу")
+
                     self.metadata_set_date_dialog(index)
                 else:
                     log_msg(logFile, "Відміна контекстного меню Дата формування файлу")
                     pass
             if index.row() == 1: # FileGUID
-                # log_msg(logFile, f"FileGUID ({index.column()}, {index.row()})")
+
                 menu = QMenu()
                 generate_guid_action = menu.addAction("Згенерувати GUID")
                 action = menu.exec_(self.viewport().mapToGlobal(position))
                 if action == generate_guid_action:
-                    # Генеруємо GUID
+
                     new_guid = "{" + str(uuid.uuid4()) + "}"
-                    # log_msg(logFile, f"new_guid = {new_guid}")
-                    # Оновлюємо значення комірки
+
+
                     self.items_model.setData(index, new_guid, Qt.EditRole)
-            #  index.row() == 2: Версія формату обмінного файлу - нема контекстного меню
+
             if index.row() == 3: # TODO написати функцію вибору області і відідлу ДЗК
                 menu = QMenu()
 
                 if "Receiver" in config:
                     receiver_section = config["Receiver"]
-                    # Додаємо елементи секції в меню
+
                     actions = {}
                     for key, value in receiver_section.items():
                         actions[menu.addAction(value)] = (key, value)
 
-                    # Показуємо меню і обробляємо вибір
+
                     action = menu.exec_(self.viewport().mapToGlobal(position))
                     if action:
                         selected_key, selected_value = actions[action]
 
-                        # Записуємо вибране значення у комірку (row = 3, col = 1)
+
                         value_index = self.items_model.index(3, 1)
                         self.items_model.setData(value_index, selected_value)
 
-                        # Записуємо ключ у комірку (row = 4, col = 1)
+
                         key_index = self.items_model.index(4, 1)
                         self.items_model.setData(key_index, selected_key)
             if index.row() == 7: # Рядок для системи координат
-                # Створюємо контекстне меню
+
                 menu = QMenu()
                 coordinate_systems = [
                     "SC42",
@@ -335,47 +335,47 @@ class TableViewMetadata(QTableView):
                     "SC63,T"
                 ]
                 actions = {menu.addAction(system): system for system in coordinate_systems}
-                # Показуємо меню
+
                 action = menu.exec_(self.viewport().mapToGlobal(position))
                 if action:
                     selected_system = actions[action]
-                    # Якщо обрано Local, запитуємо реєстраційний номер
+
                     if selected_system == "Local":
                         reg_number, ok = QInputDialog.getText(self, "Реєстраційний номер", "Введіть реєстраційний номер локальної СК:")
                         if ok and reg_number.strip():
                             selected_system = f"Local ({reg_number.strip()})"
-                    # log_msg(logFile, f"selected_system = {selected_system}")
-                    # Оновлюємо таблицю
-                    # log_msg(logFile, f"self.items_model = {self.items_model}")
+
+
+
                     self.items_model.setData(index, selected_system, Qt.EditRole)
             if index.row() == 8: # Рядок для системи висот
-                # Створюємо контекстне меню
+
                 menu = QMenu()
                 height_systems = ["Baltic", "Baltic77", "Other"]
                 actions = {menu.addAction(system): system for system in height_systems}
-                # Показуємо меню
+
                 action = menu.exec_(self.viewport().mapToGlobal(position))
                 if action:
                     selected_system = actions[action]
-                    # Оновлюємо таблицю
+
                     self.items_model.setData(index, selected_system, Qt.EditRole)
             if index.row() == 9: # Рядок Одиниця виміру довжини
-                # Створюємо контекстне меню
+
                 menu = QMenu()
                 units = ["M", "Km", "Other"]
                 actions = {menu.addAction(system): system for system in units}
-                # Показуємо меню
+
                 action = menu.exec_(self.viewport().mapToGlobal(position))
                 if action:
                     selected_unit = actions[action]
-                    # Оновлюємо таблицю
+
                     self.items_model.setData(index, selected_unit, Qt.EditRole)
-            # index.row() == 10: Номер кадастрової зони - нема контекстного меню
-            # index.row() == 11: Номер кадастрового кварталу - нема контекстного меню
-            # index.row() == 12: Номер земельної ділянки - нема контекстного меню
-            # index.row() == 13: TODO Прізвище, ім’я та по батькові керівника органу виконавчої влади або місцевого самоврядування
-            # index.row() == 14: TODO Прізвище, ім’я та по батькові начальника територіального органу земельних ресурсів
-            # index.row() == 15: Номер земельної ділянки - нема контекстного меню
+
+
+
+
+
+
 
 
     def metadata_set_date_dialog(self, index):
@@ -383,20 +383,20 @@ class TableViewMetadata(QTableView):
         """
         current_value = index.data(Qt.EditRole)
         log_msg(logFile)
-        # log_msg(logFile, f"current_value = {current_value}")
+
 
         default_date = QDate.fromString(current_value, "yyyy-MM-dd")
-        # log_msg(logFile, f"default_date = {default_date}")
 
-        # if current_value else QDate.currentDate()
+
+
         dialog = DateInputDialog(default_date=default_date)
-        # log_msg(logFile, f"dialog = {dialog}")
+
 
         if dialog.exec_() == QDialog.Accepted:
-            # log_msg(logFile, f"dialog.exec_() == QDialog.Accepted")
-            # Отримання дати з діалогу та оновлення моделі
+
+
             new_date_str = dialog.get_date()
-            # log_msg(logFile, f"dialog::new_date_str = {new_date_str}")
+
             self.items_model.setData(index, new_date_str, Qt.EditRole)
         else:
             log_msg(logFile, f"dialog.exec_() != QDialog.Accepted")
@@ -422,16 +422,16 @@ class TableViewMetadata(QTableView):
                 - Validates the full names and highlights invalid entries.
                 - Resizes the first column to fit its contents.
         """
-        # log_msg(logFile)
-        #self.items_model.blockSignals(True)
-        # Очистка таблиці (при повторних відкриттях)
-        # log_msg(logFile, f"xmlTree = {xmlTree}")
+
+
+
+
         self.items_model.removeRows(0, self.items_model.rowCount())
         paths = config.get("Metadata", "paths").splitlines()
 
         for path in paths:
             element_name = path.split("/")[-1]
-            # Винятки комплексних даних
+
             if path.split("/")[-1] == "CoordinateSystem":
                 for element in xmlTree.findall(".//CoordinateSystem"):
                     value = self.read_coordinate_system(element)
@@ -451,7 +451,7 @@ class TableViewMetadata(QTableView):
                 continue
             if path.split("/")[-1] == "HeightSystem":
                 for element in xmlTree.findall(".//HeightSystem"):
-                    # Обробляємо систему висот
+
                     value = self.read_height_system(element)
                     key_item = QStandardItem("Система висот")
                     key_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)  # Забороняємо редагування
@@ -466,7 +466,7 @@ class TableViewMetadata(QTableView):
                     self.items_model.appendRow([key_item, value_item])
                 continue
             if path.split("/")[-1] == "MeasurementUnit":
-                #log_msg(logFile, f"path = {path}")
+
                 metric_info = xmlTree.find(".//MetricInfo")
                 if metric_info is not None:
                     measurement_unit = metric_info.find("MeasurementUnit")
@@ -494,7 +494,7 @@ class TableViewMetadata(QTableView):
                     log_msg(logFile, "MetricInfo not found in XML.")
                     pass
                 continue
-            # Додавання простих даних
+
             ukr_description = self.parent.get_tooltip_from_tree(path[1:], path.split("/")[-1])
             key_item = QStandardItem(ukr_description)
             value = xmlTree.xpath(f"{path}")[0].text.strip()
@@ -524,7 +524,7 @@ class TableViewMetadata(QTableView):
         value_item = QStandardItem(full_name)
         value_item.setData(path, Qt.UserRole)
         value_item.setFlags(value_item.flags() | Qt.ItemIsEditable)  # Дозволяємо редагування
-        # Перевірка на відповідність масці
+
         if not self.validate_full_name(full_name):
             value_item.setBackground(Qt.red)
         self.items_model.appendRow([key_item, value_item])
@@ -548,7 +548,7 @@ class TableViewMetadata(QTableView):
         value_item = QStandardItem(full_name)
         value_item.setData(path, Qt.UserRole)
         value_item.setFlags(value_item.flags() | Qt.ItemIsEditable)  # Дозволяємо редагування
-        # Перевірка на відповідність масці
+
         if not self.validate_full_name(full_name):
             value_item.setBackground(Qt.red)
         self.items_model.appendRow([key_item, value_item])
@@ -562,7 +562,7 @@ class TableViewMetadata(QTableView):
         """
         Перевіряє ПІБ на відповідність формату.
         """
-        # log_msg(logFile, "Кириличні літери, апостроф, крапка")
+
         import re
         pattern = r"^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ][а-яіїєґ'\.]+(?: [А-ЯІЇЄҐ][а-яіїєґ'\.]+)?$"
         return bool(re.match(pattern, full_name))
@@ -572,41 +572,41 @@ class TableViewMetadata(QTableView):
         """
         Обробляє систему координат з XML і повертає значення для таблиці.
         """
-        # log_msg(logFile)
+
         if xml_element.tag == "CoordinateSystem":
-            # Отримуємо підтеги
+
             sub_elements = list(xml_element)
             if not sub_elements:
                 return "Unknown"
 
-            # Якщо є один підтег Local
+
             if sub_elements[0].tag == "Local":
                 return "Local (редагувати вручну)"
 
-            # Якщо SC63 з зонами
+
             if sub_elements[0].tag == "SC63":
                 zone = list(sub_elements[0])  # Отримуємо дочірні елементи SC63
                 if zone:
                     return f"SC63,{zone[0].tag}"
 
-            # Інші випадки
+
             return sub_elements[0].tag
         return "Unknown"
 
 
     def read_height_system(self, xml_element):
         """ """
-        # log_msg(logFile, "Обробляє систему висот з XML і повертає значення для таблиці")
+
 
         if xml_element.tag == "HeightSystem":
             sub_elements = list(xml_element)
             if not sub_elements:
                 return "Unknown"
 
-            # Отримуємо тег першого дочірнього елемента
+
             tag = sub_elements[0].tag
 
-            # Перевіряємо, чи це варіант із дубльованим тегом (наприклад, <Baltic><Baltic/>)
+
             if len(sub_elements) > 1 and sub_elements[1].tag == tag:
                 return tag
 

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 from qgis.PyQt.QtCore import Qt
 
 from qgis.PyQt.QtGui import QStandardItem
@@ -132,16 +132,16 @@ class TableViewNaturalPerson(QTableView):
             self.items_model.appendRow([key_item, value_item])
 
     def add_parcel_part(self, proprietor_info):
-        # log_msg(logFile, f"")
+
         parcel_part = proprietor_info.find(".//ParcelPart")
-        # log_msg(logFile, f"parcel_part = '{parcel_part}'")
+
         if parcel_part is not None:
             percent = parcel_part.find("Percent")
             part = parcel_part.find("Part")
             numerator = part.find("Numerator") if part is not None else None
             denominator = part.find("Denominator") if part is not None else None
-            # log_msg(logFile, f"numerator = '{numerator.text if numerator is not None else None}'")
-            # log_msg(logFile, f"denominator ='{denominator.text if denominator is not None else None}'")
+
+
             
             if percent is not None:
                 value = f"{percent.text}%"
@@ -149,7 +149,7 @@ class TableViewNaturalPerson(QTableView):
                 value = f"{numerator.text}/{denominator.text}"
             else:
                 value = ""
-            # log_msg(logFile, f"value = {value}")
+
             key_item = QStandardItem("Частка у власності")
             key_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
             value_item = QStandardItem(value)
@@ -218,8 +218,8 @@ class TableViewNaturalPerson(QTableView):
 
 
     def populate_natural_person(self, xml_tree, proprietor_info, person):
-        # логуємо початок роботи
-        # log_msg(logFile, f"xml_tree = {xml_tree}")
+
+
         self.items_model.removeRows(0, self.items_model.rowCount())
 
         self.add_parcel_part(proprietor_info)
@@ -244,13 +244,13 @@ class TableViewNaturalPerson(QTableView):
 
 
 
-        # elements = xml_tree.findall(".//NaturalPersonInfo")
-        # for element in elements:
-        #     self.add_full_name(element)
-        #     self.add_tax_number(element)
-        #     self.add_passport(element)
-        #     self.add_additional_info(element)
-        #     self.add_citizenship(element)
-        #     self.add_address(element)
-        # self.resizeColumnToContents(0)
+
+
+
+
+
+
+
+
+
 
