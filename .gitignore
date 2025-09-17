@@ -13,15 +13,13 @@ docs/site/
 
 # Logs
 *.log
+*.md
 
 # Jupyter Notebook
 *.ipynb
 
 # Virtual Environment
 .venv/
-
-# Templates
-/templates/*
 
 # Backups and Scratch
 /backups/
