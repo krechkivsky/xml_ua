@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 import os
 import sys
 import inspect
@@ -7,7 +7,6 @@ import configparser
 from qgis.core import QgsPointXY
 from qgis.core import QgsGeometry
 from qgis.core import QgsWkbTypes
-from qgis.core import QgsApplication
 
 from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtCore import pyqtSignal
@@ -20,7 +19,7 @@ from gc import get_referents
 
 from xmlschema import XMLSchema
 
-
+# region Спільні змінні
 logFile = open(os.path.dirname(__file__) + "/log.md", "w")
 ini_path = os.path.dirname(__file__) + "/templates/xml_ua.ini"
 docs_path = os.path.dirname(__file__) + "/templates/docs_list.ini"
@@ -28,11 +27,11 @@ fields_path = os.path.dirname(__file__) + "/templates/field_dicts.ini"
 xsd_path = os.path.dirname(__file__) + "/templates/UAXML.xsd"
 xml_template = os.path.dirname(__file__) + "/templates/template.xml"
 xml_file_name = ""
+# endregion
 
-
-
-
-
+# Custom objects know their class.
+# Function objects seem to know way too much, including modules.
+# Exclude modules as well.
 BLACKLIST = type, ModuleType, FunctionType
 def size(obj):
     """sum size of object & members."""
@@ -51,7 +50,7 @@ def size(obj):
         objects = get_referents(*need_referents)
     return size
 
-
+# region З'єднання
 class Connections(QObject):
     """
     Клас для централізованого управління з'єднаннями сигналів і слотів.
@@ -60,50 +59,73 @@ class Connections(QObject):
 
     def __init__(self):
         super().__init__()
-
+        # Зберігаємо кортежі (sender, signal_name, slot)
         self.connections = []  
 
     def connect(self, sender, signal_name, slot):
         """
         Встановлює з'єднання між сигналом та слотом, якщо воно ще не встановлено.
         """
+        # Основний метод для встановлення з'єднання. Він приймає три аргументи:
+        # sender: Об'єкт, який емітує сигнал.
+        # signal_name: Ім'я сигналу (рядок).
+        # slot: Функція (слот), яка буде викликана при емісії сигналу.
+        # Метод спочатку перевіряє, чи вже існує з'єднання між заданим відправником, 
+        # ім'ям сигналу та слотом, використовуючи метод connection_established(). 
+        # Якщо з'єднання вже існує, метод виводить попередження та завершує роботу. 
+        # В іншому випадку, він намагається отримати сигнал за його ім'ям 
+        # з об'єкта sender за допомогою getattr(). 
+        # Якщо сигнал не знайдено або не є сигналом PyQt, 
+        # виникає виключення AttributeError. Якщо все пройшло успішно, 
+        # з'єднання встановлюється за допомогою signal.connect(slot), 
+        # а дані про з'єднання додаються до списку self.connections.
 
+        # log_calls(logFile, f"Встановлення з'єднання:\n\t {type(sender).__name__}, \n\t'{signal_name}', \n\t{slot.__name__}")
 
-
-
-
-
-
-
-
-
-
-
-
-
-        log_calls(logFile, f"Встановлення з'єднання:\n\t {type(sender).__name__}, \n\t'{signal_name}', \n\t{slot.__name__}")
-
-
+        # Перевіряємо, чи з'єднання вже існує
         if self.connection_established(sender, signal_name, slot):
             log_calls(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             QMessageBox.warning(None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
-
+            # Виходимо, якщо з'єднання вже є
             return  
 
         try:
-
+            # Отримуємо сигнал за назвою від об'єкта sender
             signal = getattr(sender, signal_name)
-            log_msg(logFile, f"Отримано сигнал: {signal}")
+            # log_msg(logFile, f"Отримано сигнал: {signal}")
 
-
+            # Перевіряємо чи signal є сигналом або функцією
             if not isinstance(signal, pyqtSignal) and not callable(signal):
                  raise AttributeError(f"'{signal_name}' is not a signal or callable on '{type(sender).__name__}'")
 
             signal.connect(slot)
             self.connections.append((sender, signal_name, slot))
-
+            # log_calls(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
         except AttributeError as e:
             log_calls(logFile, f"Помилка встановлення з'єднання: {e}")
+
+    def disconnect(self, sender, signal_name, slot):
+        """
+        Розриває конкретне з'єднання, яке було раніше встановлено через цей менеджер.
+        """
+        connection_to_remove = (sender, signal_name, slot)
+        
+        if connection_to_remove in self.connections:
+            try:
+                # Отримуємо сигнал за назвою від об'єкта sender
+                signal = getattr(sender, signal_name)
+                # Розриваємо з'єднання
+                signal.disconnect(slot)
+                # Видаляємо з'єднання зі списку
+                self.connections.remove(connection_to_remove)
+                log_calls(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+            except (TypeError, AttributeError) as e:
+                # Логуємо помилку, якщо від'єднання не вдалося
+                log_calls(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+        else:
+            # Логуємо, якщо з'єднання не було знайдено в нашому списку
+            log_calls(logFile, f"З'єднання для від'єднання не знайдено: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+
 
 
     def disconnect_all(self):
@@ -156,11 +178,11 @@ class Connections(QObject):
         return result
 
 
-
+# Створюємо глобальний екземпляр з'єднань
 connector = Connections()
+# endregion
 
-
-
+# region Логи
 def get_object_name_from_frame(obj, frame):
     """
         Пошук імені об'єкта у вказаному фреймі стеку.
@@ -181,7 +203,7 @@ def log_msg(logFile, msg=""):
     """ """
     filename = os.path.basename(inspect.stack()[1].frame.f_code.co_filename)
     lineno = sys._getframe().f_back.f_lineno
-
+    #logFile.write(f"\n### [{caller(2)}(): {msg}]({filename}#L{lineno})" )
     logFile.write(f"\n##### [{caller(2)}():]({filename}#L{lineno}) {msg}" )
     logFile.flush()
 
@@ -190,7 +212,7 @@ def get_call_stack(i: int):
     """Отримує стек викликів у вигляді рядка у зворотному порядку."""
     stack = inspect.stack()
     result = ""
-
+    # Ітеруємо по стеку у зворотному порядку, пропускаючи перші два фрейми
     i = 0
     for frame_info in reversed(stack[2:]):
         i += 1
@@ -201,7 +223,7 @@ def get_call_stack(i: int):
         func_name = frame.f_code.co_name
         if filename != "<string>":
             result += f"\n [{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
-
+        #result += f"[{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})\n"
 
     return result
 
@@ -210,12 +232,12 @@ def log_calls(logFile: str, msg: str = "") -> None:
     """ Записує повідомлення в лог-файл з інформацією про стек викликів.
     """
     stack_info = get_call_stack(2)
-
+    #log_message = f"\n#### Стек викликів:{stack_info} {msg}"
     log_message = f"{stack_info}→\n{msg} \n"
-
+    #log_message = f"\n## {stack_info}→\n{msg}"
     logFile.write(log_message)
     logFile.flush()
-
+# endregion
 
 def geometry_to_string(geometry):
     """
@@ -232,10 +254,10 @@ def geometry_to_string(geometry):
     """
     if not isinstance(geometry, QgsGeometry):
         return "Error: Input must be a QgsGeometry object."
+        # raise TypeError("Input must be a QgsGeometry object.")
 
-
-
-
+    # if not geometry.isValid():
+    #     return "Error: Invalid geometry."
 
     if geometry.isEmpty():
         return ""
@@ -286,7 +308,7 @@ def geometry_to_string(geometry):
 
     return result_string.strip() + "\n"
 
-
+# region INI
 class CaseSensitiveConfigParser(configparser.ConfigParser):
     def optionxform(self, optionstr):
         return optionstr
@@ -295,7 +317,7 @@ config = CaseSensitiveConfigParser(strict=False)
 config.read(ini_path, encoding="utf-8")
 config_docs = CaseSensitiveConfigParser(strict=False)
 config_docs.read(docs_path, encoding="utf-8")
-
+# endregion
 metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileDate",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/FileID/FileGUID",
@@ -305,7 +327,7 @@ metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/Software",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/SoftwareVersion"]
 
-
+# region Категорія земель
 category_raw = {
     "100" : "Землі сільськогосподарського призначення",
     "200" : "Землі житлової та громадської забудови",
@@ -318,14 +340,14 @@ category_raw = {
     "900" : "Землі промисловості, транспорту, електронних комунікацій, енергетики,оборони та іншого призначення"
 }
 
-
+# Автоматичне формування ValueMap: текст (випадає) → код (записується)
 category_map = {
-
+    #f"{label} {code}": code for code, label in category_raw.items()
     f"{code} {label}": code for code, label in category_raw.items()
 }
+# endregion
 
-
-
+# region Цільове призначення (використання) земельної ділянки
 purpose_raw = {
     "01.00" : "Категорія: землі сільськогосподарського призначення",
     "01.01" : "Для ведення товарного сільськогосподарського виробництва",
@@ -495,14 +517,14 @@ purpose_raw = {
     "19.00" : "Категорія: Для 16.00-18.00 та природно-заповідного фонду",
 }
 
-
+# Автоматичне формування ValueMap: код + текст (випадає) → код (записується)
 purpose_map = {
     f"{code} {label}": code for code, label in purpose_raw.items()
 }
 
+# endregion
 
-
-
+# region Код форми власності
 code_raw = {
     "100": "Приватна власність",
     "200": "Державна власність",
@@ -512,60 +534,50 @@ code_raw = {
 code_map = {
     f"{code} {label}": code for code, label in code_raw.items()
 }
+# endregion
 
-
-
-parcel_field2path = {
-    "ParcelID": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID",
-    "Description": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Description",
-    "AreaSize": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/Size",
-    "AreaUnit": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/MeasurementUnit",
-
-
-
-
-
-
-
-
-
-
-
-    "DeterminationMethod": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/DeterminationMethod",
-    "Region": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Region",
-    "Settlement": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Settlement",
-    "District": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
-
-
-
-
-
-    "ParcelLocation": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
-    "StreetType": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetType",
-    "StreetName": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetName",
-    "Building": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Building",
-    "Block": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Block",
-    "AdditionalInfo": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/AdditionalInfoBlock/AdditionalInfo",
-    "Category": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Category",
-    "Purpose": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Purpose",
-    "Use": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Use",
-    "Code": "/UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/OwnershipInfo/Code"
+# region Словник форма<->xml для Ділянки
+# встановлює відповідність між іменем поля форми
+# і шляхом елемента у дереві xml
+parcel_field2path_dict = {
+    "ParcelID": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID",
+    "Description": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Description",
+    "AreaSize": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/Size",
+    "AreaUnit": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/MeasurementUnit",
+    "DeterminationMethod": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/DeterminationMethod",
+    "Region": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Region",
+    "Settlement": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Settlement",
+    "District": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
+    # ParcelLocation Складний тип: <Urban></Urban> або <Rural></Rural>
+    # а одне поле: В межах/За межами
+    # можна реалізувати словником з 2-х значень:
+    # "<Urban></Urban>": "У межах населеного пункту"
+    # "<Rural></Rural>": "За межами населеного пункту"
+    "ParcelLocation": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
+    "StreetType": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetType",
+    "StreetName": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetName",
+    "Building": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Building",
+    "Block": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Block",
+    "AdditionalInfo": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/AdditionalInfoBlock/AdditionalInfo",
+    "Category": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Category",
+    "Purpose": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Purpose",
+    "Use": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Use",
+    "Code": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/OwnershipInfo/Code"
 }
+# endregion
 
-
-
-determination_map = {
+# region Словник елемент xml->поле форми для DeterminationMethod Ділянки
+area_determination_map = {
     "<ExhangeFileCoordinates/>": "За координатами обмінного файлу",
     "<DocExch/>": "Згідно із правовстановлювальним документом",
-    "<Calculation><CoordinateSystem><SC42/></CoordinateSystem></Calculation>": "Переобчислення з 'СК-42' (6 град зона)",
-    "<Calculation><CoordinateSystem><SC42_3/></CoordinateSystem></Calculation>": "Переобчислення з 'СК-42' (3 град зона)",
-    "<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>": "Переобчислення з 'УСК2000'",
-    "<Calculation><CoordinateSystem><WGS84/></CoordinateSystem></Calculation>": "Переобчислення з 'WGS84'",
-    "<Calculation><CoordinateSystem><SC63><X/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-X'",
-    "<Calculation><CoordinateSystem><SC63><C/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-C'",
-    "<Calculation><CoordinateSystem><SC63><P/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-P'",
-    "<Calculation><CoordinateSystem><SC63><T/></SC63></CoordinateSystem></Calculation>": "Переобчислення з 'SC63-T'",
-
+    "<Calculation><CoordinateSystem><SC42/></CoordinateSystem></Calculation>": "Переобчислення з СК-42 (6 град зона)",
+    "<Calculation><CoordinateSystem><SC42_3/></CoordinateSystem></Calculation>": "Переобчислення з СК-42 (3 град зона)",
+    "<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>": "Переобчислення з УСК2000",
+    "<Calculation><CoordinateSystem><WGS84/></CoordinateSystem></Calculation>": "Переобчислення з WGS84",
+    "<Calculation><CoordinateSystem><SC63><X/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-X",
+    "<Calculation><CoordinateSystem><SC63><C/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-C",
+    "<Calculation><CoordinateSystem><SC63><P/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-P",
+    "<Calculation><CoordinateSystem><SC63><T/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-T",
+    # "Local" — обробляється окремо
 }
-
-
+# endregion

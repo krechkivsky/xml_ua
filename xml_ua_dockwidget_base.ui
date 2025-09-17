@@ -84,7 +84,7 @@
       </widget>
       <widget class="QWidget" name="tabMetadata">
        <attribute name="title">
-        <string>Метадані</string>
+        <string>Реквізити</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>

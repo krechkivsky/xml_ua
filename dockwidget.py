@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 """
 /***************************************************************************
  xml_uaDockWidget
@@ -23,7 +23,7 @@
 """
 
 
-
+# region Import
 import os
 import inspect
 import copy
@@ -59,6 +59,7 @@ from qgis.PyQt.QtWidgets import QStyle
 from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtWidgets import QFileDialog
 from qgis.PyQt.QtWidgets import QTableView
+from qgis.PyQt.QtWidgets import QInputDialog
 
 from qgis.PyQt.QtWidgets import QTabWidget, QStyleOption, QWidget, QStyle, QPushButton, QTabBar
 from qgis.PyQt.QtGui import QPainter, QIcon, QPalette
@@ -76,7 +77,7 @@ from .common import xsd_path
 from .common import connector
 from .common import geometry_to_string
 from .common import size
-
+# endregion
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -93,108 +94,76 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def __init__(self, parent=None, iface=None, plugin=None):
 
+        # parent -> QMainWindow
+        # виконується лише після відкриття файла -> ❓❓❓
 
-
-
-        log_calls(logFile)
+        # log_calls(logFile)
 
         super().__init__(parent)
 
-
+        # інтерфейс QGIS
         self.iface = iface
 
-
-
-
-
-
-
-
-
-        connector.connect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
-        connector.connect(self.iface.layerTreeView(), "clicked", self.clicked)
-
-
+        # Підключити нову модель до дерева шарів
+        # layer_tree_view = iface.layerTreeView()
+        # log_msg(logFile, f"layer_tree_view: {layer_tree_view}")
+        # custom_model = self.CustomLayerTreeModel(QgsProject.instance().layerTreeRoot())
+        # log_msg(logFile, f"custom_model: {custom_model}")
+        # layer_tree_view.setModel(custom_model)
+        
         self.plugin = plugin
-
+        # Читаємо дизайн UI з файлу xml_ua_dockwidget_base.ui
         self.setupUi(self)
         self.parent = parent
 
-
+        # Створюємо пустий список відкритих xml-файлів
         self.opened_xmls = []
 
-
+        # ініціалізація атрибутів
         self.full_xml_file_name = None
-
-        self.closed_tabs = []
-
         self.layers_obj = None
         self.full_xml_file_name = ""
-        self.tabWidget.setTabsClosable(True)
 
+        # Флаг для блокування рекурсивних викликів при закритті
+        self._is_closing = False
 
+        # Налаштування QTabWidget
+        self.tabWidget.setMovable(True)
+        self.tabWidget.setTabsClosable(False) # Вимикаємо стандартні кнопки
+        # Видаляємо початкові вкладки, створені з .ui файлу
+        while self.tabWidget.count() > 0:
+            self.tabWidget.removeTab(0)
 
+        # для створення списку відкритих xml-файлів
+        # потрібно отримати кореневий елемент дерева шарів QGIS
         self.layers_root = QgsProject.instance().layerTreeRoot()
 
-        old_tree_view = self.findChild(QTreeView, "treeViewXML")
-        self.treeViewXML = CustomTreeView(parent=self)
-        if old_tree_view:
-            layout = self.tabXML.layout()
-            if layout:
-                layout.removeWidget(old_tree_view)
-            old_tree_view.setParent(None)
-            old_tree_view.deleteLater()
-        self.treeViewXML.setObjectName("treeViewXML")
-        self.tabXML.layout().addWidget(self.treeViewXML)
+        self.setWindowTitle("xml_ua")
 
-        old_table_view = self.findChild(QTableView, "tableViewMetadata")
-        if old_table_view:
-            layout = self.tabMetadata.layout()
-            if layout:
-                layout.removeWidget(old_table_view)
-            old_table_view.setParent(None)
-            old_table_view.deleteLater()
-        self.tableViewMetadata = TableViewMetadata(parent=self)  # ✅
-        self.tableViewMetadata.setObjectName(
-            "tableViewMetadata")  # Залишаємо те саме ім'я
-        self.tableViewMetadata.horizontalHeader().setStretchLastSection(True)
-        self.tabMetadata.layout().addWidget(self.tableViewMetadata)  # Додаємо до layout
+        # Створюємо об'єкт даних xml, який відображається у доквіджеті
+        # self.current_xml = self.xml_data(path="", tree=None, group_name=None)
 
-        old_parcel_view = self.findChild(QTableView, "tableViewParcel")
-        if old_parcel_view:
-            layout = self.tabParcel.layout()
-            if layout:
-                layout.removeWidget(old_table_view)
-                layout.removeWidget(old_parcel_view)
-            old_parcel_view.setParent(None)
-            old_parcel_view.deleteLater()
-        self.tableViewParcel = TableViewParcel(parent=self)
-        self.tableViewParcel.setObjectName("tableViewParcel")
-        self.tableViewParcel.horizontalHeader().setStretchLastSection(True)
-        self.tabParcel.layout().addWidget(self.tableViewParcel)
-
-        self.setWindowTitle("XML-файл обміну кадастровою інформацією")
-
-
-
-
-
-
-
+        # Тут лише ініціалізуємо змінну current_xml
+        # Створювати об'єкт xml_data будемо при відкритті файлу 
+        # або при cтворенні нового xml
         self.current_xml = None
 
-        self.setup_custom_tab_buttons() # <- перенесемо сюди, після ініціалізації віджетів
-        connector.connect(self.tabWidget, "tabCloseRequested", self.close_tab) # <- тут буде правильніше
+        # Сигнали для вкладок
+        connector.connect(self.tabWidget, "tabCloseRequested", self.close_tab)
+        connector.connect(self.tabWidget, "currentChanged", self.on_tab_changed)
 
+        # Підключаємо сигнали дерева шарів
+        self.connect_layer_tree_signals()
+        connector.connect(self.layers_root, "nodeRemoved", self.on_node_removed)
 
 
 
     class xml_data:
 
 
-
-
-
+        # Всередині класу xml_data створюємо клас xml_geometry
+        # для зберігання "старої" геометрії XML, яка недоступна
+        # у сигналах QGIS по зміні геометрії
 
 
         class xml_geometry:
@@ -202,7 +171,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             Клас для зберігання геометрії XML.
             """
 
-
+            # Конструктор класу xml_geometry
             def __init__(self, geometry: str = ""):
                 self.points = []
                 self.lines = []
@@ -216,7 +185,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.adjacents = []
 
 
-
+        # Конструктор класу xml_data
         def __init__(self, path: str = "", tree: object = None, group_name: str = ""):  # Змінено
             self.path = path
             self.tree = tree
@@ -240,184 +209,50 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return result
 
 
-    def tab_button_clicked(self, index):
-        """
-        This method will be called when a tab's close button is clicked.
-        """
-        self.tabWidget.tabCloseRequested.emit(index)
+    def connect_layer_tree_signals(self):
+        """Підключає сигнали від дерева шарів до слотів цього віджета."""
+        log_calls(logFile, "Підключення сигналів дерева шарів.")
+        connector.connect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
+        connector.connect(self.iface.layerTreeView(), "clicked", self.clicked)
 
 
-    def setup_custom_tab_buttons(self):
-        """
-        Налаштовує кастомні кнопки закриття вкладок.
-        """
-        opt = QStyleOption()
-        opt.initFrom(self)
-        close_icon = self.style().standardIcon(QStyle.SP_TitleBarCloseButton, opt)
-
-
-
-
-        tab_bar = self.tabWidget.tabBar()  # Move tab_bar here
-        for i in range(self.tabWidget.count()):
-
-            tab_name = self.tabWidget.tabText(i)
-
-            if tab_name not in ["Структура", "Метадані", "Ділянка"]:
-                tab_button = QPushButton(close_icon, "")
-                tab_button.setObjectName(f"tab_close_button_{i}")
-
-                tab_button.setFixedSize(close_icon.actualSize(
-                    close_icon.availableSizes()[0]))
-                tab_button.setStyleSheet("""
-                    QPushButton {
-                        border: none;
-                        background-color: transparent;
-                        padding: 0px;
-                    }
-                    QPushButton:hover {
-                        background-color: lightgray;
-                    }
-                    QPushButton:pressed {
-                        background-color: gray;
-                    }
-                """)
-                tab_bar.setTabButton(i, QTabBar.RightSide, tab_button)
-
-
-                try:
-                    connector.disconnect(tab_button, "clicked", self.tab_button_clicked)
-                except TypeError:
-                    pass  # Ігноруємо помилку, якщо з'єднань не було
-
-                connector.connect(tab_button, "clicked", lambda _, idx=i: self.tab_button_clicked(idx))
-
-            else:
-
-                tab_bar.setTabButton(i, QTabBar.RightSide, None)
-                tab_bar.setTabButton(i, QTabBar.LeftSide, None)
-
-
-
-
-        self.tabWidget.setStyleSheet("""
-            QTabWidget::tab-bar {
-                alignment: left;
-            }
-            QTabBar::close-button {
-                image: none; /* Приховуємо стандартні кнопки */
-                subcontrol-position: right;
-            }
-            QTabBar::tab {
-                padding: 5px;
-            }
-            QTabBar::tab:selected {
-                /*margin-right: 0px;*/ /* Remove for all selected */
-            }
-            QTabBar::tab:!selected {
-                /*margin-right: 0px; */ /* Remove for all not selected */
-            }
-             QTabBar::tab:!selected {
-                margin-right: 0px; /* remove margin for all unselected */
-            }
-            QTabBar::tab:selected {
-                margin-right: 0px; /* remove margin for all selected */
-            }
-
-            /* Special rules for static tabs (no close button) */
-            QTabBar::tab:nth-child(1), /* Структура */
-            QTabBar::tab:nth-child(2), /* Метадані */
-            QTabBar::tab:nth-child(3) { /* Ділянка */
-                margin-right: 0px; /* No margin for static tabs */
-            }
-        """)
-        return
-
-
-    def add_tab(self, tab_name, widget):
-        """
-        Додає вкладку з певним ім'ям і віджетом.
-
-        References:
-            update_restore_tabs_action
-            restore_tabs
-        Args:
-            tab_name (str): Ім'я вкладки.
-            widget (QWidget,self.tabXML,self.tabMetadata,
-                self.tabParcel) 
-                Віджет, який буде розміщений 
-                на вкладці.
-        """
-        log_msg(logFile, tab_name)
-
-        for i in range(self.tabWidget.count()):
-            if self.tabWidget.tabText(i) == tab_name:
-                return  # Вкладка вже існує, виходимо з функції
-
-        if tab_name == "Структура":
-            layout = QVBoxLayout()
-            layout.addWidget(self.treeViewXML)
-            self.tabXML.setLayout(layout)
-        elif tab_name == "Метадані":
-            layout = QVBoxLayout()
-            layout.addWidget(self.tableViewMetadata)
-            self.tabMetadata.setLayout(layout)
-        elif tab_name == "Ділянка":
-            layout = QVBoxLayout()
-            layout.addWidget(self.tableViewParcel)
-            self.tabParcel.setLayout(layout)
-
-        self.setup_custom_tab_buttons()
-
-        self.tabWidget.addTab(widget, tab_name)
-
-
-        if tab_name not in self.opened_tabs:
-            self.opened_tabs.append(tab_name)
-        if tab_name in self.closed_tabs:
-            self.closed_tabs.remove(tab_name)
-        self.plugin.update_restore_tabs_action()
-
+    def disconnect_layer_tree_signals(self):
+        """Відключає сигнали від дерева шарів."""
+        log_calls(logFile, "Відключення сигналів дерева шарів.")
+        connector.disconnect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
+        connector.disconnect(self.layers_root, "nodeRemoved", self.on_node_removed)
+        connector.disconnect(self.iface.layerTreeView(), "clicked", self.clicked)
 
     def load_data(self, xml_path, tree = None):
 
+        # При виклику з process_group_click tree != None
+        # При виклику з process_action_open tree == None
 
+        # log_calls(logFile, f"xml_path = {xml_path}\ntree = {tree}")
 
+        # Знаходимо поточну вкладку та її дерево
+        current_tab_widget = self.tabWidget.currentWidget()
+        if not current_tab_widget: return
+        tree_view = current_tab_widget.findChild(CustomTreeView)
+        if not tree_view: return
 
-
-
-
-        self.treeViewXML.load_xml_to_tree_view(xml_path, xsd_path, tree)
-
-
-
-        self.current_xml.tree = self.treeViewXML.xml_tree  # Додано
-
-
-
-        self.tableViewMetadata.fill_meta_data(self.current_xml.tree)
-
-
-        self.tableViewParcel.fill_parcel_data(self.current_xml.tree)
-
-        self.treeViewXML.model.setHorizontalHeaderLabels(
-            ["Елемент", "Значення"])
-        self.tableViewMetadata.model().setHorizontalHeaderLabels([
-            "Елемент", "Значення"])
-        self.tableViewParcel.model().setHorizontalHeaderLabels([
-            "Елемент", "Значення"])
+        tree_view.load_xml_to_tree_view(xml_path, xsd_path, tree)
+        self.current_xml.tree = tree_view.xml_tree
 
         return
 
 
     def process_action_check(self):
-        """ """
-        log_msg(logFile, "Обробка події перевірки файлу XML")
+        """Перевіряє поточний активний XML-файл."""
+        if not self.current_xml:
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для перевірки.")
+            return
 
+        log_msg(logFile, f"Обробка події перевірки файлу XML: {self.current_xml.path}")
 
-
-        self.parent.iface.messageBar().pushMessage(
-            "xml_ua:", "Обробка події перевірки файлу XML", level=Qgis.Success, duration=0)
+        # level= Qgis.Success, Qgis.MessageLevel, Qgis.Info, Qgis.Warning, Qgis.Critical
+        # duration sec 0 - до закриття
+        self.iface.messageBar().pushMessage("xml_ua:", f"Перевірка файлу: {os.path.basename(self.current_xml.path)}", level=Qgis.Info, duration=5)
         QMessageBox.warning(self, "xml_ua:", "Вихід")
         self.handle_error_and_close("Обробка події перевірки файлу XML")
 
@@ -428,7 +263,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         Handles the action of opening an XML file.
         This method performs the following steps:
         1. Logs the action.
-        2. Closes all tabs except "Структура", "Метадані", and "Ділянка".
+        2. Closes all tabs except "Структура", "Реквізити", and "Ділянка".
         3. Clears existing data in TreeView and TableViews.
         4. Opens a file dialog to select an XML file.
         5. If no file is selected, shows a warning message and exits.
@@ -440,76 +275,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             None
         """
 
-        log_calls(logFile)
+        # log_calls(logFile)
 
-
-
-
-
-
-        for i in reversed(range(self.tabWidget.count())):
-
-            tab_name = self.tabWidget.tabText(i)
-            widget = self.tabWidget.widget(i)
-
-
-            if tab_name not in ("Структура", "Метадані", "Ділянка"):
-                self.tabWidget.removeTab(i)
-
-
-            else:
-
-
-                if widget:
-
-                    layout = widget.layout()
-                    if layout:
-                        for j in reversed(range(layout.count())):
-
-                            layout_item = layout.itemAt(j)
-
-                            if layout_item.widget():
-                                layout_item.widget().deleteLater()
-                            layout.removeItem(layout_item)
-
-
-
-
-
-
-
-        layout = self.tabXML.layout()
-
-        self.treeViewXML = CustomTreeView(parent=self)
-        self.treeViewXML.setObjectName("treeViewXML")
-
-        layout.addWidget(self.treeViewXML)
-
-
-        layout = self.tabMetadata.layout()
-
-        self.tableViewMetadata = TableViewMetadata(parent=self)
-        self.tableViewMetadata.setObjectName("tableViewMetadata")
-        self.tableViewMetadata.horizontalHeader().setStretchLastSection(True)
-
-        layout.addWidget(self.tableViewMetadata)
-
-
-        layout = self.tabParcel.layout()
-
-        self.tableViewParcel = TableViewParcel(parent=self)
-        self.tableViewParcel.setObjectName("tableViewParcel")
-        self.tableViewParcel.horizontalHeader().setStretchLastSection(True)
-
-        layout.addWidget(self.tableViewParcel)
-
-
-        self.treeViewXML.model.clear()
-        self.tableViewMetadata.model().clear()
-        self.tableViewParcel.model().clear()
-
-
-
+        # region відкриваємо файл XML
 
         xml_path, _ = QFileDialog.getOpenFileName(
             self, "Відкрити XML файл", "", "XML файли (*.xml)")
@@ -518,18 +286,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
 
-
-
-
-
+        # Тому треба перевірити файл на відповідність структурі xml
+        # це: наявність кореневого елемента, обов'язкових елементів
+        # відповіденість відкритих тегів закритим, відповідність атрибутів
+        # TODO: тут поки неповна шивка перевірка
         if not self.validate_xml_structure(xml_path):
-
-
-
-
-
+            # TODO: тут треба виводити помилку на панелі QGIS - 
+            # чому саме validate_xml_structure видала False
+            # для цього її логіка роботи: визначення помилок
+            # замість validate_xml_structure вона повинна 
+            # називатися errors_list ==> [] якщо все ок
             log_msg(logFile, "Неправильна структура файлу XML.")
-
+            # Виводимо попередження про помилку на панелі QGIS
             self.iface.messageBar().pushMessage(
                                 "xml_ua:", 
                                 "Неправильна структура файлу XML.", 
@@ -538,57 +306,50 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             
             return
         else:
-            log_msg(logFile, "Файл відповідає структурі XML.")
-
+            # log_msg(logFile, "Файл відповідає структурі XML.")
+            # Виводимо повідомлення про успіх на панелі QGIS
             self.iface.messageBar().pushMessage(
                                 "xml_ua:", 
                                 "Файл відповідає структурі XML.", 
                                 level=Qgis.Success, 
                                 duration=5)
             pass
+        # endregion
 
+        # Створюємо новий об'єкт xml_data
+        new_xml_data = self.xml_data(path=xml_path, tree=None, group_name="")
+        self.current_xml = new_xml_data
 
+        # Створюємо нову вкладку
+        new_tab = QWidget()
+        layout = QVBoxLayout(new_tab)
+        tree_view = CustomTreeView(parent=self)
+        layout.addWidget(tree_view)
+        new_tab.setLayout(layout)
 
+        # Додаємо вкладку
+        index = self.tabWidget.addTab(new_tab, os.path.basename(xml_path))
+        self.tabWidget.setCurrentIndex(index)
 
-        self.current_xml = self.xml_data(path="", tree=None, group_name="")
+        # Зберігаємо посилання на дерево у об'єкті xml_data
+        self.current_xml.tree_view = tree_view
 
+        # Завантажуємо дані
+        self.load_data(xml_path, tree=None)
 
-        self.full_xml_file_name = xml_path
+        # Оновлюємо дерево
+        tree_view.expand_initial_elements()
+        tree_view.set_column_width(0, 75)
 
-
-
-        self.current_xml.path = xml_path
-
-        self.update_window_title(self.current_xml.path)
-
-
-
-
-
-
-
-
-
-        self.load_data(self.current_xml.path, tree = None)
-
-        self.current_xml.tree = self.treeViewXML.xml_tree
-
-
-        self.treeViewXML.expand_initial_elements()
-        self.treeViewXML.set_column_width(0, 75)
-        self.setup_custom_tab_buttons()
-
-
+        # ініціалізуємо заповнення шарів
         self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin) # Pass self.plugin
-
-
         self.current_xml.group_name = self.layers_obj.group.name()
 
-
-
-        log_calls(logFile, f"current_xml: {type(self.current_xml)} {size(self.current_xml)} B")
+        # Оновлюємо назву вкладки на назву групи
+        self.tabWidget.setTabText(index, self.current_xml.group_name)
+        self.tabWidget.setTabToolTip(index, xml_path)
+        self.setup_custom_tab_buttons() # Оновлюємо кнопки
         self.opened_xmls.append(self.current_xml)
-        self.log_opened_xmls()
 
         return
 
@@ -596,172 +357,66 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def log_opened_xmls(self):
         """
         Logs the opened XML files.
-        """
-
-        
-        if self.opened_xmls:
-            log_str = "Opened XML files:\n"
-            i = 0
-            for xml in self.opened_xmls:
-                i += 1
-                log_str += f"{i}. {size(xml)} B"
-                if xml == self.current_xml:
-                    log_str += f" <- current"
-                log_str += "\n"
-            log_msg(logFile, log_str)
-        else:
-            log_msg(logFile, f"{type(self.opened_xmls)} {size(self.opened_xmls)} B")
+        """        
+        # Ця логіка більше не потрібна в такому вигляді
+        pass
 
 
     def process_action_new(self, tree):
         """
         """
-
-
-
-
-
-
-
-
+        # Процес створення нового xml
+        # У цьому місці користувач вибравши пункт 
+        # меню "Новий" вибрав папку і назву файлу 
+        # шаблон зчитаний і розпарсений ???
+        # треба зберегти дерево xml на диск і відкрити 
+        # відкрити його без перевіоки наявності всіх
+        # обов'язкових елементів схеми оскільки файл
+        # у процесі розробки
         
         log_calls(logFile)
 
-
-
-
-
-
-
-
-        for i in reversed(range(self.tabWidget.count())):
-
-            tab_name = self.tabWidget.tabText(i)
-            widget = self.tabWidget.widget(i)
-
-
-            if tab_name not in ("Структура", "Метадані", "Ділянка"):
-                self.tabWidget.removeTab(i)
-
-
-            else:
-
-
-                if widget:
-
-                    layout = widget.layout()
-                    if layout:
-                        for j in reversed(range(layout.count())):
-
-                            layout_item = layout.itemAt(j)
-
-                            if layout_item.widget():
-                                layout_item.widget().deleteLater()
-                            layout.removeItem(layout_item)
-
-
-
-
-
-
-
-
-
-        layout = self.tabXML.layout()
-
-        self.treeViewXML = CustomTreeView(parent=self)
-        self.treeViewXML.setObjectName("treeViewXML")
-
-        layout.addWidget(self.treeViewXML)
-
-
-        layout = self.tabMetadata.layout()
-
-        self.tableViewMetadata = TableViewMetadata(parent=self)
-        self.tableViewMetadata.setObjectName("tableViewMetadata")
-        self.tableViewMetadata.horizontalHeader().setStretchLastSection(True)
-
-        layout.addWidget(self.tableViewMetadata)
-
-
-        layout = self.tabParcel.layout()
-
-        self.tableViewParcel = TableViewParcel(parent=self)
-        self.tableViewParcel.setObjectName("tableViewParcel")
-        self.tableViewParcel.horizontalHeader().setStretchLastSection(True)
-
-        layout.addWidget(self.tableViewParcel)
-
-
-        self.treeViewXML.model.clear()
-        self.tableViewMetadata.model().clear()
-        self.tableViewParcel.model().clear()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        xml_path = self.plugin.new_xml
+        if not xml_path:
+            return
+
+        # Створюємо новий об'єкт xml_data
+        new_xml_data = self.xml_data(path=xml_path, tree=tree, group_name="")
+        self.current_xml = new_xml_data
+
+        # Створюємо нову вкладку
+        new_tab = QWidget()
+        layout = QVBoxLayout(new_tab)
+        tree_view = CustomTreeView(parent=self)
+        layout.addWidget(tree_view)
+        new_tab.setLayout(layout)
+
+        # Додаємо вкладку
+        index = self.tabWidget.addTab(new_tab, os.path.basename(xml_path))
+        self.tabWidget.setCurrentIndex(index)
+
+        # Зберігаємо посилання на дерево у об'єкті xml_data
+        self.current_xml.tree_view = tree_view
+
+        # Завантажуємо дані
+        self.load_data(xml_path, tree=tree)
+
+        # Оновлюємо дерево
+        tree_view.expand_initial_elements()
+        tree_view.set_column_width(0, 75)
+
+        # ініціалізуємо заповнення шарів
+        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin)
+        self.current_xml.group_name = self.layers_obj.group.name()
+
+        # Оновлюємо назву вкладки на назву групи
+        self.tabWidget.setTabText(index, self.current_xml.group_name)
+        self.tabWidget.setTabToolTip(index, xml_path)
+        self.setup_custom_tab_buttons() # Оновлюємо кнопки
+        self.opened_xmls.append(self.current_xml)
+        
         self.current_xml.path = xml_path
-
         self.update_window_title(self.current_xml.path)
-
-
-
-
-        self.load_data(self.full_xml_file_name, tree = None)
-
-        self.current_xml.tree = self.treeViewXML.xml_tree
-
-
-        self.treeViewXML.expand_initial_elements()
-        self.treeViewXML.set_column_width(0, 75)
-        self.setup_custom_tab_buttons()
-
-
-
-
-
-
-
-        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin) # Pass self.plugin
-
-
-
-
-
-
-        clone_xml = copy.deepcopy(self.current_xml)
-        self.opened_xmls.append(clone_xml)
 
         return
 
@@ -779,134 +434,181 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         Оновлює заголовок віджета, враховуючи доступну ширину та 
         обрізаючи назву файлу, якщо потрібно.
         """
-
-
-
-        if not file_name:
-            self.setWindowTitle("XML-файл обміну кадастровою інформацією")
-            return
-
-
-
-        title_width = self.width() - 80
-
-
-
-        font_metrics = self.fontMetrics()
-
-
-        elided_text = font_metrics.elidedText(
-            file_name, Qt.ElideLeft, title_width)
-
-
-        self.setWindowTitle(elided_text)
-
+        self.setWindowTitle("xml_ua")
+    def mark_as_changed(self):
+        """
+        Позначає поточний XML-файл як змінений і оновлює заголовок вікна.
+        """
+        # Ця логіка тепер обробляється у CustomTreeView
+        pass
 
     def process_action_save(self):
+        """Зберігає вибраний XML-файл."""
+        log_calls(logFile, "Спроба зберегти XML.")
 
+        xml_to_save = self.select_xml_to_save("Вибір групи для збереження")
+        if not xml_to_save:
+            return  # Користувач скасував або виникла помилка
 
+        # Запитуємо підтвердження у користувача
+        reply = QMessageBox.question(self, 'Підтвердження збереження',
+                                     f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
+        if reply == QMessageBox.Yes:
+            # Зберігаємо дерево вибраного XML
+            xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.path)
+            self.iface.messageBar().pushMessage("Успіх", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
+            log_msg(logFile, f"Файл збережено: {xml_to_save.path}")
 
-
-
-
-
-        log_msg(logFile)
-
-        frame = inspect.currentframe()
-
-
-
-
-
-
-
-
-        if self.full_xml_file_name:
-            self.treeViewXML.save_xml_tree(self.treeViewXML.xml_tree, self.full_xml_file_name)
-            QMessageBox.information(None, "Успіх", f"Файл збережено: {self.full_xml_file_name}")
-            return
+            # Позначаємо, що зміни збережено
+            xml_to_save.changed = False
+            # Оновлюємо заголовок, якщо зберегли активний файл
+            if xml_to_save == self.current_xml:
+                self.update_window_title(xml_to_save.path)
         else:
-            QMessageBox.warning(None, "Помилка", "Файл не відкритий.")
-            
-            return
-
+            log_msg(logFile, "Збереження скасовано користувачем.")
 
     def process_action_save_as(self):
+        """Зберігає вибраний XML-файл як новий файл."""
+        log_calls(logFile, "Спроба зберегти XML як...")
 
+        xml_to_save = self.select_xml_to_save("Вибір групи для збереження як")
+        if not xml_to_save:
+            return  # Користувач скасував або виникла помилка
 
-
-
-        log_msg(logFile)
-
-
-
-
-
-
-
-
-
-
-
-        save_path, _ = QFileDialog.getSaveFileName(None, "Зберегти XML файл", "", "XML файли (*.xml)")
+        # Запитуємо у користувача шлях для збереження нового XML файлу
+        save_path, _ = QFileDialog.getSaveFileName(self, "Зберегти XML файл як...", xml_to_save.path, "XML файли (*.xml)")
         if not save_path:
-            log_calls(logFile, "Шлях для збереження не вибрано.")
+            log_msg(logFile, "Шлях для збереження не вибрано.")
+            return
+
+        # Запитуємо підтвердження у користувача
+        reply = QMessageBox.question(self, 'Підтвердження збереження',
+                                     f"Зберегти групу '{xml_to_save.group_name}' у новий файл:\n\n{save_path}?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            # Зберігаємо дерево вибраного XML за новим шляхом
+            xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, save_path)
+            self.iface.messageBar().pushMessage("Успіх", f"Файл збережено: {save_path}", level=Qgis.Success, duration=5)
+            log_msg(logFile, f"Файл збережено як: {save_path}")
+
+            # Оновлюємо шлях у поточного об'єкта та заголовок
+            xml_to_save.path = save_path
+            xml_to_save.changed = False
+            # Оновлюємо заголовок, якщо зберегли активний файл
+            if xml_to_save == self.current_xml:
+                self.update_window_title(xml_to_save.path)
+        else:
+            log_msg(logFile, "Збереження скасовано користувачем.")
+
+    def select_xml_to_save(self, title: str):
+        """
+        Визначає, який XML-файл зберегти. Якщо відкрито більше одного,
+        показує діалог вибору.
+        """
+        count = self.tabWidget.count()
+        if count == 0:
+            QMessageBox.warning(self, "Помилка", "Немає відкритих XML-файлів для збереження.")
             return None
 
-        self.treeViewXML.save_xml_tree(self.treeViewXML.xml_tree, save_path)
-        QMessageBox.information(self, "Успіх", f"Файл збережено: {save_path}")
+        if count > 1:
+            tab_names = [self.tabWidget.tabText(i) for i in range(count)]
+            current_tab_index = self.tabWidget.currentIndex()
 
+            tab_to_save, ok = QInputDialog.getItem(self, title,
+                                                     "Виберіть вкладку, яку потрібно зберегти:",
+                                                     tab_names, current_tab_index, False)
+            if not ok or not tab_to_save:
+                log_msg(logFile, "Збереження скасовано користувачем (вибір вкладки).")
+                return None
+
+            for i in range(count):
+                if self.tabWidget.tabText(i) == tab_to_save:
+                    return self.get_xml_data_for_tab_index(i)
+        elif count == 1:
+            return self.get_xml_data_for_tab_index(0)
+
+        return None
+
+    #def process_action_close_xml(self, xml_to_close=None):
+    def process_action_close_xml(self, xml_to_close=None, group_already_removed=False):
+        """Закриває вказаний або поточний XML-файл та пов'язану з ним групу шарів."""
+        if self._is_closing:
+            return
+        self._is_closing = True
+
+        #if xml_to_close is None:
+        #    xml_to_close = self.current_xml
+
+        if not xml_to_close:
+            QMessageBox.warning(self, "Помилка", "Немає активного файлу для закриття.")
+            self._is_closing = False
+            return
+
+        # Попереджаємо про незбережені зміни
+        if xml_to_close.changed:
+            reply = QMessageBox.question(self, 'Підтвердження закриття',
+                                         f"Файл для групи '{xml_to_close.group_name}' має незбережені зміни. \n\nЗакрити без збереження?",
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.No:
+                self._is_closing = False
+                return
+
+        ## 1. Знаходимо та видаляємо групу шарів, якщо вона ще не видалена
+        #if not group_already_removed:
+        #    group_to_remove = self.layers_root.findGroup(xml_to_close.group_name)
+        #    if group_to_remove:
+        #        self.layers_root.removeChildNode(group_to_remove)
+        #        log_msg(logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
+
+        # 1. Знаходимо та видаляємо групу шарів, якщо вона ще не видалена
+        if not group_already_removed:
+            group_to_remove = self.layers_root.findGroup(xml_to_close.group_name)
+            if group_to_remove:
+                self.layers_root.removeChildNode(group_to_remove)
+                log_msg(logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
+
+
+
+
+        # 2. Видаляємо зі списку відкритих XML
+        if xml_to_close in self.opened_xmls:
+            self.opened_xmls.remove(xml_to_close)
+            log_msg(logFile, f"Файл '{xml_to_close.path}' видалено зі списку відкритих.")
+
+        # 3. Видаляємо вкладку
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == xml_to_close.group_name:
+                self.tabWidget.removeTab(i)
+                break
 
     def get_tooltip_from_tree(self, full_path, default_name):
         """
         Отримує tooltip для елемента з дерева за його шляхом.
         Якщо tooltip не знайдено, повертає default_name.
         """
-
-        tree_index = self.find_element_index(
-            path=full_path)  # Пошук елемента за шляхом
-        if tree_index.isValid():
-            tree_item = self.treeViewXML.model.itemFromIndex(tree_index)
-            if tree_item:
-                return tree_item.toolTip() or default_name  # Повертає tooltip або default_name
-
-        return default_name
+        # log_msg(logFile)  # recursion
+        current_tab_widget = self.tabWidget.currentWidget()
+        if current_tab_widget:
+            tree_view = current_tab_widget.findChild(CustomTreeView)
+            if tree_view:
+                return tree_view.get_tooltip_from_tree(full_path, default_name)
+        return default_name # Fallback
 
 
     def find_element_index(self, path=None, element_name=None):
         """
         Знаходить індекс елемента у дереві на основі шляху або імені.
         """
-
-        if path:
-
-            current_index = QModelIndex()
-            path_parts = path.split("/")  # Розділяємо шлях на частини
-            for part in path_parts:
-                found = False
-                for row in range(self.treeViewXML.model.rowCount(current_index)):
-                    child_index = self.treeViewXML.model.index(
-                        row, 0, current_index)
-                    child_item = self.treeViewXML.model.itemFromIndex(
-                        child_index)
-                    if child_item and child_item.text() == part:
-
-                        current_index = child_index
-                        found = True
-                        break
-                if not found:
-
-                    return QModelIndex()
-            return current_index
-        elif element_name:
-
-            for row in range(self.treeViewXML.model.rowCount()):
-
-                item = self.treeViewXML.model.item(row, 0)
-                if item and item.text() == element_name:
-                    return self.treeViewXML.model.indexFromItem(item)
-        return QModelIndex()
+        # log_msg(logFile) # recursion
+        current_tab_widget = self.tabWidget.currentWidget()
+        if current_tab_widget:
+            tree_view = current_tab_widget.findChild(CustomTreeView)
+            if tree_view:
+                return tree_view.find_element_index(path, element_name)
+        return QModelIndex() # Fallback
 
 
     def handle_error_and_close(self, error_message):
@@ -922,126 +624,97 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.close()
 
 
-    def removeTab(self, index):
-        tab_name = self.tabWidget.tabText(index)
-        self.tabWidget.removeTab(index)
-        if tab_name in self.opened_tabs:
-            self.opened_tabs.remove(tab_name)
-        self.update_restore_tabs_action()
-
 
     def showEvent(self, event):
         """ 
             Відновлення вкладок при відкритті вікна 
 
         """
+        # Обробка події показу віджета.
+        # Подія виникає, перед тим як віджет стає видимим.
 
-
-
-
+        # log_calls(logFile, f"event = {event}")
 
         super().showEvent(event)
-        if self.plugin and not self.isVisible():
-            self.restore_tabs()
-
 
 
     def close_tab(self, index):
         """
         Handle tab close events.
         """
-        tab_name = self.tabWidget.tabText(index)
+        xml_data = self.get_xml_data_for_tab_index(index)
+        if xml_data:
+            self.process_action_close_xml(xml_data)
 
-        log_msg(logFile, tab_name)
-        if tab_name in ["Структура", "Метадані", "Ділянка"]:
+    def setup_custom_tab_buttons(self):
+        """
+        Налаштовує кастомні кнопки закриття для всіх динамічних вкладок.
+        """
+        # Використовуємо стандартну, але меншу іконку
+        close_icon = self.style().standardIcon(QStyle.SP_DockWidgetCloseButton)
+        tab_bar = self.tabWidget.tabBar()
+
+        for i in range(self.tabWidget.count()):
+            # Перевіряємо, чи кнопка вже існує
+            if tab_bar.tabButton(i, QTabBar.RightSide) is not None:
+                continue
+
+            tab_button = QPushButton(close_icon, "")
+            tab_button.setFlat(True)
+            tab_button.setCursor(Qt.ArrowCursor)
+            # Встановлюємо фіксований розмір, щоб уникнути розтягування
+            tab_button.setFixedSize(16, 16)
+            tab_button.setStyleSheet("""
+                QPushButton {
+                    border: none;
+                    background: transparent;
+                    padding: 0px;
+                }
+                QPushButton:hover {
+                    background-color: #d3d3d3; /* lightgray */
+                    border-radius: 2px;
+                }
+                QPushButton:pressed {
+                    background-color: #a9a9a9; /* darkgray */
+                }
+            """)
+            # Використовуємо lambda, щоб передати правильний індекс вкладки
+            tab_button.clicked.connect(lambda _, idx=i: self.close_tab(idx))
+            tab_bar.setTabButton(i, QTabBar.RightSide, tab_button)
+
+
+    def on_node_removed(self, node, parent):
+        """Обробляє сигнал видалення вузла з дерева шарів."""
+        if self._is_closing:
             return
 
-        if tab_name not in ["Структура", "Метадані", "Ділянка"]:
-            self.closed_tabs.append(tab_name)
-        self.removeTab(index)
-        self.update_restore_tabs_action()
-        self.update_tab_indices()
+        if isinstance(node, QgsLayerTreeGroup):
+            group_name = node.name()
+            # Перевіряємо, чи видалена група належить нашому плагіну
+            xml_data_to_close = next((xml for xml in self.opened_xmls if xml.group_name == group_name), None)
+            if xml_data_to_close:
+                log_msg(logFile, f"Виявлено видалення групи '{group_name}'. Закриваємо відповідну вкладку.")
+                # Викликаємо закриття, але без видалення групи, бо її вже немає
+                self.iface.messageBar().pushMessage(
+                    "xml_ua", f"Групу '{group_name}' видалено. Закриваємо відповідну вкладку.", level=Qgis.Info, duration=5
+                )
+                # Викликаємо закриття, але з прапорцем, що група вже видалена
+                self.process_action_close_xml(xml_data_to_close, group_already_removed=True)
 
 
-    def update_restore_tabs_action(self):
-        """
-        Оновлює стан дії "Відновити закриті вкладки".
-        """
-        if self.plugin:
-            closed_tabs_exist = len(self.closed_tabs) > 0
-            self.plugin.action_restore_tabs.setEnabled(closed_tabs_exist)
+    def on_tab_changed(self, index):
+        """Синхронізує активну вкладку з деревом шарів."""
+        if index == -1: # Немає активних вкладок
+            self.current_xml = None
+            return
 
-
-    def restore_tabs(self):
-        """
-        Відновлює вкладки, що були відкриті в попередній сесії.
-        """
-        log_calls(logFile)
-
-
-        for tab_name in self.opened_tabs:
-            if tab_name == "Структура":
-                self.add_tab("Структура", self.tabXML)
-            elif tab_name == "Метадані":
-                self.add_tab("Метадані", self.tabMetadata)
-            elif tab_name == "Ділянка":
-                self.add_tab("Ділянка", self.tabParcel)
-
-
-        for tab_name in self.closed_tabs:
-            if tab_name not in self.opened_tabs:
-                if tab_name not in ["Структура", "Метадані", "Ділянка"]:
-                    self.opened_tabs.append(tab_name)
-
-        self.setup_custom_tab_buttons()
-        if self.plugin and hasattr(self.plugin, 'update_restore_tabs_action'):
-            self.plugin.update_restore_tabs_action()
-
-
-    def update_restore_tabs_action(self):
-        """
-        Оновлює стан дії "Відновити закриті вкладки".
-        """
-        if self.plugin:
-            closed_tabs_exist = len(self.closed_tabs) > 0
-            self.plugin.action_restore_tabs.setEnabled(closed_tabs_exist)
-
-
-    def removeTab(self, index):
-        tab_name = self.tabWidget.tabText(index)
-        self.tabWidget.removeTab(index)
-        if tab_name in self.opened_tabs:
-            self.opened_tabs.remove(tab_name)
-        self.update_restore_tabs_action()
-
-
-    def restore_tabs(self):
-        """
-        Відновлює вкладки, що були відкриті в попередній сесії.
-        """
-        log_calls(logFile, f"closed_tabs: {self.closed_tabs}")
-
-
-        for tab_name in self.closed_tabs:
-            if tab_name not in self.opened_tabs:
-                if tab_name == "Структура":
-                    self.add_tab("Структура", self.tabXML)
-                    self.load_data(self.full_xml_file_name)
-                elif tab_name == "Метадані":
-                    self.add_tab("Метадані", self.tabMetadata)
-                    self.load_data(self.full_xml_file_name)
-                elif tab_name == "Ділянка":
-                    self.add_tab("Ділянка", self.tabParcel)
-                    self.load_data(self.full_xml_file_name)
-                else:
-
-                    self.add_tab(tab_name, QWidget())
-
-        self.closed_tabs.clear()
-        self.setup_custom_tab_buttons()
-        if self.plugin and hasattr(self.plugin, 'update_restore_tabs_action'):
-            self.plugin.update_restore_tabs_action()
-
+        xml_data = self.get_xml_data_for_tab_index(index)
+        if xml_data:
+            self.current_xml = xml_data
+            group = self.layers_root.findGroup(xml_data.group_name)
+            if group:
+                self.iface.layerTreeView().setCurrentNode(group)
+            self.update_window_title(xml_data.path)
 
     def update_tab_indices(self):
         """
@@ -1049,22 +722,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
 
         log_calls(logFile)
-
-        for i in range(self.tabWidget.count()):
-            tab_bar = self.tabWidget.tabBar()
-            tab_button = tab_bar.tabButton(i, QTabBar.RightSide)
-            if tab_button:
-
-                try:
-                    connector.disconnect(tab_button, "clicked", self.tab_button_clicked)
-                except TypeError:
-                    pass
-
-
-                tab_button.setObjectName(f"tab_close_button_{i}")
-
-                connector.connect(tab_button, "clicked", lambda _, idx=i: self.tab_button_clicked(idx))
-
+        # Ця логіка більше не потрібна, оскільки кнопки закриття стандартні
 
     def generate_layers_obj_name(self, base_name):
         """
@@ -1090,16 +748,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         Обробляє подвійне клацання на елементі в дереві шарів.
         """
-        log_calls(logFile, f"index = {index}")
+        log_calls(logFile)
 
-
+        # Отримуємо QgsLayerTreeNode, використовуючи QgsLayerTreeView
         item = self.iface.layerTreeView().index2node(index)
 
         if item is None:
             log_msg(logFile, f"item is None")
             return
 
-
+        # log_msg(logFile, f"item.name() = {item.name()}")
 
         if isinstance(item, QgsLayerTreeGroup):
             layers_obj_name = item.name()
@@ -1111,9 +769,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         Обробляє  клацання на елементі в дереві шарів.
         """
-        log_calls(logFile, f"index = {index}")
+        # (logFile, f"index = {index}")
 
-
+        # Отримуємо QgsLayerTreeNode, використовуючи QgsLayerTreeView
         item = self.iface.layerTreeView().index2node(index)
 
         if item is None:
@@ -1123,19 +781,19 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if isinstance(item, QgsLayerTreeGroup):
             self.process_group_click(item.name())
 
-
-
+        # Якщо елемент не група, то обробляємо його, то 
+        # знаходимо його групу:
         if isinstance(item, QgsLayerTreeLayer):
-            log_msg(logFile, f"Клік на шарі {item.name()}")
-
+            # log_msg(logFile, f"Клік на шарі {item.name()}")
+            # Отримуємо групу шару
             group = self.find_parent_group(item)
             if group:
                 group_name = group.name()
-                log_msg(logFile, f"Шар '{item.name()}' знаходиться в групі '{group_name}'")
+                # log_msg(logFile, f"Шар '{item.name()}' знаходиться в групі '{group_name}'")
                 self.process_group_click(group_name)
             else:
-                log_msg(logFile, f"Шар '{item.name()}' не належить до жодної групи")
-
+                # log_msg(logFile, f"Шар '{item.name()}' не належить до жодної групи")
+                pass
 
     def find_parent_group(self, item: QgsLayerTreeLayer) -> QgsLayerTreeGroup:
         """
@@ -1160,22 +818,33 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             parent = parent.parent()
         return None
 
+    def get_xml_data_for_tab_index(self, index):
+        """Повертає об'єкт xml_data для вкладки за її індексом."""
+        if index < 0 or index >= self.tabWidget.count():
+            return None
+        
+        tab_name = self.tabWidget.tabText(index)
+        # Ми припускаємо, що назва вкладки - це group_name
+        for xml_data in self.opened_xmls:
+            if xml_data.group_name == tab_name:
+                return xml_data
+        return None
 
     def validate_xml_structure(self, xml_path):
 
+        #✔️ 2025.04.03 08:59
+        # Перевіряти треба xml при відкритті і шаблони при створенні, бо
+        # користувач може зробити помилку у шаблоні 
+        # Це часткова перевірка структури XML
+        # Повна перевірка структури XML засобами library lxml
+        # не працює, бо ВСІ файли не відповідають схемі XSD
+        # у майбутньому треба розширити перевірку
+        # з врахуванням того, що файл може бути у процесі розробки
 
+        #✔️ 2025.04.03  
+        # log_msg(logFile)
 
-
-
-
-
-
-
-
-
-
-
-
+        # Список обов'язкових елементів
         mandatory_elements = [
             "AdditionalPart",
             "ServiceInfo",
@@ -1208,16 +877,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             "ParcelMetricInfo"
         ]
         try:
-
+            # 1. Parse the XML (Well-Formedness Check)
             tree = etree.parse(xml_path)
             root = tree.getroot()
 
-
+            # 2. Check for a Root Element
             if root is None:
                 log_msg(logFile, "Error: No root element found in the XML file.")
                 return False
 
-
+            # Check if the root element's tag is 'UkrainianCadastralExchangeFile'
             if root.tag != "UkrainianCadastralExchangeFile":
                 log_msg(
                     logFile, f"Error: Root element is '{root.tag}', expected 'UkrainianCadastralExchangeFile'.")
@@ -1266,132 +935,92 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
 
 
+        # Основна мета — синхронізувати доквіджет з вибраною групою 
+        # в дереві шарів QGIS коли користувач клацає групу, 
 
+        # log_calls(logFile, group_name)
 
-
-        log_calls(logFile, group_name)
-
-        if not hasattr(self, 'opened_xmls'):
-            QMessageBox.warning(self, "process_group_click()",
-                                "not hasattr(self, 'opened_xmls')")
-            log_msg(logFile, "Error: opened_xmls attribute is not initialized.")
-            return
-
-        layers_root = QgsProject.instance().layerTreeRoot()
-        clicked_group = layers_root.findGroup(group_name)
-
-        if not clicked_group:
-            log_msg(
-                logFile, f"Group '{group_name}' not found in the layer tree")
-            return
-
-        self.log_opened_xmls()
-
-
-        found = False
-        for xml in self.opened_xmls:
-            if xml.group_name == group_name:
-                self.current_xml = xml
-                found = True
-                log_msg(logFile, f"Group '{group_name}' found in opened_xmls")
-                self.log_opened_xmls()
-
+        # Знаходимо відповідну вкладку
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == group_name:
+                # Переключаємось на вкладку, це викличе on_tab_changed
+                if self.tabWidget.currentIndex() != i:
+                    self.tabWidget.setCurrentIndex(i)
+                else: # Якщо вкладка вже активна, просто оновлюємо дані
+                    self.current_xml = self.get_xml_data_for_tab_index(i)
+                    self.update_window_title(self.current_xml.path)
                 break
-
-        if not found:
-            log_msg(logFile, f"Нема відкритого xml з іменем '{group_name}'")
-            return
-
-        if self.isHidden():
-            self.show()
-
-
-        self.plugin.clear_widget_data()
-
-        self.load_data(self.current_xml.path, self.current_xml.tree)
-        self.treeViewXML.expand_initial_elements()
-        self.treeViewXML.set_column_width(0, 75)
-
-
-        self.treeViewXML.expand_initial_elements()
-        self.treeViewXML.set_column_width(0, 75)
-        self.setup_custom_tab_buttons()
-
-
-        self.update_window_title(self.current_xml.path)
 
 
     def update_xml_with_new_geometry(self, layer, feature_id, geometry):
         """
         Оновлює XML-файл на основі нової геометрії.
         """
-
+        # log_calls(logFile, f"layer: {layer.name()}, feature_id: {feature_id}, geometry: {geometry}")
         log_calls(logFile)
 
-
+        # Отримуємо фічу за її ID
         feature = layer.getFeature(feature_id)
         if not feature:
             log_msg(logFile, f"Фіча з ID {feature_id} не знайдена в шарі {layer.name()}.")
             return
 
-
+        # Отримуємо геометрію фічі
         new_geometry = feature.geometry()
         log_calls(logFile, f"Нова геометрія фічі: {geometry_to_string(new_geometry)}")
 
-
-
+        # TODO: Тут потрібно додати логіку для оновлення 
+        # XML-файлу на основі нової геометрії
         QMessageBox.information(self, "update_xml_with_new_geometry()", f"Нова геометрія фічі: {geometry_to_string(new_geometry)}")
 
 
 
 
+    # def customize_layer_tree_context_menu(self, point):
+    #     """
+    #     Customizes the layerTreeView context menu, removing or disabling the "Rename Group" item.
+    #     """
+    #     log_calls(logFile, f"point = {point}")
+    #     QMessageBox.information(self, "customize_layer_tree_context_menu()", f"point = {point}")
 
 
+    #     try:
+    #         # Get the layerTreeView
+    #         layer_tree_view = self.iface.layerTreeView()
 
+    #         # Get the index of the item where the right-click occurred
+    #         index = layer_tree_view.indexAt(point)
 
+    #         # Check if the click was on a valid item
+    #         if not index.isValid():
+    #             return
 
+    #         # Get the layer tree model
+    #         model = layer_tree_view.model()
 
+    #         # Get the layer tree node
+    #         node = model.nodeFromIndex(index)
 
+    #         # Create a new context menu
+    #         menu = QMenu()
 
+    #         # Add the default actions to the menu
+    #         actions = layer_tree_view.contextMenuActions(index)
+    #         for action in actions:
+    #             menu.addAction(action)
 
+    #         # Remove or disable the "Rename Group" item
+    #         for action in menu.actions():
+    #             if action.text() == "Перейменувати групу":  # "Rename Group" in Ukrainian
+    #                 if isinstance(node, QgsLayerTreeGroup):
+    #                     # Remove the menu item
+    #                     menu.removeAction(action)
+    #                     # Or disable the menu item:
+    #                     # action.setEnabled(False)
+    #                 break
 
+    #         # Show the menu
+    #         menu.exec_(layer_tree_view.mapToGlobal(point))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    #     except Exception as e:
+    #         log_calls(logFile, f"Error customizing context menu: {e}")

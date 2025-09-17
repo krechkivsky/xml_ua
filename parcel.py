@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 """Таблиця даних земельної ділянки"""
 import os
 import uuid
@@ -38,25 +38,25 @@ class TableViewParcel(QTableView):
         Клас таблиці для відображення та роботи з даними земельної ділянки.
     """
 
-
+    # Сигнал для оновлення даних
     parcelChangedSignal = pyqtSignal(str, str)  # Сигнал для оновлення даних
 
-
-
-
-
+    # Клас TableViewParcel успадковує клас QTableView
+    # заповнює таблицю Ділянка основними даними земельної ділянки
+    # для даних, які можуть бути в різних кількостях від 0 до нескінченності
+    # за необхідності створюються додаткові вкладки для відображення даних
 
 
     def __init__(self, parent=None):
 
         super().__init__(parent)
 
-
+        # Явно зберігаємо батьківський об'єкт
         self.parent = parent
         self.parcel_block_change_flag = False
+        # log_calls(logFile, f"🚩 {self.parcel_block_change_flag}")
 
-
-
+        # Змінити висоту горизонтального заголовка
         self.horizontalHeader().setFixedHeight(30)
         self.verticalHeader().setDefaultSectionSize(30)
 
@@ -68,10 +68,10 @@ class TableViewParcel(QTableView):
         self.docs_dict = dict(config_docs['DocsList'])
         self.docs_tips = dict(config_docs['DocsTips'])
 
-
+        # Підключення обробника правого кліку
         self.setContextMenuPolicy(Qt.CustomContextMenu)
-
-
+        # Підключення обробника змін даних у комірках
+        #self.items_model.itemChanged.connect(self.parcel_item_changed)
         connector.connect(self.items_model, "itemChanged", self.parcel_item_changed)
 
 
@@ -291,15 +291,15 @@ class TableViewParcel(QTableView):
         self.items_model.appendRow([key_item, value_item])
     def add_use(self, xml_tree, path):
         """ Додає до таблиці інформацію про елемент Use з xml_tree """
-
+        # log_msg(logFile, f"path = {path}")
         element = xml_tree.find(".//CategoryPurposeInfo/Use")
-
+        # log_msg(logFile, f"element = {element}")
         if element is not None:
             value = element.text
         else:
             self.empty_elents.append(path)
             value = ""
-
+        # log_msg(logFile, f"Use value = {value}")
         key_item = QStandardItem("Цільове призначення")
         key_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
         key_item.setToolTip(
@@ -312,15 +312,15 @@ class TableViewParcel(QTableView):
         self.items_model.appendRow([key_item, value_item])
     def add_code(self, xml_tree, path):
         """ Додає до таблиці інформацію про елемент Code з xml_tree """
-
+        # log_msg(logFile, f"path = {path}")
         element = xml_tree.find(".//OwnershipInfo/Code")
-
+        # log_msg(logFile, f"element = {element}")
         if element is not None:
             value = element.text
         else:
             self.empty_elents.append(path)
             value = ""
-
+        # log_msg(logFile, f"value = {value}")
         key_item = QStandardItem("Код форми власності")
         key_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
         key_item.setToolTip(
@@ -332,15 +332,15 @@ class TableViewParcel(QTableView):
         self.items_model.appendRow([key_item, value_item])
     def add_description(self, xml_tree, path):
         """ Додає до таблиці інформацію про елемент Description з xml_tree """
-
+        # log_msg(logFile, f"path = {path}")
         element = xml_tree.find(".//ParcelMetricInfo/Description")
-
+        # log_msg(logFile, f"element = {element}")
         if element is not None:
             value = element.text
         else:
             self.empty_elents.append(path)
             value = ""
-
+        # log_msg(logFile, f"value = {value}")
         key_item = QStandardItem("Опис земельної ділянки")
         key_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
         key_item.setToolTip(
@@ -586,9 +586,9 @@ class TableViewParcel(QTableView):
         4. Iterates through users and grantors, adding tabs for each natural person or legal entity found.
         The tabs are labeled and tooltips are set to provide additional information about the legal mode and users/grantors.
         """
-
+        # log_msg(logFile, f"Start")
         element = xml_tree.find(".//LegalModeInfo")
-
+        # log_msg(logFile, f"element.tag = {element.tag}")
         if element is not None:
             tab_widget = self.parent.findChild(QTabWidget, "tabWidget")
             if not tab_widget:
@@ -602,12 +602,12 @@ class TableViewParcel(QTableView):
     
             legal_mode_type = element.find("LegalModeType")
             start_date = element.find("Duration/StartDate")
-
-
+            # Логуємо start_date
+            # log_msg(logFile, f"start_date = {start_date.tag}")
             expiration_date = element.find("Duration/ExpirationDate")
-
-
-
+            # Логуємо expiration_date
+            # log_msg(logFile, f"expiration_date = {expiration_date.tag}")
+            # expiration_date = None
     
             if legal_mode_type is not None:
                 key_item = QStandardItem("Тип користування")
@@ -635,9 +635,9 @@ class TableViewParcel(QTableView):
     
             users = element.findall(".//Grantee")
             for user in users:
-
-
-
+                # auth_element = user.find("Authentication")
+                # log_msg(logFile, f"auth_element.tag = {auth_element.tag}")
+                # if auth_element is not None:
                     if user.find("NaturalPerson") is not None:
                         person = user.find("NaturalPerson")
                         full_name_node = person.find("FullName")
@@ -667,9 +667,9 @@ class TableViewParcel(QTableView):
     
             grantors = element.findall(".//Grantor")
             for grantor in grantors:
-
-
-
+                # auth_element = grantor.find("Authentication")
+                # if auth_element is not None:
+                # log_msg(logFile, f"Кількість надавачів: {len(grantors)}")
                 if grantor.find("NaturalPerson") is not None:
                     log_msg(logFile, "Знайдено надавач NaturalPerson")
                     person = grantor.find("NaturalPerson")
@@ -689,10 +689,10 @@ class TableViewParcel(QTableView):
                     tab_widget.setTabToolTip(index, "Надавач земельної ділянки")
 
                 elif grantor.find("LegalEntity") is not None:
-
+                    # log_msg(logFile, "Знайдено надавач LegalEntity")
                     entity = grantor.find("LegalEntity")
                     entity_name = entity.find("Name").text if entity.find("Name") is not None else "Без назви"
-
+                    # log_msg(logFile, f"entity_name = {entity_name}")
                     tab_name = entity_name
                     new_tab = TableViewLegalEntity(self.parent)
                     new_tab.populate_legal_entity(xml_tree, ".//Grantor/LegalEntity")
@@ -703,13 +703,13 @@ class TableViewParcel(QTableView):
             Параметри:
                 xmlTree: завантажене дерево xml
         """
-
+        # log_msg(logFile, f"xmlTree = {xmlTree}")
         self.items_model.removeRows(0, self.items_model.rowCount())
         paths = config.get("Parcel", "paths").splitlines()
         self.empty_elents = []
         for path in paths:
             tag = path.split("/")[-1]
-
+            # log_msg(logFile, f"tag = {tag}")
             if tag == "Region": 
                 self.add_region(xmlTree, path)
                 continue
@@ -735,7 +735,7 @@ class TableViewParcel(QTableView):
                 self.add_block(xmlTree, path)
                 continue
             if tag == "AdditionalInfo":
-
+                # log_msg(logFile, f"AdditionalInfo path = {path}")
                 self.add_additional_info(xmlTree, path)
                 continue
             if tag == "Category":
@@ -817,11 +817,11 @@ class TableViewParcel(QTableView):
 
                                 tab_name = full_name if full_name not in existing_tabs else f"{full_name} ({existing_tabs.count(full_name) + 1})"
                                 new_tab = TableViewNaturalPerson(self.parent)
-
+                                # person -> .//ProprietorInfo/Authentication/NaturalPerson
                                 new_tab.populate_natural_person(xmlTree, proprietor, person)
                                 index = tab_widget.addTab(new_tab, tab_name)
                                 tab_widget.setTabToolTip(index, f"Власник земельної ділянки")
-
+                                # log_msg(logFile, f"✔️ Сформовано ім'я вкладки: {tab_name}")
 
                             elif auth_element.find("LegalEntity") is not None:
                                 entity = auth_element.find("LegalEntity")
@@ -832,7 +832,7 @@ class TableViewParcel(QTableView):
                                 new_tab.populate_legal_entity(xmlTree, ".//ProprietorInfo/Authentication/LegalEntity")
                                 index = tab_widget.addTab(new_tab, tab_name)
                                 tab_widget.setTabToolTip(index, f"Власник земельної ділянки")
-
+                                # log_msg(logFile, f"✔️ Сформовано ім'я вкладки: {tab_name}")
                 continue
             if tag == "LegalModeInfo":
                 self.add_legal_mode_info(xmlTree, path)
@@ -888,7 +888,7 @@ class TableViewParcel(QTableView):
                 tech_doc_model.appendRow([key_item, value_item])
             index = tab_widget.addTab(tech_doc_tab, "Документація")
             tab_widget.setTabToolTip(index, "<b>Відомості про документацію із землеустрою</b><br>та проходження державної експертизи")
-
+            # Add Document List Tab
             doc_list_tab = QTableView(self.parent)
             doc_list_model = QStandardItemModel()
             doc_list_tab.setModel(doc_list_model)
@@ -899,7 +899,7 @@ class TableViewParcel(QTableView):
                 key_item.setToolTip(self.docs_tips.get(doc_code, ""))
                 value_item = QStandardItem()
                 value_item.setCheckable(True)
-
+                # Check if the element with the specified doc_code exists in the XML tree
                 exists = xml_tree.xpath(f".//DocumentList[text()='{doc_code}']")
                 value_item.setCheckState(Qt.Checked if exists else Qt.Unchecked)
                 value_item.setData(path, Qt.UserRole)
