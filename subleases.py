@@ -1,0 +1,135 @@
+# -*- coding: utf-8 -*-
+# subleases.py
+
+import os
+from qgis.core import (
+    QgsVectorLayer,
+    QgsField,
+    QgsFeature,
+    QgsGeometry,
+    QgsPolygon,
+    QgsLineString,
+    QgsPointXY,
+    QgsProject
+)
+from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtWidgets import QMessageBox
+
+from .common import logFile, insert_element_in_order
+from .common import log_msg
+
+class Subleases:
+    """Клас для обробки даних про суборенду з XML-файлу."""
+
+    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func, xml_ua_layers_instance):
+        """
+        Ініціалізація об'єкта для роботи з суборендою.
+
+        Args:
+            root: Кореневий елемент XML-дерева.
+            crs_epsg (str): EPSG-код системи координат.
+            group (QgsLayerTreeGroup): Група шарів у QGIS.
+            plugin_dir (str): Шлях до директорії плагіна.
+            lines_to_coords_func (function): Функція для перетворення ліній у координати.
+            xml_ua_layers_instance: Екземпляр класу xmlUaLayers для доступу до його методів.
+        """
+        self.root = root
+        self.crs_epsg = crs_epsg
+        self.group = group
+        self.plugin_dir = plugin_dir
+        self.lines_to_coords = lines_to_coords_func
+        self.xml_ua_layers = xml_ua_layers_instance
+
+    def _coord_to_polygon(self, coordinates):
+        """Формує полігон із заданого списку координат."""
+        if not coordinates:
+            return QgsPolygon()
+        # Координати в XML (X, Y) відповідають (Y, X) в QGIS
+        line_string = QgsLineString([QgsPointXY(p.y(), p.x()) for p in coordinates])
+        polygon = QgsPolygon(line_string)
+        return polygon
+
+    def redraw_subleases_layer(self, layer):
+        """Очищує та заповнює існуючий шар 'Суборенда'."""
+        provider = layer.dataProvider()
+        layer.startEditing()
+        layer.deleteFeatures(layer.allFeatureIds())
+
+        subleases_parent = self.root.find(".//ParcelInfo/Subleases")
+        if subleases_parent is None:
+            layer.commitChanges()
+            return
+
+        for sublease in subleases_parent.findall(".//SubleaseInfo"):
+            registration_date = sublease.findtext(".//SubleaseAgreement/RegistrationDate")
+            area_element = sublease.find(".//SubleaseAgreement/Area")
+            area = float(area_element.text) if area_element is not None and area_element.text else None
+
+            externals_lines = sublease.find(".//Externals/Boundary/Lines")
+            external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
+
+            internals_lines = sublease.find(".//Internals/Boundary/Lines")
+            internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
+
+            polygon = self._coord_to_polygon(external_coords)
+            if internal_coords:
+                polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
+
+            feature = QgsFeature(layer.fields())
+            feature.setGeometry(QgsGeometry(polygon))
+            feature.setAttributes([registration_date, area])
+            provider.addFeature(feature)
+        layer.commitChanges()
+
+    def add_subleases_layer(self):
+        """Створює та заповнює шар 'Суборенда'."""
+        parcel_info = self.root.find(".//ParcelInfo")
+        subleases_parent = parcel_info.find("Subleases")
+        if subleases_parent is None:
+            # Аналогічно до оренди, виходимо, якщо розділу немає
+            log_msg(logFile,"Розділ 'Subleases' відсутній. Шар 'Суборенда' не буде створено.")
+            return None
+
+        layer_name = "Суборенда"
+        layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "sublease.qml"))
+        provider = layer.dataProvider()
+
+        fields = [
+            QgsField("RegistrationDate", QVariant.String),
+            QgsField("Area", QVariant.Double),
+        ]
+        provider.addAttributes(fields)
+        layer.updateFields()
+
+        for sublease in subleases_parent.findall(".//SubleaseInfo"):
+            registration_date = sublease.findtext(".//SubleaseAgreement/RegistrationDate")
+            area_element = sublease.find(".//Area")
+            area = float(area_element.text) if area_element is not None and area_element.text else None
+
+            externals_element = sublease.find(".//Externals")
+            if externals_element is None:
+                log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Для суборенди від '{registration_date}' відсутній обов'язковий розділ 'Externals'. Створено порожній об'єкт.")
+                external_coords = []
+            else:
+                externals_lines = externals_element.find(".//Boundary/Lines")
+                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
+
+            internals_lines = sublease.find(".//Internals/Boundary/Lines")
+            internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
+
+            polygon = self._coord_to_polygon(external_coords)
+            if internal_coords:
+                polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
+
+            feature = QgsFeature(layer.fields())
+            feature.setGeometry(QgsGeometry(polygon))
+            feature.setAttributes([registration_date, area])
+            provider.addFeature(feature)
+
+        QgsProject.instance().addMapLayer(layer, False)
+        layer_node = self.group.addLayer(layer)
+        self.xml_ua_layers.added_layers.append(layer_node)
+        self.xml_ua_layers.last_to_first(self.group)
+
+        return layer

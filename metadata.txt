@@ -6,8 +6,9 @@
 name=xml_ua
 qgisMinimumVersion=3.0
 description=Processing ukrainian cadastral files.
-version=0.1
-author=Mike
+version=0.2.3
+date=2025-10-20
+author=Michael.Krechkivski@gmail.com
 email=michael.krechkivski@gmail.com
 
 about=Provide a brief description of the plugin and its purpose.
@@ -44,4 +45,3 @@ Category of the plugin: Raster, Vector, Database or Web
 
 # If the plugin can run on QGIS Server.
 server=False
-

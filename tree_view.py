@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# tree_view.py
 """Обробка XML дерева"""
 
 import configparser
@@ -7,6 +8,7 @@ import re
 import csv
 import copy
 import os
+import uuid
 from lxml import etree
 
 from qgis.PyQt.QtWidgets import QMenu
@@ -17,8 +19,9 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtWidgets import QStyle
 from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtWidgets import QAbstractItemView
+from qgis.PyQt.QtWidgets import QStyledItemDelegate
 from qgis.PyQt.QtGui import QStandardItem
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QBrush, QColor
 from qgis.PyQt.QtGui import QStandardItemModel
 from qgis.PyQt.QtCore import QDate, QModelIndex
 from qgis.PyQt.QtCore import Qt
@@ -26,11 +29,11 @@ from qgis.PyQt.QtCore import pyqtSignal
 
 from .common import logFile
 from .common import log_msg
-from .common import log_calls
 from .common import config
 from .common import connector
 from .date_dialog import DateInputDialog
-from .delegates import StateActTypeDelegate
+from .validators import validate_element
+from .delegates import StateActTypeDelegate, CategoryDelegate, PurposeDelegate, OwnershipCodeDelegate, DocumentCodeDelegate, DispatcherDelegate, DocumentationTypeDelegate, LandCodeDelegate, ClosedDelegate
 
 
 class CustomTreeView(QTreeView):
@@ -74,8 +77,6 @@ class CustomTreeView(QTreeView):
         """
         super().__init__(parent)
 
-        # log_msg(logFile, "CustomTreeView")
-
         self.parent = parent
         self.tree_upd = False   # Флаг для запобігання циклічним змінам
         self.xml_tree = None
@@ -83,6 +84,7 @@ class CustomTreeView(QTreeView):
         self.xsd_descriptions = {}
         self.xsd_schema = {}
         self.restrictions_data = {}
+        self.validation_errors = {} # Словник для зберігання помилок валідації
 
         self.tree_row = 0
 
@@ -111,7 +113,29 @@ class CustomTreeView(QTreeView):
 
         # Встановлюємо кастомний делегат для колонки "Значення"
         self.state_act_delegate = StateActTypeDelegate(self)
-        self.setItemDelegateForColumn(1, self.state_act_delegate)
+        self.category_delegate = CategoryDelegate(self)
+        self.purpose_delegate = PurposeDelegate(self)
+        self.ownership_delegate = OwnershipCodeDelegate(self)
+        self.doc_code_delegate = DocumentCodeDelegate(self)
+        self.doc_type_delegate = DocumentationTypeDelegate(self)
+        self.land_code_delegate = LandCodeDelegate(self)
+        self.closed_delegate = ClosedDelegate(self)
+        # Створюємо "диспетчер" делегатів і передаємо йому інші делегати
+        self.dispatcher_delegate = DispatcherDelegate(
+            parent=self,
+            state_act_delegate=self.state_act_delegate,
+            category_delegate=self.category_delegate,
+            purpose_delegate=self.purpose_delegate,
+            ownership_delegate=self.ownership_delegate,
+            doc_code_delegate=self.doc_code_delegate,
+            doc_type_delegate=self.doc_type_delegate,
+            land_code_delegate=self.land_code_delegate,
+            closed_delegate=self.closed_delegate
+        )
+        # Підключаємо сигнал від делегата до слота в CustomTreeView
+        self.doc_type_delegate.documentationTypeChanged.connect(self.on_documentation_type_changed)
+
+        self.setItemDelegateForColumn(1, self.dispatcher_delegate)
 
         # Завантажуємо дані про обмеження
         self.load_restrictions_data()
@@ -139,6 +163,12 @@ class CustomTreeView(QTreeView):
         # чи потрібно зберегти зміни, якщо вони були.
         
 
+        # QMessageBox.information(
+        #     self.parent.iface.mainWindow(),
+        #     "Сигнал: itemChanged",
+        #     f"Змінено значення елемента: '{item.text()}'"
+        # )
+
         log_msg(logFile, f"{item.text()}")
 
         # Якщо вже йде оновлення, нічого не робимо
@@ -159,17 +189,19 @@ class CustomTreeView(QTreeView):
             self.update_xml_tree(full_path, value)
 
             # Позначаємо файл як змінений у батьківському віджеті
-            self.parent.mark_as_changed()
+            self.mark_as_changed() # Це оновить заголовок вкладки
 
             # Емітуємо сигнал dataChangedInTree для підключених компонентів
             # Передача змін у таблицю через сигнал dataChangedInTree
-            log_msg(logFile, f"try: emit dataChangedInTree")
+            log_msg(logFile, f"emit dataChangedInTree for path: {full_path}")
+            # --- Початок змін: Перевірка та підсвічування після зміни ---
+            self._validate_and_color_tree()
+            # --- Кінець змін ---
             self.dataChangedInTree.emit(full_path, value)
         finally:
             # Завершення синхронізації
             self.tree_upd = False
             log_msg(logFile, f"tree_upd = {self.tree_upd}")
-
 
     def update_xml_tree(self, full_path, value):
         """
@@ -188,27 +220,15 @@ class CustomTreeView(QTreeView):
             return
 
         try:
-            # Розділяємо шлях на частини
-            path_parts = full_path.split("/")
-            # Починаємо з кореневого елемента
-            current_element = self.xml_tree.getroot()
-
-            # Проходимо по частинах шляху, знаходячи відповідні елементи
-            # Пропускаємо кореневий елемент
-            for part in path_parts[1:]:  
-                found = False
-                for child in current_element:
-                    if child.tag == part:
-                        current_element = child
-                        found = True
-                        break
-                if not found:
-                    log_msg(logFile, f"Error: Element '{part}' not found in path '{full_path}'")
-                    return
-
-            # Оновлюємо значення елемента
-            current_element.text = value
-            log_msg(logFile, f"Element '{full_path}' updated with value '{value}'")
+            # Використовуємо XPath для пошуку елемента.
+            # Шлях має бути відносним до кореня, тому починаємо з /
+            xpath_expression = f"/{full_path}"
+            elements = self.xml_tree.getroot().xpath(xpath_expression) # lxml вимагає xpath на кореневому вузлі дерева
+            if elements:
+                elements[0].text = value
+                log_msg(logFile, f"Елемент '{full_path}' оновлено значенням '{value}'")
+            else:
+                log_msg(logFile, f"Помилка: Елемент за шляхом '{xpath_expression}' не знайдено в XML.")
         except Exception as e:
             log_msg(logFile, f"Error updating XML tree: {e}")
 
@@ -327,24 +347,17 @@ class CustomTreeView(QTreeView):
 
             # Створюємо дії
             save_action = QAction(self.parent.plugin.action_save_tool.icon(), "Зберегти", self)
-            save_as_action = QAction(self.parent.plugin.action_save_as_tool.icon(), "Зберегти як...", self)
-            check_action = QAction(self.parent.plugin.action_check_tool.icon(), "Перевірити", self)
-
-            # Підключаємо дії до відповідних методів батьківського віджета
-            save_action.triggered.connect(self.parent.process_action_save)
-            save_as_action.triggered.connect(self.parent.process_action_save_as)
-            check_action.triggered.connect(self.parent.process_action_check)
+            save_as_template_action = QAction(self.parent.plugin.action_save_as_template_tool.icon(), "Зберегти як шаблон...", self)
 
             # Додаємо дії до меню
             menu.addAction(save_action)
-            menu.addAction(save_as_action)
+            menu.addAction(save_as_template_action)
 
             close_action = QAction(self.style().standardIcon(QStyle.SP_DialogCloseButton), "Закрити", self)
             close_action.triggered.connect(lambda: self.parent.process_action_close_xml(self.parent.current_xml))
             menu.addAction(close_action)
 
             menu.addSeparator()
-            menu.addAction(check_action)
 
             # Показуємо меню у позиції курсора
             menu.exec_(self.viewport().mapToGlobal(point))
@@ -354,87 +367,91 @@ class CustomTreeView(QTreeView):
         item = self.model.itemFromIndex(index)
         item_path = item.data(Qt.UserRole)
         
-        # Спеціальна логіка для RestrictionCode
-        if item_path and item_path.endswith(("/RestrictionInfo/RestrictionCode", "/Restrictions/RestrictionInfo/RestrictionCode")):
-            # Перевіряємо, чи клік був на колонці значення
-            if index.column() == 1:
-                self.handle_restriction_code_menu(point, item)
-            return
-
-        # --- Початок динамічного меню ---
-        # Спеціальна логіка для .../AdjacentUnitInfo/Proprietor
-        if item_path and item_path.endswith("/AdjacentUnitInfo/Proprietor"):
-            menu = QMenu()
-            xml_element = self._find_xml_element_by_path(item_path)
-            
-            # Перевіряємо, чи вже є власник (NaturalPerson або LegalEntity)
-            existing_owner = xml_element.find("NaturalPerson")
-            if existing_owner is None:
-                existing_owner = xml_element.find("LegalEntity")
-
-            icon_path = os.path.dirname(__file__)
-            add_person_icon = QIcon(os.path.join(icon_path, 'images', 'human.png'))
-            add_entity_icon = QIcon(os.path.join(icon_path, 'images', 'firm.png'))
-            delete_owner_icon = QIcon(os.path.join(icon_path, 'images', 'delete_human.png'))
-
-            if existing_owner is None:
-                # Власника немає, можна додати
-                add_person_action = QAction(add_person_icon, "Додати фізичну особу", self)
-                add_entity_action = QAction(add_entity_icon, "Додати юридичну особу", self)
-
-                add_person_action.triggered.connect(lambda: self.add_child_element(item, "NaturalPerson"))
-                add_entity_action.triggered.connect(lambda: self.add_child_element(item, "LegalEntity"))
-
-                menu.addAction(add_person_action)
-                menu.addAction(add_entity_action)
-            else:
-                # Власник є, можна тільки видалити
-                owner_item_index = self.model.index(0, 0, index) # Перший дочірній елемент
-                owner_item = self.model.itemFromIndex(owner_item_index)
-                if owner_item:
-                    owner_display_name = owner_item.text()
-                    delete_owner_action = QAction(delete_owner_icon, f"Видалити власника '{owner_display_name}'", self)
-                    # Використовуємо lambda, щоб передати правильний item для видалення
-                    delete_owner_action.triggered.connect(lambda _, it=owner_item: self.delete_element(it))
-                    menu.addAction(delete_owner_action)
-
-            if not menu.isEmpty():
-                menu.exec_(self.viewport().mapToGlobal(point))
-            return
-
-
-
-
-
         menu = QMenu()
         has_actions = False
 
-        proprietors_path = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/Proprietors"
-        if item_path == proprietors_path:
+        # Спеціальна логіка для CoordinateSystem
+        coordinate_system_path = "UkrainianCadastralExchangeFile/InfoPart/MetricInfo/CoordinateSystem"
+        if item_path == coordinate_system_path:
             menu = QMenu()
+            has_actions = False
 
-            # Іконки
-            icon_path = os.path.dirname(__file__)
-            add_person_icon = QIcon(os.path.join(icon_path, 'images', 'human.png'))
-            add_entity_icon = QIcon(os.path.join(icon_path, 'images', 'firm.png'))
-            delete_owner_icon = QIcon(os.path.join(icon_path, 'images', 'delete_human.png'))
+            # Перевіряємо, чи є що видаляти (тобто чи є дочірній елемент)
+            if item.hasChildren():
+                # Отримуємо перший дочірній елемент (напр., SC63, Local)
+                child_item = item.child(0, 0)
+                if child_item:
+                    delete_action = QAction(f"Видалити систему координат '{child_item.text()}'", self)
+                    # Використовуємо lambda, щоб передати правильний item для видалення
+                    delete_action.triggered.connect(lambda _, it=child_item: self.delete_element(it))
+                    menu.addAction(delete_action)
+                    has_actions = True
 
-            # Створюємо дії
-            add_person_action = QAction(add_person_icon, "Додати фізичну особу", self)
-            add_entity_action = QAction(add_entity_icon, "Додати юридичну особу", self)
-            delete_owner_action = QAction(delete_owner_icon, "Видалити власника", self)
+            if has_actions and menu.exec_(self.viewport().mapToGlobal(point)):
+                menu.exec_(self.viewport().mapToGlobal(point))
+            # Не робимо return, щоб дозволити також спрацювати меню "Додати"
 
-            # Підключаємо дії до відповідних методів (поки що заглушки)
-            add_person_action.triggered.connect(lambda: QMessageBox.information(self, "Інформація", "Функціонал 'Додати фізичну особу' в розробці."))
-            add_entity_action.triggered.connect(lambda: QMessageBox.information(self, "Інформація", "Функціонал 'Додати юридичну особу' в розробці."))
-            delete_owner_action.triggered.connect(lambda: QMessageBox.information(self, "Інформація", "Функціонал 'Видалити власника' в розробці."))
+        # Спеціальна логіка для HeightSystem
+        height_system_path = "UkrainianCadastralExchangeFile/InfoPart/MetricInfo/HeightSystem"
+        if item_path == height_system_path:
+            menu = QMenu()
+            has_actions = False
 
-            menu.addAction(add_person_action)
-            menu.addAction(add_entity_action)
-            menu.addSeparator()
-            menu.addAction(delete_owner_action)
-            menu.exec_(self.viewport().mapToGlobal(point))
-            return # Повертаємось, щоб не виконувати іншу логіку
+            # Перевіряємо, чи є що видаляти (тобто чи є дочірній елемент)
+            if item.hasChildren():
+                # Отримуємо перший дочірній елемент (напр., Baltic)
+                child_item = item.child(0, 0)
+                if child_item:
+                    delete_action = QAction(f"Видалити систему висот '{child_item.text()}'", self)
+                    # Використовуємо lambda, щоб передати правильний item для видалення
+                    delete_action.triggered.connect(lambda _, it=child_item: self.delete_element(it))
+                    menu.addAction(delete_action)
+                    has_actions = True
+
+            if has_actions and menu.exec_(self.viewport().mapToGlobal(point)):
+                menu.exec_(self.viewport().mapToGlobal(point))
+
+        # Спеціальна логіка для MeasurementUnit
+        measurement_unit_path = "UkrainianCadastralExchangeFile/InfoPart/MetricInfo/MeasurementUnit"
+        if item_path == measurement_unit_path:
+            menu = QMenu()
+            has_actions = False
+
+            # Перевіряємо, чи є що видаляти (тобто чи є дочірній елемент)
+            if item.hasChildren():
+                # Отримуємо перший дочірній елемент (напр., Meters)
+                child_item = item.child(0, 0)
+                if child_item:
+                    delete_action = QAction(f"Видалити одиницю виміру '{child_item.text()}'", self)
+                    # Використовуємо lambda, щоб передати правильний item для видалення
+                    delete_action.triggered.connect(lambda _, it=child_item: self.delete_element(it))
+                    menu.addAction(delete_action)
+                    has_actions = True
+
+            if has_actions:
+                menu.exec_(self.viewport().mapToGlobal(point))
+            # Не робимо return, щоб дозволити також спрацювати меню "Додати"
+
+        # Спеціальна логіка для ParcelLocation
+        parcel_location_path = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelLocation"
+        if item_path == parcel_location_path:
+            menu = QMenu()
+            has_actions = False
+
+            # Перевіряємо, чи є що видаляти (тобто чи є дочірній елемент)
+            if item.hasChildren():
+                # Отримуємо перший дочірній елемент (напр., City)
+                child_item = item.child(0, 0)
+                if child_item:
+                    delete_action = QAction(f"Видалити місцезнаходження '{child_item.text()}'", self)
+                    # Використовуємо lambda, щоб передати правильний item для видалення
+                    delete_action.triggered.connect(lambda _, it=child_item: self.delete_element(it))
+                    menu.addAction(delete_action)
+                    has_actions = True
+
+            if has_actions and menu.exec_(self.viewport().mapToGlobal(point)):
+                menu.exec_(self.viewport().mapToGlobal(point))
+            # Не робимо return, щоб дозволити також спрацювати меню "Додати"
 
         # --- Логіка для додавання дочірніх елементів ---
         if item_path in self.xsd_schema:
@@ -461,6 +478,8 @@ class CustomTreeView(QTreeView):
                         added_to_add_menu = True
 
                 if added_to_add_menu:
+                    if has_actions:
+                        menu.addSeparator()
                     menu.addMenu(add_menu)
                     has_actions = True
 
@@ -480,8 +499,7 @@ class CustomTreeView(QTreeView):
                             current_count = len(parent_xml_element.findall(item_tag))
 
                             if current_count > int(min_occurs):
-                                if has_actions:
-                                    menu.addSeparator()
+                                if has_actions and not menu.actions()[-1].isSeparator(): menu.addSeparator()
                                 delete_action = QAction(f"Видалити '{item.text()}'", self)
                                 delete_action.triggered.connect(lambda _, it=item: self.delete_element(it))
                                 menu.addAction(delete_action)
@@ -490,6 +508,113 @@ class CustomTreeView(QTreeView):
 
         if has_actions:
             menu.exec_(self.viewport().mapToGlobal(point))
+
+    def show_item_error_dialog(self, item_path):
+        """Показує діалогове вікно з помилками для конкретного елемента."""
+        if item_path in self.validation_errors:
+            errors = self.validation_errors[item_path]
+            error_text = "\n- ".join(errors)
+            
+            # Отримуємо українську назву для шляху
+            ukr_path = self._generate_ukr_path(item_path)
+
+            QMessageBox.warning(self, 
+                                f"Помилки в елементі",
+                                f"Для елемента:\n<b>{ukr_path}</b>\n\nЗнайдено наступні помилки:\n- {error_text}")
+
+    def mark_as_changed(self):
+        """Позначає поточний XML-файл як змінений."""
+        # self.parent - це екземпляр dockwidget, переданий при ініціалізації
+        if self.parent and hasattr(self.parent, 'mark_as_changed'):
+            self.parent.mark_as_changed()
+
+    def get_expanded_indexes(self, index, expanded_list):
+        """
+        Рекурсивно збирає шляхи розкритих елементів.
+        """
+        if self.isExpanded(index):
+            item = self.model.itemFromIndex(index)
+            if item:
+                # Зберігаємо шлях до елемента як ідентифікатор
+                path = item.data(Qt.UserRole)
+                if path:
+                    expanded_list.append(path)
+
+        for row in range(self.model.rowCount(index)):
+            child_index = self.model.index(row, 0, index)
+            self.get_expanded_indexes(child_index, expanded_list)
+
+    def restore_expanded_indexes(self, expanded_list):
+        """
+        Відновлює розкриті елементи за їхніми шляхами.
+        """
+        if not expanded_list:
+            return
+
+        def find_and_expand(parent_index):
+            """Рекурсивний пошук та розкриття елементів."""
+            for row in range(self.model.rowCount(parent_index)):
+                index = self.model.index(row, 0, parent_index)
+                item = self.model.itemFromIndex(index)
+                if item:
+                    path = item.data(Qt.UserRole)
+                    if path in expanded_list:
+                        self.expand(index)
+
+                    if self.model.hasChildren(index):
+                        find_and_expand(index)
+
+        find_and_expand(self.model.invisibleRootItem().index())
+
+    def update_view_from_tree(self):
+        """
+        Примусово оновлює відображення дерева на основі поточного стану self.xml_tree.
+        """
+        log_msg(logFile, "Оновлення значень у дереві GUI.")
+        if self.xml_tree is None:
+            return
+
+        # Рекурсивна функція для оновлення значень
+        def update_items(parent_item):
+            for row in range(parent_item.rowCount()):
+                name_item = parent_item.child(row, 0)
+                value_item = parent_item.child(row, 1)
+                if name_item and value_item:
+                    full_path = name_item.data(Qt.UserRole)
+                    if full_path:
+                        # Знаходимо відповідний елемент в оновленому XML-дереві
+                        xml_element = self._find_xml_element_by_path(full_path)
+                        if xml_element is not None:
+                            new_value = xml_element.text.strip() if xml_element.text else ""
+                            if value_item.text() != new_value:
+                                value_item.setText(new_value)
+                    # Рекурсивно оновлюємо дочірні елементи
+                    if name_item.hasChildren():
+                        update_items(name_item)
+
+        update_items(self.model.invisibleRootItem())
+
+    def on_documentation_type_changed(self, doc_type_code, index):
+        """Слот, який реагує на зміну типу документації та оновлює список документів."""
+        self.doc_type_delegate.update_document_list(doc_type_code, index)
+
+    def rebuild_tree_view(self):
+        """
+        Повністю перебудовує дерево, зберігаючи розкриті вузли.
+        Використовується, коли структура XML значно змінюється.
+        """
+        if self.xml_tree is None:
+            return
+
+        # 1. Зберігаємо список розкритих вузлів
+        expanded_list = []
+        self.get_expanded_indexes(self.rootIndex(), expanded_list)
+
+        # 2. Перезавантажуємо дерево з поточного стану self.xml_tree
+        self.load_xml_to_tree_view(tree=self.xml_tree)
+
+        # 3. Відновлюємо розкриті вузли
+        self.restore_expanded_indexes(expanded_list)
 
     def select_restriction_code(self, item):
         """Запускає двокроковий діалог вибору коду обмеження."""
@@ -585,6 +710,26 @@ class CustomTreeView(QTreeView):
         item_path = item.data(Qt.UserRole)
         if item_path and item_path.endswith("Date"):
             self.handle_date_edit(item)
+        elif item_path and item_path.endswith("/FileID/FileGUID"):
+            # Обробка подвійного кліку на GUID
+            # Генеруємо новий GUID
+            new_guid = str(uuid.uuid4()).upper()
+            
+            # Запитуємо підтвердження
+            reply = QMessageBox.question(self, 'Перегенерація GUID',
+                                         f"Згенерувати новий унікальний ідентифікатор файлу?\n\nНовий GUID: {new_guid}",
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            
+            if reply == QMessageBox.Yes:
+                # Оновлюємо значення в дереві. Сигнал itemChanged автоматично оновить XML.
+                item.setText(new_guid)
+        elif item_path and item_path.endswith("/ParcelLocationInfo/Region"):
+            # Обробка подвійного кліку на Регіон
+            self.handle_region_edit(item)
+
+    def on_documentation_type_changed(self, doc_type_code, index):
+        """Слот, який реагує на зміну типу документації та оновлює список документів."""
+        self.doc_type_delegate.update_document_list(doc_type_code, index)
 
     def handle_date_edit(self, item):
         """Відкриває діалог редагування дати та оновлює значення."""
@@ -603,6 +748,50 @@ class CustomTreeView(QTreeView):
                 # Сигнал itemChanged буде викликаний автоматично,
                 # що призведе до оновлення XML через on_tree_model_data_changed
 
+    def handle_region_edit(self, item):
+        """Відкриває діалог вибору регіону та оновлює значення."""
+        if 'Region' not in config:
+            QMessageBox.warning(self, "Помилка", "Секція [Region] не знайдена у файлі конфігурації.")
+            return
+
+        region_dict = dict(config['Region'])
+        # Сортуємо за назвою регіону
+        sorted_regions = sorted(region_dict.values())
+        
+        current_text = item.text()
+        
+        current_index = -1
+        if current_text in sorted_regions:
+            current_index = sorted_regions.index(current_text)
+
+        selected_region, ok = QInputDialog.getItem(self, "Вибір регіону",
+                                                     "Виберіть регіон:", sorted_regions,
+                                                     current_index, False)
+
+        if ok and selected_region:
+            # Отримуємо повну назву регіону
+            new_name = selected_region
+            if new_name != current_text:
+                # Оновлюємо значення в дереві. Сигнал itemChanged автоматично оновить XML.
+                item.setText(new_name)
+
+    def rebuild_tree_view(self):
+        """
+        Повністю перебудовує дерево, зберігаючи розкриті вузли.
+        Використовується, коли структура XML значно змінюється.
+        """
+        if self.xml_tree is None:
+            return
+
+        # 1. Зберігаємо список розкритих вузлів
+        expanded_list = []
+        self.get_expanded_indexes(self.rootIndex(), expanded_list)
+
+        # 2. Перезавантажуємо дерево з поточного стану self.xml_tree
+        self.load_xml_to_tree_view(tree=self.xml_tree)
+
+        # 3. Відновлюємо розкриті вузли
+        self.restore_expanded_indexes(expanded_list)
 
 
     def add_child_element(self, parent_item, child_tag):
@@ -658,7 +847,17 @@ class CustomTreeView(QTreeView):
         """Знаходить елемент в self.xml_tree за XPath."""
         if self.xml_tree is None:
             return None
-        return self.xml_tree.getroot().xpath(f"/{path}")[0] if path else None
+        if not path:
+            return None
+
+        root = self.xml_tree.getroot()
+        
+        # Перевірка, чи підтримує об'єкт метод xpath (тобто чи це lxml)
+        if hasattr(root, 'xpath'):
+            elements = root.xpath(f"/{path}") # noqa
+            return elements[0] if elements else None
+        else: # Fallback для стандартного xml.etree
+            return root.find(path)
         
     def get_element_path(self, item):
         """ Побудова повного шляху до елемента дерева.
@@ -758,8 +957,6 @@ class CustomTreeView(QTreeView):
 
         """
         
-        # log_calls(logFile)
-
         # Отримання моделі дерева
         model = self.model
         if model is None:
@@ -799,20 +996,17 @@ class CustomTreeView(QTreeView):
         """
         Отримує шлях до елемента в TreeView.
         """
-        log_msg(logFile)
-        path = []
-        while item:
-            # Отримуємо текст із першої колонки
-            parent = item.parent()
-            if parent:
-                # Беремо текст із колонки 0
-                key = parent.child(item.row(), 0).text()
-            else:
-                # Якщо елемент кореневий
-                key = self.model.item(item.row(), 0).text()
-            path.insert(0, key)
-            item = parent
-        return "/".join(path)
+        if not item:
+            return ""
+        # Шлях зберігається в першій колонці (name_item)
+        if item.column() == 0: # Якщо зміна на name_item (хоча вони read-only)
+            name_item = item
+        else: # Якщо зміна на value_item (колонка 1)
+            name_item = item.parent().child(item.row(), 0) if item.parent() else self.model.item(item.row(), 0)
+        
+        path = name_item.data(Qt.UserRole) if name_item else ""
+        # log_msg(logFile, f"get_item_path for '{item.text()}' -> '{path}'")
+        return path
 
     def set_column_width(self, column_index, width_percentage):
 
@@ -1340,6 +1534,7 @@ class CustomTreeView(QTreeView):
             'minOccurs': element.get('minOccurs', '1'),
             'maxOccurs': element.get('maxOccurs', '1'),
             'children': []
+            # 'type': None # Додамо пізніше
         }
 
         # Описи та короткі назви
@@ -1366,6 +1561,7 @@ class CustomTreeView(QTreeView):
             for group_tag in ['sequence', 'choice', 'all']:
                 group = complex_type.find(f'xsd:{group_tag}', ns)
                 if group is not None:
+                    element_info['type'] = group_tag # Зберігаємо тип групи
                     for child_element in group.findall('xsd:element', ns):
                         child_info = self._parse_xsd_element(child_element, full_path, ns)
                         if child_info:
@@ -1448,13 +1644,14 @@ class CustomTreeView(QTreeView):
         # log_calls(logFile, f"xml_path = {xml_path}\npath_to_xsd = {path_to_xsd}\ntree = {tree}")
 
         self.tree_row = 0
-
         try:
-            self.xsd_descriptions = self.load_xsd_descriptions(path_to_xsd)
+            # Завантажуємо описи XSD, тільки якщо їх ще немає
+            if not self.xsd_descriptions and path_to_xsd:
+                self.xsd_descriptions = self.load_xsd_descriptions(path_to_xsd)
 
-            if tree:
+            if tree is not None:
                 self.xml_tree = tree
-            else:
+            elif xml_path:
                 self.xml_tree = etree.parse(xml_path)
 
             # Очищаємо існуючу модель дерева при повторному відкритті XML
@@ -1476,8 +1673,9 @@ class CustomTreeView(QTreeView):
             # Починаємо побудову з кореня
             build_tree(root, self.model.invisibleRootItem())
             
-            # після заповнення моделі дерева потрібно розкрити елементи 
-            # дерева, які призначені бути розкритими expand_initial_elements
+            # Валідація при завантаженні вимкнена для пришвидшення.
+            # Вона буде виконуватися вручну через кнопку "Перевірити".
+            # self._validate_and_color_tree()
 
         except Exception as e:
             log_msg(logFile, f"Помилка при завантаженні XML: {e}")
@@ -1496,26 +1694,46 @@ class CustomTreeView(QTreeView):
 
         # --- Спеціальна логіка для відображення StateActType ---
         is_state_act_type = full_path.endswith("/StateActInfo/StateActType")
-
+        is_category = full_path.endswith("/CategoryPurposeInfo/Category")
+        is_purpose = full_path.endswith("/CategoryPurposeInfo/Purpose")
+        is_ownership_code = full_path.endswith("/OwnershipInfo/Code")
+        is_doc_code = self.doc_code_delegate._is_target_element(name_item.index())
+        is_doc_type = self.doc_type_delegate._is_target_element(name_item.index())
+        is_land_code = self.land_code_delegate._is_target_element(name_item.index())
+        is_closed = self.closed_delegate._is_target_element(name_item.index())
         value_text = element.text.strip() if element.text and element.text.strip() else ""
 
+        # Замінюємо код на назву для відповідних елементів
         if is_state_act_type:
-            # Показуємо опис замість коду
             value_text = self.state_act_delegate.state_act_types.get(value_text, value_text)
+        elif is_category:
+            value_text = self.category_delegate.category_types.get(value_text, value_text)
+        elif is_purpose:
+            value_text = self.purpose_delegate.all_purposes.get(value_text, value_text)
+        elif is_ownership_code: # noqa
+            value_text = self.ownership_delegate.ownership_forms.get(value_text, value_text)
+        elif full_path.endswith("/TechnicalDocumentationInfo/DocumentList"):
+            value_text = self.doc_code_delegate.doc_list.get(value_text, value_text)
+        elif is_doc_type:
+            value_text = self.doc_type_delegate.doc_types.get(value_text, value_text)
+        elif is_land_code:
+            value_text = self.land_code_delegate.land_codes.get(value_text, value_text)
+        elif is_closed:
+            value_text = self.closed_delegate.closed_options.get(value_text, value_text)
+
 
         value_item = QStandardItem(value_text)
 
         # Дозволяємо редагування для "листків" (елементів без дочірніх вузлів)
         # або для елементів, які мають порожній текстовий вузол.
-        # Або якщо це наш спеціальний елемент StateActType
+        # Або якщо це наш спеціальний елемент
         is_leaf = len(element) == 0
-        
-        if is_state_act_type:
+
+        if is_state_act_type or is_category or is_purpose or is_ownership_code or is_doc_type or is_land_code or is_closed or full_path.endswith("/TechnicalDocumentationInfo/DocumentList"):
             value_item.setEditable(True)
         else:
             value_item.setEditable(is_leaf)
 
-        value_item.setEditable(is_leaf)
         value_item.setData(full_path, Qt.UserRole)
         if description:
             value_item.setToolTip(description)        
@@ -1549,9 +1767,6 @@ class CustomTreeView(QTreeView):
         except OSError as e:
             raise Exception(f"Error saving XML file to {xml_path}: {e}") from e
 
-
-
-
     def find_element_index(self, path=None, element_name=None):
         """
             Знаходить індекс елемента у дереві на основі шляху або імені.
@@ -1584,3 +1799,256 @@ class CustomTreeView(QTreeView):
                     return self.model.indexFromItem(item)
 
         return QModelIndex()
+
+    def _validate_and_color_tree(self, generate_report=False):
+        """
+        Рекурсивно обходить дерево, валідує елементи та зафарбовує їх у разі помилки.
+        Також може генерувати звіт про помилки.
+        """
+        default_brush = QBrush(Qt.black)
+        error_brush = QBrush(QColor("red"))
+        errors = []
+
+        def traverse_and_validate(item):
+            """
+            Рекурсивна функція. Повертає True, якщо гілка валідна, інакше False.
+            """
+            path = item.data(Qt.UserRole)
+            xml_element = self._find_xml_element_by_path(path)
+
+            # 1. Рекурсивно валідуємо дочірні елементи
+            has_invalid_child = False
+            for row in range(item.rowCount()):
+                child_item = item.child(row, 0)
+                if not traverse_and_validate(child_item):
+                    has_invalid_child = True
+
+            # 2. Валідуємо значення поточного елемента
+            is_self_valid = validate_element(xml_element, path)
+            if not is_self_valid and generate_report:
+                value = xml_element.text if xml_element is not None else "N/A"
+                errors.append(f"Некоректне значення '{value}' для елемента: {path}")
+
+            # 3. Валідуємо структуру (наявність обов'язкових дочірніх елементів)
+            is_structure_valid = True
+            if path in self.xsd_schema and xml_element is not None:
+                schema = self.xsd_schema[path]
+                if 'children' in schema:
+                    existing_children_tags = {child.tag for child in xml_element}
+                    
+                    # Перевірка для xsd:choice
+                    if schema.get('type') == 'choice' and schema.get('minOccurs', '1') != '0':
+                        if not any(child['name'] in existing_children_tags for child in schema.get('children', [])):
+                            is_structure_valid = False
+                            possible_children = ", ".join([child['name'] for child in schema.get('children', [])])
+                            if generate_report:
+                                errors.append(f"Відсутній обов'язковий елемент вибору (один з: {possible_children}) в: {path}")
+                    else: # Перевірка для xsd:sequence та xsd:all
+                        for child_schema in schema.get('children', []):
+                            if schema.get('type') != 'choice' and child_schema.get('minOccurs', '1') != '0' and child_schema['name'] not in existing_children_tags:
+                                is_structure_valid = False
+                                if generate_report:
+                                    errors.append(f"Відсутній обов'язковий елемент '{child_schema['name']}' в: {path}")
+
+            # 4. Визначаємо, чи є помилка в поточній гілці
+            is_branch_valid = is_self_valid and is_structure_valid and not has_invalid_child
+
+            # 5. Зафарбовуємо елемент
+            brush = default_brush if is_branch_valid else error_brush
+            item.setForeground(brush)
+            value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+            if value_item:
+                value_item.setForeground(brush)
+
+            return is_branch_valid
+
+        # Запускаємо обхід з кореневого елемента
+        root_item = self.model.invisibleRootItem().child(0, 0)
+        if root_item:
+            traverse_and_validate(root_item)
+        
+        return errors
+
+    def _generate_ukr_path(self, path_str):
+        """Створює читабельний український шлях (хлібні крихти)."""
+        if not path_str:
+            return ""
+        parts = path_str.split('/')
+        ukr_parts = []
+        for i in range(len(parts)):
+            current_sub_path = "/".join(parts[:i+1])
+            # Отримуємо українську назву для повного підшляху, або беремо назву тега за замовчуванням
+            ukr_name = self.xsd_appinfo.get(current_sub_path, parts[i])
+            ukr_parts.append(ukr_name)
+        return " -> ".join(ukr_parts)
+
+
+
+    def _validate_and_color_tree(self, generate_report=False):
+        """
+        Рекурсивно обходить дерево, валідує елементи та зафарбовує їх у разі помилки.
+        Також може генерувати звіт про помилки.
+        """
+        default_brush = QBrush(Qt.black)
+        error_brush = QBrush(QColor("red"))
+        errors = []
+
+        def clear_tooltips(item):
+            """Рекурсивно очищує старі помилки з підказок."""
+            path = item.data(Qt.UserRole)
+            if path in self.xsd_descriptions:
+                base_tooltip = self.xsd_descriptions[path]
+                item.setToolTip(base_tooltip)
+                value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+                if value_item:
+                    value_item.setToolTip(base_tooltip)
+            
+            for row in range(item.rowCount()):
+                child_item = item.child(row, 0)
+                if child_item:
+                    clear_tooltips(child_item)
+
+        # Очищуємо старі підказки перед новою валідацією
+        root_item_for_clear = self.model.invisibleRootItem().child(0, 0)
+        if root_item_for_clear:
+            clear_tooltips(root_item_for_clear)
+
+        def generate_ukr_path(path_str):
+            """Створює читабельний український шлях (хлібні крихти)."""
+            if not path_str:
+                return ""
+            parts = path_str.split('/')
+            ukr_parts = []
+            for i in range(len(parts)):
+                current_sub_path = "/".join(parts[:i+1])
+                # Отримуємо українську назву для повного підшляху, або беремо назву тега за замовчуванням
+                ukr_name = self.xsd_appinfo.get(current_sub_path, parts[i])
+                ukr_parts.append(ukr_name)
+            return " -> ".join(ukr_parts)
+
+        def traverse_and_validate(item):
+            """
+            Рекурсивна функція. Повертає True, якщо гілка валідна, інакше False.
+            """
+            path = item.data(Qt.UserRole)
+            xml_element = self._find_xml_element_by_path(path)
+            direct_item_errors = []  # Помилки безпосередньо цього елемента
+            child_errors = []  # Помилки, зібрані з дочірніх елементів
+
+            # 1. Рекурсивно валідуємо дочірні елементи
+            has_invalid_child = False
+            for row in range(item.rowCount()):
+                child_item = item.child(row, 0)
+                is_child_branch_valid, collected_child_errors = traverse_and_validate(
+                    child_item)
+                if not is_child_branch_valid:
+                    has_invalid_child = True
+                    child_errors.extend(
+                        collected_child_errors)  # Збираємо помилки з дочірніх гілок
+
+            # 2. Валідуємо значення поточного елемента
+            is_self_valid = validate_element(xml_element, path)
+            if not is_self_valid and generate_report:
+                ukr_path = self._generate_ukr_path(path)
+                # Очищуємо назву елемента від символів меню
+                ukr_name = item.text().rstrip(" ⋮↵")
+                value = xml_element.text if xml_element is not None else "N/A"
+                # Формуємо повідомлення про некоректне значення
+                error_msg = f"В елементі '{ukr_name}' некоректне значення: '{value}'"
+                direct_item_errors.append(error_msg)
+                # Додаємо до загального звіту
+                errors.append(error_msg)
+
+            # 3. Валідуємо структуру (наявність обов'язкових дочірніх елементів)
+            is_structure_valid = True
+            # Використовуємо український шлях для повідомлень про структурні помилки
+            ukr_path_for_structure = self._generate_ukr_path(path)
+            if path in self.xsd_schema and xml_element is not None:
+                schema = self.xsd_schema[path]
+                if 'children' in schema:
+                    existing_children_tags = {child.tag for child in xml_element}
+
+                    # Перевірка для xsd:choice
+                    if schema.get('type') == 'choice' and schema.get('minOccurs', '1') != '0':
+                        if not any(child['name'] in existing_children_tags for child in schema.get('children', [])):
+                            is_structure_valid = False
+                            possible_children_ukr = ", ".join([
+                                self.xsd_appinfo.get(
+                                    f"{path}/{child['name']}", child['name'])
+                                for child in schema.get('children', [])
+                            ]).rstrip(" ⋮↵")
+                            if generate_report:
+                                error_msg = f"В елементі '{item.text().rstrip(' ⋮↵')}' відсутній один з піделементів: {possible_children_ukr}"
+                                direct_item_errors.append(error_msg)
+                                # Додаємо до загального звіту
+                                errors.append(error_msg)
+                    else:  # Перевірка для xsd:sequence та xsd:all
+                        for child_schema in schema.get('children', []):
+                            if schema.get('type') != 'choice' and child_schema.get('minOccurs', '1') != '0' and child_schema['name'] not in existing_children_tags:
+                                is_structure_valid = False
+                                if generate_report:
+                                    # Отримуємо українську назву для відсутнього дочірнього елемента
+                                    child_ukr_name = self.xsd_appinfo.get(f"{path}/{child_schema['name']}", child_schema['name']).rstrip(" ⋮↵")
+                                    parent_ukr_name = item.text().rstrip(" ⋮↵")
+                                    
+                                    error_msg = f"В елементі '{parent_ukr_name}' відсутній піделемент '{child_ukr_name}'"
+                                    direct_item_errors.append(error_msg)
+                                    # Додаємо до загального звіту
+                                    errors.append(error_msg)
+
+            # 4. Визначаємо, чи є помилка в поточній гілці
+            is_branch_valid = is_self_valid and is_structure_valid and not has_invalid_child
+
+            # 5. Зафарбовуємо елемент
+            # Помилка в самому вузлі (значення або структура), а не в дочірніх
+            has_direct_error = not is_self_valid or not is_structure_valid
+            brush = error_brush if has_direct_error else default_brush
+            item.setForeground(brush)
+            value_item = item.parent().child(
+                item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+            if value_item:
+                value_item.setForeground(brush)
+
+            # --- Початок змін: Розкриття дерева до елемента з помилкою ---
+            if has_direct_error:
+                parent = item.parent()
+                while parent and parent.index().isValid():
+                    self.expand(parent.index())
+                    parent = parent.parent()
+            # --- Кінець змін ---
+
+            # 6. Оновлюємо підказку
+            base_tooltip = self.xsd_descriptions.get(path, "")
+            value_item = item.parent().child(
+                item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+
+            # Визначаємо, які помилки показувати в підказці
+            tooltip_errors = []
+            tooltip_header = "ПОМИЛКИ:"
+
+            if direct_item_errors:
+                # Якщо є прямі помилки, показуємо їх
+                tooltip_errors = direct_item_errors
+
+            # --- Початок змін: Зберігання помилок для контекстного меню ---
+            if direct_item_errors:
+                self.validation_errors[path] = direct_item_errors
+            # --- Кінець змін ---
+
+            if tooltip_errors:
+                error_tooltip_part = f"\n\n{tooltip_header}\n- " + \
+                    "\n- ".join(tooltip_errors)
+                item.setToolTip(base_tooltip + error_tooltip_part)
+                if value_item:
+                    value_item.setToolTip(base_tooltip + error_tooltip_part)
+
+            # Повертаємо валідність гілки та список ПРЯМИХ помилок для батьківського елемента
+            # Це важливо, щоб батьківський елемент показував помилки своїх дітей, а не помилки "онуків"
+            return is_branch_valid, direct_item_errors
+
+        # Запускаємо обхід з кореневого елемента
+        root_item = self.model.invisibleRootItem().child(0, 0)
+        if root_item:
+            traverse_and_validate(root_item)
+        
+        return errors

@@ -7,17 +7,24 @@
         <FileGUID>00000000-0000-0000-0000-000000000000</FileGUID>
       </FileID>
       <FormatVersion>0.7</FormatVersion>
-      <ReceiverName>Назва підрозділу Центру ДЗК</ReceiverName>
-      <Software>notepad.exe</Software>
+      <ReceiverName></ReceiverName>
+      <Software>xml_ua</Software>
       <SoftwareVersion>1.0</SoftwareVersion>
     </ServiceInfo>
     <InfoLandWork>
-      <!-- Відомості про виконавця робіт -->
       <Executor>
-        <CompanyName>Назва виконавця робіт</CompanyName>
-        <!-- Ідентифікаційний код юридичної особи згідно з ЄДРПОУ -->
-        <!-- Для фізичної особи TaxNumber -->
+        <CompanyName></CompanyName>
         <EDRPOU>00000000</EDRPOU>
+        <License>
+          <LicenseSeries>АА</LicenseSeries>
+          <LicenseNumber>000000</LicenseNumber>
+          <LicenseIssuedDate>2024-01-01</LicenseIssuedDate>
+        </License>
+        <License>
+          <LicenseSeries>АА</LicenseSeries>
+          <LicenseNumber>000000</LicenseNumber>
+          <LicenseIssuedDate>2024-01-01</LicenseIssuedDate>
+        </License>
         <Chief>
           <ChiefName>
             <LastName>Прізвище</LastName>
@@ -26,7 +33,6 @@
           </ChiefName>
           <ChiefPosition>Посада відповідальної особи</ChiefPosition>
         </Chief>
-        <!-- Дані про безпосереднього виконавця №1 -->
         <Executor>
           <ExecutorName>
             <LastName>Прізвище виконавця №1</LastName>
@@ -42,7 +48,6 @@
             <Phone>0000000000 виконавця №1</Phone>
           </ContactInfo>
         </Executor>
-        <!-- Дані про безпосереднього виконавця №2 -->
         <Executor>
           <ExecutorName>
             <LastName>Прізвище виконавця №2</LastName>
@@ -129,6 +134,18 @@
       <CadastralQuarters>
         <CadastralQuarterInfo>
           <CadastralQuarterNumber>000</CadastralQuarterNumber>
+          <RegionalContacts>
+            <LocalAuthorityHead>
+              <LastName>Прізвище</LastName>
+              <FirstName>Ім'я</FirstName>
+              <MiddleName>По батькові</MiddleName>  
+            </LocalAuthorityHead>
+            <DKZRHead>
+              <LastName>Прізвище</LastName>
+              <FirstName>Ім'я</FirstName>
+              <MiddleName>По батькові</MiddleName>  
+            </DKZRHead> 
+          </RegionalContacts>
           <Parcels>
             <ParcelInfo>
               <ParcelLocationInfo>
@@ -138,10 +155,12 @@
                 </ParcelLocation>
               </ParcelLocationInfo>
               <CategoryPurposeInfo>
-                <Category>Категорія</Category>
-                <Purpose>Цільове призначення</Purpose>
+                <Category>100</Category>
+                <Purpose>01.01</Purpose>
+                <Use/>
               </CategoryPurposeInfo>
               <ParcelMetricInfo>
+                <ParcelID></ParcelID>
                 <Area>
                   <MeasurementUnit>га</MeasurementUnit>
                   <Size>0.0</Size>
@@ -160,12 +179,11 @@
                   </Boundary>
                 </Externals>
               </ParcelMetricInfo>
+              <Proprietors/>
               <TechnicalDocumentationInfo>
-                <DocumentationType>000</DocumentationType>
+                <DocumentationType></DocumentationType>
                 <DraftingDate>2024-01-01</DraftingDate>
-                <DocumentList>000</DocumentList>
-                <DocumentList>000</DocumentList>
-                <DocumentList>000</DocumentList>
+                <DocumentList>001</DocumentList>
               </TechnicalDocumentationInfo>
             </ParcelInfo>
           </Parcels>

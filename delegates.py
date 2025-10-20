@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
+# delegates.py
 """
 Custom delegates for editing data in tree/table views.
 """
-from qgis.PyQt.QtWidgets import QStyledItemDelegate, QComboBox
-from qgis.PyQt.QtCore import Qt
+import os
+from lxml import etree # noqa
+from .common import config, config_docs, logFile, log_msg, xsd_path # noqa
+from qgis.PyQt.QtWidgets import (QStyledItemDelegate, QComboBox, QDialog, 
+                                 QInputDialog, QMessageBox, QApplication)
+from qgis.PyQt.QtCore import Qt, pyqtSignal
 
 class StateActTypeDelegate(QStyledItemDelegate):
     """
@@ -85,3 +90,588 @@ class StateActTypeDelegate(QStyledItemDelegate):
         # Поки що залишимо так, бо основна логіка буде в `createEditor`.
         return super().displayText(value, locale)
 
+class DocumentationTypeDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента 'DocumentationType'.
+    Відображає QComboBox з типами документації.
+    Зберігає код, але показує назву.
+    """
+    # Сигнал, що випромінюється при зміні типу документації
+    # Передає код типу документації та індекс зміненого елемента
+    documentationTypeChanged = pyqtSignal(str, object)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.doc_types = self._load_doc_types()
+        # Створюємо список для QComboBox, зберігаючи порядок
+        self.items = list(self.doc_types.values())
+        # Створюємо зворотний словник для setModelData
+        self.reverse_doc_types = {v: k for k, v in self.doc_types.items()}
+
+    def _load_doc_types(self):
+        """Завантажує типи документації з файлу конфігурації."""
+        if 'DocumentationTypes' in config_docs:
+            # Сортуємо за кодом (ключем)
+            return dict(sorted(config_docs['DocumentationTypes'].items()))
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'DocumentationType'."""
+        full_path = index.data(Qt.UserRole)
+        return full_path and full_path.endswith("/TechnicalDocumentationInfo/DocumentationType")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор, якщо елемент 'DocumentationType'."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює дані редактора з моделі."""
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.EditRole)
+            text_value = self.doc_types.get(code, "")
+            idx = editor.findText(text_value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює дані моделі з редактора."""
+        if self._is_target_element(index):
+            # Зберігаємо код, що відповідає вибраному тексту
+            text_value = editor.currentText()
+            code = self.reverse_doc_types.get(text_value)
+            if code:
+                # Встановлюємо значення для самого DocumentationType
+                model.setData(index, code, Qt.EditRole) # Це викличе on_tree_model_data_changed
+
+                # Випромінюємо сигнал для відкладеного оновлення списку документів
+                self.documentationTypeChanged.emit(code, index)
+        else:
+            super().setModelData(editor, model, index)
+
+    def update_document_list(self, doc_type_code, index):
+        """Оновлює елементи DocumentList на основі вибраного DocumentationType."""
+        tree_view = self.parent()
+        if not tree_view: return
+
+        # 1. Визначаємо потрібну секцію
+        section_map = {
+            "006": "DocsListBoundaries",
+            "008": "DocsListDivide",
+            "009": "DocsListServitute",
+        }
+        section_name = section_map.get(doc_type_code, "DocsListProject")
+
+        # 2. Отримуємо список нових кодів документів
+        if section_name in config_docs:
+            new_doc_codes = list(config_docs[section_name].keys())
+        else:
+            log_msg(logFile, f"Секція [{section_name}] не знайдена у docs_list.ini")
+            return
+
+        # 3. Знаходимо батьківський елемент TechnicalDocumentationInfo
+        model = tree_view.model
+        doc_type_item = model.itemFromIndex(index)
+        tech_doc_info_item = doc_type_item.parent()
+        if not tech_doc_info_item or not tech_doc_info_item.data(Qt.UserRole).endswith("TechnicalDocumentationInfo"):
+            return
+
+        tech_doc_info_path = tech_doc_info_item.data(Qt.UserRole)
+        tech_doc_info_xml_element = tree_view._find_xml_element_by_path(tech_doc_info_path)
+        if tech_doc_info_xml_element is None: return
+
+        # 4. Видаляємо старі елементи DocumentList з XML-дерева
+        for xml_child in tech_doc_info_xml_element.findall("DocumentList"):
+            tech_doc_info_xml_element.remove(xml_child)
+
+        # 5. Додаємо нові елементи DocumentList в XML-дерево
+        for doc_code in new_doc_codes:
+            # Додаємо в XML
+            new_xml_elem = etree.SubElement(tech_doc_info_xml_element, "DocumentList")
+            new_xml_elem.text = doc_code
+
+        # Викликаємо метод для повної перебудови дерева
+        tree_view.rebuild_tree_view()
+
+        # Позначаємо файл як змінений
+        tree_view.mark_as_changed()
+        # Примусово оновлюємо інтерфейс, щоб зміни відобразились негайно
+        QApplication.processEvents()
+
+    def displayText(self, value, locale):
+        """Відображає назву типу документації замість коду."""
+        return self.doc_types.get(str(value), str(value))
+
+class CategoryDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента 'Category'.
+    Відображає QComboBox з категоріями земель.
+    Зберігає код, але показує назву.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.category_types = self._load_categories()
+        # Створюємо список для QComboBox, зберігаючи порядок
+        self.items = list(self.category_types.values())
+        # Створюємо зворотний словник для setModelData
+        self.reverse_category_types = {v: k for k, v in self.category_types.items()}
+
+    def _load_categories(self):
+        """Завантажує категорії з файлу конфігурації."""
+        if 'LandCategories' in config:
+            return dict(config['LandCategories'])
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'Category'."""
+        full_path = index.data(Qt.UserRole)
+        return full_path and full_path.endswith("/CategoryPurposeInfo/Category")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор, якщо елемент 'Category'."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює дані редактора з моделі."""
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.EditRole)
+            text_value = self.category_types.get(code, "")
+            idx = editor.findText(text_value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює дані моделі з редактора."""
+        if self._is_target_element(index):
+            # Зберігаємо код, що відповідає вибраному тексту
+            text_value = editor.currentText()
+            code = self.reverse_category_types.get(text_value)
+            if code:
+                model.setData(index, code, Qt.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+    def displayText(self, value, locale):
+        """Відображає назву категорії замість коду."""
+        return self.category_types.get(str(value), str(value))
+
+class PurposeDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента 'Purpose'.
+    Реалізує двокроковий вибір: спочатку розділ, потім підрозділ.
+    Зберігає код підрозділу, але показує його назву.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.chapters = self._load_data('LandPurposeChapters')
+        self.subchapters = self._load_data('LandPurposeSubchapters')
+        # Створюємо об'єднаний словник для displayText
+        self.all_purposes = {**self.chapters, **self.subchapters}
+
+    def _load_data(self, section):
+        """Завантажує дані з вказаної секції конфігураційного файлу."""
+        if section in config:
+            # Сортуємо за ключем
+            return dict(sorted(config[section].items()))
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'Purpose'."""
+        full_path = index.data(Qt.UserRole)
+        return full_path and full_path.endswith("/CategoryPurposeInfo/Purpose")
+
+    def createEditor(self, parent, option, index):
+        """
+        Запускає діалоги вибору замість створення вбудованого редактора.
+        """
+        if not self._is_target_element(index):
+            return super().createEditor(parent, option, index)
+
+        # Етап 1: Вибір розділу
+        chapter_items = [f"{code} - {name}" for code, name in self.chapters.items()]
+        chapter_selection, ok1 = QInputDialog.getItem(parent, "Вибір цільового призначення (Крок 1/2)",
+                                                      "Виберіть розділ:", chapter_items, 0, False)
+
+        if not ok1 or not chapter_selection:
+            return None # Користувач скасував вибір
+
+        selected_chapter_code = chapter_selection.split(' - ')[0]
+
+        # Етап 2: Вибір підрозділу
+        subchapter_items = {
+            code: name for code, name in self.subchapters.items()
+            if code.startswith(selected_chapter_code + '.')
+        }
+        
+        if not subchapter_items:
+            QMessageBox.information(parent, "Інформація", "Для вибраного розділу немає підрозділів.")
+            return None
+
+        subchapter_display_items = [f"{code} - {name}" for code, name in subchapter_items.items()]
+        subchapter_selection, ok2 = QInputDialog.getItem(parent, "Вибір цільового призначення (Крок 2/2)",
+                                                       "Виберіть підрозділ:", subchapter_display_items, 0, False)
+
+        if not ok2 or not subchapter_selection:
+            return None # Користувач скасував вибір
+
+        selected_subchapter_code = subchapter_selection.split(' - ')[0]
+
+        # Зберігаємо вибраний код у тимчасовій властивості делегата
+        self.selected_code = selected_subchapter_code
+
+        # Повертаємо фіктивний віджет, оскільки Qt очікує віджет
+        # Ми одразу закриємо редактор і встановимо дані
+        return QDialog(parent)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює дані моделі з вибраного значення."""
+        if self._is_target_element(index) and hasattr(self, 'selected_code'):
+            model.setData(index, self.selected_code, Qt.EditRole)
+            del self.selected_code # Очищуємо тимчасове значення
+        else:
+            super().setModelData(editor, model, index)
+
+    def setEditorData(self, editor, index):
+        """
+        Цей метод не потрібен, оскільки ми не встановлюємо початкове значення
+        в діалозі, а завжди починаємо вибір заново.
+        """
+        pass
+
+    def displayText(self, value, locale):
+        """Відображає назву цільового призначення замість коду."""
+        return self.all_purposes.get(str(value), str(value))
+
+class OwnershipCodeDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування застарілого елемента 'OwnershipInfo/Code'.
+    Відображає QComboBox з формами власності.
+    Зберігає код, але показує назву.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.ownership_forms = self._load_forms()
+        # Створюємо список для QComboBox
+        self.items = list(self.ownership_forms.values())
+        # Створюємо зворотний словник для setModelData
+        self.reverse_ownership_forms = {v: k for k, v in self.ownership_forms.items()}
+
+    def _load_forms(self):
+        """Завантажує форми власності з файлу конфігурації."""
+        if 'OwnershipForms' in config:
+            return dict(config['OwnershipForms'])
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'OwnershipInfo/Code'."""
+        full_path = index.data(Qt.UserRole)
+        return full_path and full_path.endswith("/OwnershipInfo/Code")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює дані редактора з моделі."""
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.EditRole)
+            text_value = self.ownership_forms.get(code, "")
+            idx = editor.findText(text_value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює дані моделі з редактора."""
+        if self._is_target_element(index):
+            text_value = editor.currentText()
+            code = self.reverse_ownership_forms.get(text_value)
+            if code:
+                model.setData(index, code, Qt.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+    def displayText(self, value, locale):
+        """Відображає назву форми власності замість коду."""
+        return self.ownership_forms.get(str(value), str(value))
+
+class LandCodeDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента 'LandCode' в угіддях.
+    Відображає QComboBox з кодами угідь.
+    Зберігає код, але показує назву.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.land_codes = self._load_land_codes()
+        # Створюємо список для QComboBox, зберігаючи порядок
+        self.items = [f"{code} - {name}" for code, name in self.land_codes.items()]
+        # Створюємо зворотний словник для setModelData
+        self.reverse_land_codes = {f"{code} - {name}": code for code, name in self.land_codes.items()}
+
+    def _load_land_codes(self):
+        """Завантажує коди угідь з файлу конфігурації."""
+        if 'LandsCode' in config:
+            # Сортуємо за кодом (ключем)
+            return dict(sorted(config['LandsCode'].items()))
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'LandCode'."""
+        full_path = index.data(Qt.UserRole)
+        return full_path and full_path.endswith("/LandParcelInfo/LandCode")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор, якщо елемент 'LandCode'."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює дані редактора з моделі."""
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.EditRole)
+            text_value = self.land_codes.get(code, "")
+            display_text = f"{code} - {text_value}"
+            idx = editor.findText(display_text)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює дані моделі з редактора."""
+        if self._is_target_element(index):
+            text_value = editor.currentText()
+            code = self.reverse_land_codes.get(text_value)
+            if code:
+                model.setData(index, code, Qt.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+class DocumentCodeDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування та відображення кодів документів.
+    Відображає назву документа замість коду, а редагування
+    відбувається через випадаючий список.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.tree_view = parent
+        self.doc_list = self._load_docs()
+        self.reverse_doc_list = {v: k for k, v in self.doc_list.items()}
+
+    def _load_docs(self):
+        """Завантажує списки документів з config_docs, що в common.py."""
+        if 'DocsList' in config_docs:
+            return dict(config_docs['DocsList'])
+        else:
+            log_msg(logFile, "Секція [DocsList] не знайдена у config_docs.")
+            return {}
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox з випадаючим списком документів."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            for code, name in self.doc_list.items():
+                editor.addItem(f"{code} - {name}", code) # Текст для користувача, код для даних
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює поточне значення в редакторі."""
+        if self._is_target_element(index):
+            value = index.model().data(index, Qt.EditRole)
+            idx = editor.findData(value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Зберігає вибраний код документа в модель."""
+        if self._is_target_element(index):
+            code = editor.currentData() # Отримуємо код, збережений в userData
+            model.setData(index, code, Qt.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+    def displayText(self, value, locale):
+        """Відображає назву документа замість коду."""
+        # `value` - це код, який зберігається в моделі
+        return self.doc_list.get(str(value), str(value))
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент кодом документа."""
+        item = self.tree_view.model.itemFromIndex(index)
+        if not item or index.column() != 1:
+            return False
+        
+        parent_item = item.parent()
+        if not parent_item:
+            return False
+            
+        # Перевіряємо, що це елемент значення (колонка 1) і його тег - DocumentList
+        return parent_item.child(item.row(), 0).data(Qt.UserRole).endswith("/DocumentList")
+
+class ClosedDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента 'Closed'.
+    Відображає QComboBox з варіантами "Так" / "Ні".
+    Зберігає 'true'/'false', але показує "Так"/"Ні".
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.closed_options = {"true": "Так", "false": "Ні"}
+        self.items = list(self.closed_options.values())
+        self.reverse_closed_options = {v: k for k, v in self.closed_options.items()}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'Closed'."""
+        full_path = index.data(Qt.UserRole)
+        return full_path and (full_path.endswith("/Boundary/Closed") or full_path.endswith("/AdjacentBoundary/Closed"))
+
+    def createEditor(self, parent, option, index):
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.EditRole)
+            text_value = self.closed_options.get(code, "")
+            idx = editor.findText(text_value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+
+    def setModelData(self, editor, model, index):
+        if self._is_target_element(index):
+            text_value = editor.currentText()
+            code = self.reverse_closed_options.get(text_value)
+            if code:
+                model.setData(index, code, Qt.EditRole)
+
+    def displayText(self, value, locale):
+        """Відображає 'Так'/'Ні' замість 'true'/'false'."""
+        # Перевіряємо, чи значення є булевим, і конвертуємо в рядок
+        if isinstance(value, bool):
+            value = str(value).lower()
+        return self.closed_options.get(str(value), str(value))
+
+class DispatcherDelegate(QStyledItemDelegate):
+    """
+    Делегат-диспетчер, який викликає відповідний спеціалізований делегат
+    залежно від типу редагованого елемента.
+    """
+    def __init__(self, parent=None, state_act_delegate=None, category_delegate=None, purpose_delegate=None, ownership_delegate=None, doc_code_delegate=None, doc_type_delegate=None, land_code_delegate=None, closed_delegate=None):
+        super().__init__(parent)
+        # Зберігаємо посилання на спеціалізовані делегати
+        self.state_act_delegate = state_act_delegate
+        self.category_delegate = category_delegate
+        self.purpose_delegate = purpose_delegate
+        self.ownership_delegate = ownership_delegate
+        self.land_code_delegate = land_code_delegate
+        self.doc_code_delegate = doc_code_delegate
+        self.doc_type_delegate = doc_type_delegate
+        self.closed_delegate = closed_delegate # Тепер closed_delegate передається як аргумент
+
+    def createEditor(self, parent, option, index):
+        if self.state_act_delegate and self.state_act_delegate._is_target_element(index):
+            return self.state_act_delegate.createEditor(parent, option, index)
+        if self.category_delegate and self.category_delegate._is_target_element(index):
+            return self.category_delegate.createEditor(parent, option, index)
+        if self.purpose_delegate and self.purpose_delegate._is_target_element(index):
+            editor = self.purpose_delegate.createEditor(parent, option, index)
+            if editor:
+                # Одразу викликаємо setModelData, оскільки діалог вже відпрацював
+                self.purpose_delegate.setModelData(editor, index.model(), index)
+            return None # Не показуємо вбудований редактор
+        if self.ownership_delegate and self.ownership_delegate._is_target_element(index):
+            return self.ownership_delegate.createEditor(parent, option, index)
+        if self.land_code_delegate and self.land_code_delegate._is_target_element(index):
+            return self.land_code_delegate.createEditor(parent, option, index)
+        if self.doc_code_delegate and self.doc_code_delegate._is_target_element(index):
+            return self.doc_code_delegate.createEditor(parent, option, index)
+        if self.doc_type_delegate and self.doc_type_delegate._is_target_element(index):
+            return self.doc_type_delegate.createEditor(parent, option, index)
+        if self.closed_delegate and self.closed_delegate._is_target_element(index):
+            return self.closed_delegate.createEditor(parent, option, index)
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        if self.state_act_delegate and self.state_act_delegate._is_target_element(index):
+            return self.state_act_delegate.setEditorData(editor, index)
+        if self.category_delegate and self.category_delegate._is_target_element(index):
+            return self.category_delegate.setEditorData(editor, index)
+        if self.purpose_delegate and self.purpose_delegate._is_target_element(index):
+            return self.purpose_delegate.setEditorData(editor, index)
+        if self.ownership_delegate and self.ownership_delegate._is_target_element(index):
+            return self.ownership_delegate.setEditorData(editor, index)
+        if self.land_code_delegate and self.land_code_delegate._is_target_element(index):
+            return self.land_code_delegate.setEditorData(editor, index)
+        if self.doc_code_delegate and self.doc_code_delegate._is_target_element(index):
+            return self.doc_code_delegate.setEditorData(editor, index)
+        if self.doc_type_delegate and self.doc_type_delegate._is_target_element(index):
+            return self.doc_type_delegate.setEditorData(editor, index)
+        if self.closed_delegate and self.closed_delegate._is_target_element(index):
+            return self.closed_delegate.setEditorData(editor, index)
+        return super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        if self.state_act_delegate and self.state_act_delegate._is_target_element(index):
+            return self.state_act_delegate.setModelData(editor, model, index)
+        if self.category_delegate and self.category_delegate._is_target_element(index):
+            return self.category_delegate.setModelData(editor, model, index)
+        if self.purpose_delegate and self.purpose_delegate._is_target_element(index):
+            return self.purpose_delegate.setModelData(editor, model, index)
+        if self.ownership_delegate and self.ownership_delegate._is_target_element(index):
+            return self.ownership_delegate.setModelData(editor, model, index)
+        if self.land_code_delegate and self.land_code_delegate._is_target_element(index):
+            return self.land_code_delegate.setModelData(editor, model, index)
+        if self.doc_code_delegate and self.doc_code_delegate._is_target_element(index):
+            return self.doc_code_delegate.setModelData(editor, model, index)
+        if self.doc_type_delegate and self.doc_type_delegate._is_target_element(index):
+            return self.doc_type_delegate.setModelData(editor, model, index)
+        if self.closed_delegate and self.closed_delegate._is_target_element(index):
+            return self.closed_delegate.setModelData(editor, model, index)
+        return super().setModelData(editor, model, index)
+
+    def displayText(self, value, locale):
+        # Цей метод не має доступу до індексу, тому ми не можемо визначити,
+        # який делегат використовувати. Логіка перенесена в initStyleOption.
+        return super().displayText(value, locale)
+
+    def initStyleOption(self, option, index):
+        """Встановлює текст для відображення на основі делегата."""
+        super().initStyleOption(option, index)
+        # Ми перевіряємо, чи це друга колонка (значення)
+        if index.isValid() and index.column() == 1:
+            if self.doc_code_delegate and self.doc_code_delegate._is_target_element(index):
+                option.text = self.doc_code_delegate.displayText(option.text, option.locale)
+            elif self.doc_type_delegate and self.doc_type_delegate._is_target_element(index):
+                option.text = self.doc_type_delegate.displayText(option.text, option.locale)
+            elif self.land_code_delegate and self.land_code_delegate._is_target_element(index):
+                option.text = self.land_code_delegate.land_codes.get(option.text, option.text)
+            elif self.closed_delegate and self.closed_delegate._is_target_element(index):
+                option.text = self.closed_delegate.displayText(option.text, option.locale)
+            # ... додати інші elif для інших делегатів ...

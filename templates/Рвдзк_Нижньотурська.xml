@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UkrainianCadastralExchangeFile>
+  <AdditionalPart>
+    <ServiceInfo>
+      <FileID>
+        <FileDate>2024-01-01</FileDate>
+        <FileGUID>00000000-0000-0000-0000-000000000000</FileGUID>
+      </FileID>
+      <FormatVersion>0.7</FormatVersion>
+      <ReceiverName></ReceiverName>
+      <Software>xml_ua</Software>
+      <SoftwareVersion>1.0</SoftwareVersion>
+    </ServiceInfo>
+    <InfoLandWork>
+      <Executor>
+        <CompanyName></CompanyName>
+        <EDRPOU>00000000</EDRPOU>
+        <License>
+          <LicenseSeries>АА</LicenseSeries>
+          <LicenseNumber>000000</LicenseNumber>
+          <LicenseIssuedDate>2024-01-01</LicenseIssuedDate>
+        </License>
+        <License>
+          <LicenseSeries>АА</LicenseSeries>
+          <LicenseNumber>000000</LicenseNumber>
+          <LicenseIssuedDate>2024-01-01</LicenseIssuedDate>
+        </License>
+        <Chief>
+          <ChiefName>
+            <LastName>Прізвище</LastName>
+            <FirstName>Ім'я</FirstName>
+            <MiddleName>По батькові</MiddleName>
+          </ChiefName>
+          <ChiefPosition>Посада відповідальної особи</ChiefPosition>
+        </Chief>
+        <Executor>
+          <ExecutorName>
+            <LastName>Прізвище виконавця №1</LastName>
+            <FirstName>Ім'я виконавця №1</FirstName>
+            <MiddleName>По батькові виконавця №1</MiddleName>
+          </ExecutorName>
+          <ExecutorPosition>Посада виконавця виконавця №1</ExecutorPosition>
+          <Qualification>
+            <QualificationNumber>0 виконавця №1</QualificationNumber>
+            <QualificationDate>2024-01-01</QualificationDate>
+          </Qualification>
+          <ContactInfo>
+            <Phone>0000000000 виконавця №1</Phone>
+          </ContactInfo>
+        </Executor>
+        <Executor>
+          <ExecutorName>
+            <LastName>Прізвище виконавця №2</LastName>
+            <FirstName>Ім'явиконавця №2</FirstName>
+            <MiddleName>По батьковівиконавця №2</MiddleName>
+          </ExecutorName>
+          <ExecutorPosition>Посада виконавця №2</ExecutorPosition>
+          <Qualification>
+            <QualificationNumber>0 виконавця №2</QualificationNumber>
+            <QualificationDate>2024-01-01</QualificationDate>
+          </Qualification>
+          <ContactInfo>
+            <Phone>0000000000 виконавця №2</Phone>
+          </ContactInfo>
+        </Executor>
+        <Address>
+          <Country>804</Country>
+          <Region>Регіон</Region>
+          <District>Район</District>
+          <Settlement>Населений пункт</Settlement>
+          <Street>Вулиця</Street>
+          <Building>Номер будинку</Building>
+        </Address>
+      </Executor>
+    </InfoLandWork>
+  </AdditionalPart>
+  <InfoPart>
+    <MetricInfo>
+      <CoordinateSystem>
+        <USC2000/>
+      </CoordinateSystem>
+      <HeightSystem>
+        <Baltic/>
+      </HeightSystem>
+      <MeasurementUnit>
+        <M/>
+      </MeasurementUnit>
+      <PointInfo>
+        <Point>
+          <UIDP>-1</UIDP>
+          <PN>1</PN>
+          <DeterminationMethod>
+            <Survey/>
+          </DeterminationMethod>
+          <X>0.0</X>
+          <Y>0.0</Y>
+        </Point>
+        <Point>
+          <UIDP>-1</UIDP>
+          <PN>2</PN>
+          <DeterminationMethod>
+            <Survey/>
+          </DeterminationMethod>
+          <X>0.0</X>
+          <Y>0.0</Y>
+        </Point>
+        <Point>
+          <UIDP>-1</UIDP>
+          <PN>3</PN>
+          <DeterminationMethod>
+            <Survey/>
+          </DeterminationMethod>
+          <X>0.0</X>
+          <Y>0.0</Y>
+        </Point>
+      </PointInfo>
+      <Polyline>
+        <PL>
+          <ULID>-1</ULID>
+          <Points>
+            <P>0</P>
+            <P>0</P>
+          </Points>
+          <Length>0.0</Length>
+        </PL>
+      </Polyline>
+      <ControlPoint>
+        <P>0</P>
+        <P>0</P>
+      </ControlPoint>
+    </MetricInfo>
+    <CadastralZoneInfo>
+      <CadastralZoneNumber>0000000000:00</CadastralZoneNumber>
+      <CadastralQuarters>
+        <CadastralQuarterInfo>
+          <CadastralQuarterNumber>000</CadastralQuarterNumber>
+          <RegionalContacts>
+            <LocalAuthorityHead>
+              <LastName>Прізвище</LastName>
+              <FirstName>Ім'я</FirstName>
+              <MiddleName>По батькові</MiddleName>  
+            </LocalAuthorityHead>
+            <DKZRHead>
+              <LastName>Прізвище</LastName>
+              <FirstName>Ім'я</FirstName>
+              <MiddleName>По батькові</MiddleName>  
+            </DKZRHead> 
+          </RegionalContacts>
+          <Parcels>
+            <ParcelInfo>
+              <ParcelLocationInfo>
+                <Region>Регіон</Region>
+                <ParcelLocation>
+                  <Urban/>
+                </ParcelLocation>
+              </ParcelLocationInfo>
+              <CategoryPurposeInfo>
+                <Category>100</Category>
+                <Purpose>01.01</Purpose>
+                <Use/>
+              </CategoryPurposeInfo>
+              <ParcelMetricInfo>
+                <ParcelID></ParcelID>
+                <Area>
+                  <MeasurementUnit>га</MeasurementUnit>
+                  <Size>0.0</Size>
+                  <DeterminationMethod>
+                    <ExhangeFileCoordinates/>
+                  </DeterminationMethod>
+                </Area>
+                <Externals>
+                  <Boundary>
+                    <Lines>
+                      <Line>
+                        <ULID>-1</ULID>
+                      </Line>
+                    </Lines>
+                    <Closed>true</Closed>
+                  </Boundary>
+                </Externals>
+              </ParcelMetricInfo>
+              <Proprietors/>
+              <TechnicalDocumentationInfo>
+                <DocumentationType></DocumentationType>
+                <DraftingDate>2024-01-01</DraftingDate>
+                <DocumentList>001</DocumentList>
+              </TechnicalDocumentationInfo>
+            </ParcelInfo>
+          </Parcels>
+        </CadastralQuarterInfo>
+      </CadastralQuarters>
+    </CadastralZoneInfo>
+  </InfoPart>
+</UkrainianCadastralExchangeFile>

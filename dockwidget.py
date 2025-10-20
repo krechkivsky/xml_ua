@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# dockwidget.py
 """
 /***************************************************************************
  xml_uaDockWidget
@@ -8,7 +9,7 @@
                              -------------------
         begin                : 2024-11-01
         git sha              : $Format:%H$
-        copyright            : (C) 2024 by Mike
+        copyright            : (C) 2025 by Michael.Krechkivski@gmail.com
         email                : michael.krechkivski@gmail.com
  ***************************************************************************/
 
@@ -21,12 +22,17 @@
  *                                                                         *
  ***************************************************************************/
 """
+#✔️ 2025.10.02 15:16 Видалення групи пов'язаної з відкритим xml файлом 
+# повинно супроводжуватися закриттям відповідної вкладки доквіджета
 
 
 # region Import
 import os
 import inspect
 import copy
+import shutil
+import uuid
+import math
 
 from lxml import etree
 
@@ -35,13 +41,23 @@ from qgis.PyQt import uic
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.PyQt.QtCore import QModelIndex
+from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtCore import pyqtSignal
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtCore import Qt
 
 from qgis.core import Qgis
 from qgis.core import QgsLayerTreeGroup
 from qgis.core import QgsLayerTreeLayer
 from qgis.core import QgsProject
+from qgis.core import QgsVectorLayer
+from qgis.core import QgsFeature
+from qgis.core import QgsField
+from qgis.core import QgsPointXY
+from qgis.core import QgsWkbTypes
+from qgis.core import QgsGeometry
+from qgis.core import QgsTask, QgsApplication
 from qgis.core import QgsLayerTreeModel
 
 from qgis.gui import QgsLayerTreeView
@@ -54,6 +70,7 @@ from qgis.PyQt.QtWidgets import QHBoxLayout
 from qgis.PyQt.QtWidgets import QMenu
 from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtWidgets import QLayout
 from qgis.PyQt.QtWidgets import QToolButton
 from qgis.PyQt.QtWidgets import QStyle
 from qgis.PyQt.QtWidgets import QTreeView
@@ -66,18 +83,59 @@ from qgis.PyQt.QtGui import QPainter, QIcon, QPalette
 from qgis.PyQt.QtCore import QSettings
 
 from .tree_view import CustomTreeView
-from .metadata import TableViewMetadata
-from .parcel import TableViewParcel
+from .delegates import DispatcherDelegate, DocumentCodeDelegate
+#from .metadata import TableViewMetadata
+#from .parcel import TableViewParcel
 from .layers import xmlUaLayers
 
 from .common import logFile
 from .common import log_msg
-from .common import log_calls
-from .common import xsd_path
-from .common import connector
+from .topology import GeometryProcessor
 from .common import geometry_to_string
 from .common import size
-# endregion
+from .common import xsd_path
+from .common import connector
+from .topology import GeometryProcessor
+
+class BackupTask(QgsTask):
+    """Фонове завдання для створення резервної копії файлу."""
+    def __init__(self, source_path, dest_path, description, dockwidget):
+        super().__init__(description, QgsTask.CanCancel)
+        self.source_path = source_path
+        self.dest_path = dest_path
+        self.dockwidget = dockwidget
+        self.exception = None
+
+    def run(self):
+        """Виконує копіювання файлу."""
+        try:
+            if self.isCanceled():
+                return False
+            
+            shutil.copy2(self.source_path, self.dest_path)
+            return True
+        except Exception as e:
+            self.exception = e
+            return False
+
+    def finished(self, result):
+        """Обробляє завершення завдання."""
+        # Безпечно видаляємо завдання зі списку активних завдань
+        if self.dockwidget and self in self.dockwidget.running_tasks:
+            self.dockwidget.running_tasks.remove(self)
+
+        # Використовуємо iface з док-віджета
+        iface = self.dockwidget.iface if self.dockwidget else qgis.utils.iface
+        if result:
+            # log_msg(logFile, f"Створено резервну копію: {self.dest_path}")
+            iface.messageBar().pushMessage("Інфо", f"Створено резервну копію: {os.path.basename(self.dest_path)}", level=Qgis.Info, duration=3)
+        else:
+            if self.exception:
+                log_msg(logFile, f"Не вдалося створити резервну копію для {self.source_path}: {self.exception}")
+                QMessageBox.warning(iface.mainWindow(), "Помилка", f"Не вдалося створити резервну копію файлу: {self.exception}")
+            else:
+                log_msg(logFile, f"Створення резервної копії скасовано: {self.source_path}")
+
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -97,26 +155,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # parent -> QMainWindow
         # виконується лише після відкриття файла -> ❓❓❓
 
-        # log_calls(logFile)
-
         super().__init__(parent)
 
         # інтерфейс QGIS
         self.iface = iface
 
-        # Підключити нову модель до дерева шарів
-        # layer_tree_view = iface.layerTreeView()
-        # log_msg(logFile, f"layer_tree_view: {layer_tree_view}")
-        # custom_model = self.CustomLayerTreeModel(QgsProject.instance().layerTreeRoot())
-        # log_msg(logFile, f"custom_model: {custom_model}")
-        # layer_tree_view.setModel(custom_model)
-        
         self.plugin = plugin
         # Читаємо дизайн UI з файлу xml_ua_dockwidget_base.ui
         self.setupUi(self)
         self.parent = parent
 
-        # Створюємо пустий список відкритих xml-файлів
+        # Створюємо порожній список відкритих xml-файлів
         self.opened_xmls = []
 
         # ініціалізація атрибутів
@@ -128,8 +177,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self._is_closing = False
 
         # Налаштування QTabWidget
-        self.tabWidget.setMovable(True)
-        self.tabWidget.setTabsClosable(False) # Вимикаємо стандартні кнопки
+        self.tabWidget.setMovable(True)  # Дозволяємо переміщення вкладок
+        self.tabWidget.setTabsClosable(False) # Вимикаємо стандартні кнопки, будемо використовувати кастомні
         # Видаляємо початкові вкладки, створені з .ui файлу
         while self.tabWidget.count() > 0:
             self.tabWidget.removeTab(0)
@@ -147,14 +196,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # Створювати об'єкт xml_data будемо при відкритті файлу 
         # або при cтворенні нового xml
         self.current_xml = None
-
+        
         # Сигнали для вкладок
-        connector.connect(self.tabWidget, "tabCloseRequested", self.close_tab)
+        # connector.connect(self.tabWidget, "tabCloseRequested", self.close_tab) # Більше не використовується
         connector.connect(self.tabWidget, "currentChanged", self.on_tab_changed)
 
         # Підключаємо сигнали дерева шарів
         self.connect_layer_tree_signals()
         connector.connect(self.layers_root, "nodeRemoved", self.on_node_removed)
+
+        # Завантажуємо іконку для збереження один раз
+        self.save_icon = self.style().standardIcon(QStyle.SP_DialogSaveButton)
+
+        # Словник для зберігання посилань на кнопки збереження на вкладках
+        self.tab_save_buttons = {}
+
+        # Список для зберігання посилань на активні фонові завдання
+        self.running_tasks = []
 
 
 
@@ -186,11 +244,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
 
         # Конструктор класу xml_data
-        def __init__(self, path: str = "", tree: object = None, group_name: str = ""):  # Змінено
+        def __init__(self, path: str = "", tree: object = None, group_name: str = "", backup_path: str = ""):
             self.path = path
             self.tree = tree
             self.group_name = group_name
             self.geom = self.xml_geometry()
+            self.backup_path = backup_path
+            self.temp_tree_state = None
             self.changed = False
 
 
@@ -211,14 +271,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def connect_layer_tree_signals(self):
         """Підключає сигнали від дерева шарів до слотів цього віджета."""
-        log_calls(logFile, "Підключення сигналів дерева шарів.")
+        # log_msg(logFile, "Підключення сигналів дерева шарів.")
         connector.connect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
         connector.connect(self.iface.layerTreeView(), "clicked", self.clicked)
 
 
     def disconnect_layer_tree_signals(self):
         """Відключає сигнали від дерева шарів."""
-        log_calls(logFile, "Відключення сигналів дерева шарів.")
+        log_msg(logFile, "Відключення сигналів дерева шарів.")
         connector.disconnect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
         connector.disconnect(self.layers_root, "nodeRemoved", self.on_node_removed)
         connector.disconnect(self.iface.layerTreeView(), "clicked", self.clicked)
@@ -228,8 +288,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # При виклику з process_group_click tree != None
         # При виклику з process_action_open tree == None
 
-        # log_calls(logFile, f"xml_path = {xml_path}\ntree = {tree}")
-
         # Знаходимо поточну вкладку та її дерево
         current_tab_widget = self.tabWidget.currentWidget()
         if not current_tab_widget: return
@@ -237,24 +295,57 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if not tree_view: return
 
         tree_view.load_xml_to_tree_view(xml_path, xsd_path, tree)
-        self.current_xml.tree = tree_view.xml_tree
+        self.current_xml.tree = tree_view.xml_tree # type: ignore
 
         return
 
 
     def process_action_check(self):
         """Перевіряє поточний активний XML-файл."""
-        if not self.current_xml:
+        current_tab_widget = self.tabWidget.currentWidget()
+        if not self.current_xml or not current_tab_widget:
             QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для перевірки.")
             return
 
-        log_msg(logFile, f"Обробка події перевірки файлу XML: {self.current_xml.path}")
+        tree_view = current_tab_widget.findChild(CustomTreeView)
+        if not tree_view:
+            QMessageBox.warning(self, "Помилка", "Не знайдено дерево XML для перевірки.")
+            return
 
-        # level= Qgis.Success, Qgis.MessageLevel, Qgis.Info, Qgis.Warning, Qgis.Critical
-        # duration sec 0 - до закриття
-        self.iface.messageBar().pushMessage("xml_ua:", f"Перевірка файлу: {os.path.basename(self.current_xml.path)}", level=Qgis.Info, duration=5)
-        QMessageBox.warning(self, "xml_ua:", "Вихід")
-        self.handle_error_and_close("Обробка події перевірки файлу XML")
+        # Попередження для користувача
+        reply = QMessageBox.question(self, 'Перевірка XML',
+                                     "Перевірка файлу на відповідність схемі може зайняти деякий час. Продовжити?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            log_msg(logFile, f"Запуск повної валідації для файлу: {self.current_xml.path}")
+            self.iface.messageBar().pushMessage("xml_ua:", f"Перевірка файлу: {os.path.basename(self.current_xml.path)}...", level=Qgis.Info, duration=5)
+            
+            # Запускаємо валідацію з генерацією звіту
+            errors_list = tree_view._validate_and_color_tree(generate_report=True)
+            
+            if errors_list:
+                # Зберігаємо звіт
+                report_path = os.path.join(os.path.dirname(self.current_xml.path), f"Check_{os.path.basename(self.current_xml.path)}.txt")
+                try:
+                    with open(report_path, 'w', encoding='utf-8') as f:
+                        f.write(f"Звіт про помилки для файлу: {self.current_xml.path}\n")
+                        f.write("="*50 + "\n")
+                        for i, error in enumerate(errors_list, 1):
+                            f.write(f"{i}. {error}\n")
+                            # Послідовно виводимо кожну помилку на панель повідомлень
+                            self.iface.messageBar().pushMessage(
+                                f"Помилка валідації #{i}", error, level=Qgis.Warning, duration=0)
+                    
+                    log_msg(logFile, f"Знайдено {len(errors_list)} помилок. Звіт збережено у '{report_path}'.")
+                except Exception as e:
+                    log_msg(logFile, f"Не вдалося зберегти звіт про помилки: {e}")
+                    QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти звіт про помилки: {e}")
+            else:
+                self.iface.messageBar().pushMessage("xml_ua:", f"Перевірку файлу '{os.path.basename(self.current_xml.path)}' завершено. Помилок не знайдено.", level=Qgis.Success, duration=5)
+                log_msg(logFile, "Валідацію завершено. Помилок не знайдено.")
+        else:
+            log_msg(logFile, "Перевірку скасовано користувачем.")
 
 
     def process_action_open(self):
@@ -275,8 +366,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             None
         """
 
-        # log_calls(logFile)
-
         # region відкриваємо файл XML
 
         xml_path, _ = QFileDialog.getOpenFileName(
@@ -286,38 +375,61 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
 
-        # Тому треба перевірити файл на відповідність структурі xml
-        # це: наявність кореневого елемента, обов'язкових елементів
-        # відповіденість відкритих тегів закритим, відповідність атрибутів
         # TODO: тут поки неповна шивка перевірка
-        if not self.validate_xml_structure(xml_path):
-            # TODO: тут треба виводити помилку на панелі QGIS - 
-            # чому саме validate_xml_structure видала False
-            # для цього її логіка роботи: визначення помилок
-            # замість validate_xml_structure вона повинна 
-            # називатися errors_list ==> [] якщо все ок
-            log_msg(logFile, "Неправильна структура файлу XML.")
-            # Виводимо попередження про помилку на панелі QGIS
-            self.iface.messageBar().pushMessage(
-                                "xml_ua:", 
-                                "Неправильна структура файлу XML.", 
-                                level=Qgis.Critical, 
-                                duration=0)
+        # if not self.validate_xml_structure(xml_path):
+        #     # TODO: тут треба виводити помилку на панелі QGIS - 
+        #     # чому саме validate_xml_structure видала False
+        #     # для цього її логіка роботи: визначення помилок
+        #     # замість validate_xml_structure вона повинна 
+        #     # називатися errors_list ==> [] якщо все ок
+        #     log_msg(logFile, "Неправильна структура файлу XML.")
+        #     # Виводимо попередження про помилку на панелі QGIS
+        #     self.iface.messageBar().pushMessage(
+        #                         "xml_ua:", 
+        #                         "Неправильна структура файлу XML.", 
+        #                         level=Qgis.Critical, 
+        #                         duration=0)
             
-            return
-        else:
-            # log_msg(logFile, "Файл відповідає структурі XML.")
-            # Виводимо повідомлення про успіх на панелі QGIS
-            self.iface.messageBar().pushMessage(
-                                "xml_ua:", 
-                                "Файл відповідає структурі XML.", 
-                                level=Qgis.Success, 
-                                duration=5)
-            pass
+        #     return
+        # else:
+        #     # log_msg(logFile, "Файл відповідає структурі XML.")
+        #     # Виводимо повідомлення про успіх на панелі QGIS
+        #     self.iface.messageBar().pushMessage(
+        #                         "xml_ua:", 
+        #                         "Файл відповідає структурі XML.", 
+        #                         level=Qgis.Success, 
+        #                         duration=5)
+        #     pass
         # endregion
 
+        # Створення інкрементальної резервної копії у фоновому режимі
+        dir_name = os.path.dirname(xml_path)
+        base_name, ext = os.path.splitext(os.path.basename(xml_path))
+        counter = 1
+        while True:
+            backup_path = os.path.join(dir_name, f"{base_name} - Copy({counter}){ext}")
+            if not os.path.exists(backup_path):
+                break
+            counter += 1
+
+        # Створюємо та запускаємо фонове завдання
+        task_description = f"Створення резервної копії для {os.path.basename(xml_path)}"
+        backup_task = BackupTask(xml_path, backup_path, task_description, self)
+        self.running_tasks.append(backup_task) # Зберігаємо посилання на завдання
+        QgsApplication.taskManager().addTask(backup_task) # Додаємо завдання до менеджера
+
+        self.open_xml_file(xml_path, backup_path)
+
+    def open_xml_file(self, xml_path, backup_path=None):
+        """Відкриває XML файл, створює вкладку та шари."""
+        # Якщо файл відкривається не через process_action_open (напр. при відновленні),
+        # backup_path може бути None. У такому випадку ми не створюємо нову резервну копію.
+        if backup_path is None:
+            # Якщо backup_path не надано, ми все одно продовжуємо, але не створюємо нову копію.
+            pass
+
         # Створюємо новий об'єкт xml_data
-        new_xml_data = self.xml_data(path=xml_path, tree=None, group_name="")
+        new_xml_data = self.xml_data(path=xml_path, tree=None, group_name="", backup_path=backup_path)
         self.current_xml = new_xml_data
 
         # Створюємо нову вкладку
@@ -348,11 +460,107 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # Оновлюємо назву вкладки на назву групи
         self.tabWidget.setTabText(index, self.current_xml.group_name)
         self.tabWidget.setTabToolTip(index, xml_path)
-        self.setup_custom_tab_buttons() # Оновлюємо кнопки
+
+        # Спочатку налаштовуємо кнопки
+        self.setup_custom_tab_buttons()
+
+        # Встановлюємо початковий стан вкладки (кнопка збереження неактивна)
+        self.update_tab_save_button_state(index, is_enabled=False)
         self.opened_xmls.append(self.current_xml)
 
-        return
+        # Показуємо інформацію про площу після створення всіх шарів
+        self.update_all_actions_state(is_file_open=True)
+        self.update_changed_actions_state(is_changed=False)
 
+    def show_parcel_area_info(self):
+        """Обчислює та показує інформацію про площу ділянки та вузли."""
+        if not self.current_xml or self.current_xml.tree is None:
+            return
+
+        try:
+            from .validators import compute_parcel_area
+            tree = self.current_xml.tree
+
+            # Обчислення площі (м² -> га) і форматування
+            area_m2 = compute_parcel_area(tree)
+            area_ha = area_m2 / 10000.0
+            area_str = f"{area_ha:.4f}"
+
+            # Перевірка, чи потрібно показувати діалог
+            show_dialog = False
+            area_elements = tree.findall(".//ParcelMetricInfo/Area/Size")
+            if not area_elements:
+                show_dialog = True # Показуємо, якщо площі взагалі немає
+            else:
+                for size_elem in area_elements:
+                    try:
+                        xml_area_ha = float(size_elem.text)
+                        if round(xml_area_ha, 4) != round(area_ha, 4):
+                            show_dialog = True
+                            break
+                    except (ValueError, TypeError):
+                        show_dialog = True # Показуємо, якщо значення площі некоректне
+
+            # Формуємо основні рядки повідомлення
+            message_lines = []
+            message_lines.append(f"Площа обчислена за координатами вузлів: {area_str} га")
+
+            # Перевіряємо наявність ExhangeFileCoordinates
+            exchange_coords_elem = tree.find(".//ParcelMetricInfo/Area/DeterminationMethod/ExhangeFileCoordinates")
+            if exchange_coords_elem is not None:
+                size = tree.findtext(".//ParcelMetricInfo/Area/Size", "N/A")
+                unit = tree.findtext(".//ParcelMetricInfo/Area/MeasurementUnit", "")
+                message_lines.append(f"За координатами обмінного файлу: {size} {unit}".strip())
+
+            # Перевіряємо наявність DocExch
+            doc_exch_elem = tree.find(".//ParcelMetricInfo/Area/DeterminationMethod/DocExch")
+            if doc_exch_elem is not None:
+                size = tree.findtext(".//ParcelMetricInfo/Area/Size", "N/A")
+                unit = tree.findtext(".//ParcelMetricInfo/Area/MeasurementUnit", "")
+                message_lines.append(f"Згідно із правовстановлювальним документом: {size} {unit}".strip())
+
+            # Збирання впорядкованого списку UIDP для зовнішнього контуру
+            polylines = {}
+            for pl in tree.findall(".//MetricInfo/Polyline/PL"):
+                ulid = pl.findtext("ULID")
+                pts = [p.text for p in pl.findall("Points/P")]
+                if ulid:
+                    polylines[ulid] = pts
+
+            boundary_lines_ulids = [
+                ln.findtext("ULID")
+                for ln in tree.findall(".//ParcelMetricInfo/Externals/Boundary/Lines/Line")
+                if ln.findtext("ULID")
+            ]
+
+            ordered_uidp = []
+            if boundary_lines_ulids:
+                first = boundary_lines_ulids[0]
+                ordered_uidp.extend(polylines.get(first, []))
+                for ulid in boundary_lines_ulids[1:]:
+                    pts = polylines.get(ulid, [])
+                    if not pts: continue
+                    
+                    if ordered_uidp and pts[0] == ordered_uidp[-1]:
+                        ordered_uidp.append(pts[1] if len(pts) > 1 else pts[0])
+                    elif ordered_uidp and pts[-1] == ordered_uidp[-1]:
+                        ordered_uidp.append(pts[0])
+                    else:
+                        for candidate in pts:
+                            if candidate not in ordered_uidp:
+                                ordered_uidp.append(candidate)
+                                break
+
+            nodes_text = ", ".join(ordered_uidp) if ordered_uidp else "не знайдено."
+            message_lines.append(f"Номери вузлів: {nodes_text}")
+
+            # Формуємо заголовок та фінальне повідомлення
+            title = f"Площа ділянки: {os.path.basename(self.current_xml.path)}"
+            full_message = "\n".join(message_lines)
+            if show_dialog:
+                QMessageBox.information(self, title, full_message)
+        except Exception as e:
+            log_msg(logFile, f"Помилка під час показу інформації про площу ділянки: {e}")
 
     def log_opened_xmls(self):
         """
@@ -362,7 +570,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         pass
 
 
-    def process_action_new(self, tree):
+    def process_action_new(self, xml_path, tree):
         """
         """
         # Процес створення нового xml
@@ -374,11 +582,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # обов'язкових елементів схеми оскільки файл
         # у процесі розробки
         
-        log_calls(logFile)
-
-        xml_path = self.plugin.new_xml
-        if not xml_path:
-            return
+        log_msg(logFile)
 
         # Створюємо новий об'єкт xml_data
         new_xml_data = self.xml_data(path=xml_path, tree=tree, group_name="")
@@ -412,11 +616,24 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # Оновлюємо назву вкладки на назву групи
         self.tabWidget.setTabText(index, self.current_xml.group_name)
         self.tabWidget.setTabToolTip(index, xml_path)
-        self.setup_custom_tab_buttons() # Оновлюємо кнопки
+
+        # Спочатку налаштовуємо кнопки, щоб вони були створені
+        self.setup_custom_tab_buttons()
+
+        # Встановлюємо початковий стан вкладки (кнопка збереження неактивна)
+        self.update_tab_save_button_state(index, is_enabled=False)
         self.opened_xmls.append(self.current_xml)
         
         self.current_xml.path = xml_path
+        self.update_all_actions_state(is_file_open=True)
+        self.update_changed_actions_state(is_changed=False)
         self.update_window_title(self.current_xml.path)
+
+        # Явно виділяємо новостворену групу в дереві шарів
+        group = self.layers_root.findGroup(self.current_xml.group_name)
+        if group:
+            self.iface.layerTreeView().setCurrentNode(group)
+            log_msg(logFile, f"Новостворену групу '{self.current_xml.group_name}' виділено.")
 
         return
 
@@ -435,73 +652,139 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         обрізаючи назву файлу, якщо потрібно.
         """
         self.setWindowTitle("xml_ua")
+
+    def update_tab_save_button_state(self, index, is_enabled):
+        """Робить кнопку збереження на вкладці активною або неактивною."""
+        button = self.tab_save_buttons.get(index)
+        if button:
+            button.setEnabled(is_enabled)
+
+    def update_tab_style_by_group_name(self, group_name, is_changed):
+        """Знаходить вкладку за іменем групи та оновлює її стиль."""
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == group_name:
+                self.update_tab_save_button_state(i, is_enabled=is_changed)
+                return True
+        return False
+
     def mark_as_changed(self):
         """
         Позначає поточний XML-файл як змінений і оновлює заголовок вікна.
         """
-        # Ця логіка тепер обробляється у CustomTreeView
-        pass
+        if self.current_xml and not self.current_xml.changed:
+            log_msg(logFile, f"Файл '{self.current_xml.path}' позначено як змінений.")
+            self.current_xml.changed = True
+            # Оновлюємо стиль вкладки, щоб показати зміни
+            self.update_tab_style_by_group_name(self.current_xml.group_name, is_changed=True)
+            # Вмикаємо кнопку "Зберегти"
+            self.update_changed_actions_state(is_changed=True)
 
     def process_action_save(self):
         """Зберігає вибраний XML-файл."""
-        log_calls(logFile, "Спроба зберегти XML.")
+        log_msg(logFile, "Спроба зберегти XML.")
 
         xml_to_save = self.select_xml_to_save("Вибір групи для збереження")
         if not xml_to_save:
             return  # Користувач скасував або виникла помилка
 
-        # Запитуємо підтвердження у користувача
-        reply = QMessageBox.question(self, 'Підтвердження збереження',
-                                     f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        # Запитуємо підтвердження у користувача, тільки якщо є зміни
+        reply = QMessageBox.Yes
+        if xml_to_save.changed:
+            reply = QMessageBox.question(self, 'Підтвердження збереження', f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
 
         if reply == QMessageBox.Yes:
             # Зберігаємо дерево вибраного XML
             xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.path)
-            self.iface.messageBar().pushMessage("Успіх", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
+            self.iface.messageBar().pushMessage("Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
             log_msg(logFile, f"Файл збережено: {xml_to_save.path}")
 
             # Позначаємо, що зміни збережено
             xml_to_save.changed = False
-            # Оновлюємо заголовок, якщо зберегли активний файл
-            if xml_to_save == self.current_xml:
-                self.update_window_title(xml_to_save.path)
+            # Оновлюємо заголовок вкладки, щоб прибрати '*'
+            if self.update_tab_style_by_group_name(xml_to_save.group_name, is_changed=False) and xml_to_save == self.current_xml:
+                self.update_changed_actions_state(is_changed=False)
+            self.update_window_title(xml_to_save.path)
         else:
             log_msg(logFile, "Збереження скасовано користувачем.")
 
-    def process_action_save_as(self):
-        """Зберігає вибраний XML-файл як новий файл."""
-        log_calls(logFile, "Спроба зберегти XML як...")
+    def process_action_save_as_template(self):
+        """Створює та зберігає шаблон на основі поточного XML-файлу."""
+        log_msg(logFile, "Запуск створення шаблону.")
 
-        xml_to_save = self.select_xml_to_save("Вибір групи для збереження як")
+        xml_to_save = self.current_xml
         if not xml_to_save:
-            return  # Користувач скасував або виникла помилка
-
-        # Запитуємо у користувача шлях для збереження нового XML файлу
-        save_path, _ = QFileDialog.getSaveFileName(self, "Зберегти XML файл як...", xml_to_save.path, "XML файли (*.xml)")
-        if not save_path:
-            log_msg(logFile, "Шлях для збереження не вибрано.")
+            QMessageBox.warning(self, "Помилка", "Немає активного файлу для створення шаблону.")
             return
 
-        # Запитуємо підтвердження у користувача
-        reply = QMessageBox.question(self, 'Підтвердження збереження',
-                                     f"Зберегти групу '{xml_to_save.group_name}' у новий файл:\n\n{save_path}?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        # Діалог для введення назви шаблону
+        prompt_text = (
+            "Введіть назву, яка буде відображати особливості атрибутивних та просторових характеристик.\n"
+            "Наприклад, назва <Рада>_<зона>_<орендар> дозволить у майбутньому легко знайти збережений шаблон\n"
+            "у списку і створити новий обмінний файл без повторного заповнення атрибутів."
+        )
+        template_name, ok = QInputDialog.getText(self, "Зберегти як шаблон", prompt_text)
 
-        if reply == QMessageBox.Yes:
-            # Зберігаємо дерево вибраного XML за новим шляхом
-            xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, save_path)
-            self.iface.messageBar().pushMessage("Успіх", f"Файл збережено: {save_path}", level=Qgis.Success, duration=5)
-            log_msg(logFile, f"Файл збережено як: {save_path}")
+        if not ok or not template_name.strip():
+            log_msg(logFile, "Створення шаблону скасовано користувачем.")
+            return
 
-            # Оновлюємо шлях у поточного об'єкта та заголовок
-            xml_to_save.path = save_path
-            xml_to_save.changed = False
-            # Оновлюємо заголовок, якщо зберегли активний файл
-            if xml_to_save == self.current_xml:
-                self.update_window_title(xml_to_save.path)
-        else:
-            log_msg(logFile, "Збереження скасовано користувачем.")
+        # --- Початок змін: Надійне копіювання дерева через серіалізацію ---
+        # Використання copy.deepcopy з lxml може призводити до збоїв через проблеми з управлінням пам'яттю.
+        # Серіалізація в рядок і зворотний парсинг створює повністю незалежну копію.
+        tree_string = etree.tostring(xml_to_save.tree.getroot(), encoding='utf-8', xml_declaration=True)
+        template_tree = etree.ElementTree(etree.fromstring(tree_string))
+        # --- Кінець змін ---
+        
+        # Обнуляємо геометрію
+        self._create_template_from_tree(template_tree)
+
+        # Зберігаємо файл у папку templates
+        templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
+        if not os.path.exists(templates_dir):
+            os.makedirs(templates_dir)
+        
+        template_path = os.path.join(templates_dir, f"{template_name.strip()}.xml")
+
+        try:
+            template_tree.write(template_path, encoding="utf-8", xml_declaration=True)
+            self.iface.messageBar().pushMessage("Диск:", f"Шаблон '{template_name}' успішно збережено.", level=Qgis.Success, duration=5)
+            log_msg(logFile, f"Шаблон збережено: {template_path}")
+            # Оновлюємо контекстне меню карти
+            self.plugin.reload_map_canvas_context()
+        except Exception as e:
+            log_msg(logFile, f"Помилка при збереженні шаблону: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти шаблон: {e}")
+
+    def _create_template_from_tree(self, tree):
+        """Обнуляє геометрію в XML-дереві, залишаючи атрибути."""
+        root = tree.getroot()
+
+        # Видаляємо всі точки та полілінії
+        for parent in root.xpath(".//PointInfo | .//Polyline"):
+            for child in parent.xpath("./*"):
+                parent.remove(child)
+
+        # Очищуємо всі геометричні межі
+        for boundary_container in root.xpath(".//Externals | .//Internals"):
+            for child in boundary_container.xpath("./*"):
+                boundary_container.remove(child)
+
+        # Залишаємо тільки перший дочірній елемент для списків
+        paths_to_prune = [
+            ".//LandsParcel",
+            ".//Leases",
+            ".//Subleases",
+            ".//Restrictions",
+            ".//AdjacentUnits"
+        ]
+        for path in paths_to_prune:
+            parent_element = root.find(path)
+            if parent_element is not None:
+                children = list(parent_element)
+                if len(children) > 1:
+                    for child_to_remove in children[1:]:
+                        parent_element.remove(child_to_remove)
+        return tree
 
     def select_xml_to_save(self, title: str):
         """
@@ -532,57 +815,74 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         return None
 
-    #def process_action_close_xml(self, xml_to_close=None):
-    def process_action_close_xml(self, xml_to_close=None, group_already_removed=False):
-        """Закриває вказаний або поточний XML-файл та пов'язану з ним групу шарів."""
+    def process_action_close_xml(self, xml_to_close=None, group_already_removed=False, force_close=False):
+        """Закриває вказаний XML-файл та пов'язану з ним групу шарів."""
         if self._is_closing:
             return
         self._is_closing = True
-
-        #if xml_to_close is None:
-        #    xml_to_close = self.current_xml
-
-        if not xml_to_close:
-            QMessageBox.warning(self, "Помилка", "Немає активного файлу для закриття.")
-            self._is_closing = False
-            return
-
-        # Попереджаємо про незбережені зміни
-        if xml_to_close.changed:
-            reply = QMessageBox.question(self, 'Підтвердження закриття',
-                                         f"Файл для групи '{xml_to_close.group_name}' має незбережені зміни. \n\nЗакрити без збереження?",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No:
+        
+        try:
+            if not xml_to_close:
+                xml_to_close = self.current_xml
+    
+            # Якщо немає чого закривати, виходимо
+            if not xml_to_close:
                 self._is_closing = False
                 return
+    
+            # Запитуємо підтвердження, якщо є незбережені зміни
+            if not force_close and xml_to_close and xml_to_close.changed:
+                reply = QMessageBox.question(self, 'Підтвердження закриття',
+                                             f"Файл для групи '{xml_to_close.group_name}' має незбережені зміни. \n\nЗакрити без збереження?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+                if reply == QMessageBox.No:
+                    self._is_closing = False
+                    return # Користувач скасував закриття
+    
+            # Якщо файл не було змінено, видаляємо резервну копію
+            if not xml_to_close.changed and xml_to_close.backup_path and os.path.exists(xml_to_close.backup_path):
+                try:
+                    os.remove(xml_to_close.backup_path)
+                    log_msg(logFile, f"Резервну копію '{xml_to_close.backup_path}' видалено, оскільки файл не було змінено.")
+                    self.iface.messageBar().pushMessage("Інфо", f"Резервну копію для '{os.path.basename(xml_to_close.path)}' видалено.", level=Qgis.Info, duration=3)
+                except (OSError, TypeError) as e: # Додано TypeError для випадків, коли backup_path може бути None
+                    log_msg(logFile, f"Не вдалося видалити резервну копію '{xml_to_close.backup_path}': {e}")
+    
+            # --- Початок виправлення: змінено порядок операцій для уникнення краху ---
+            # 1. Знаходимо та видаляємо групу шарів, якщо вона ще не видалена
+            if not group_already_removed:
+                group_to_remove = self.layers_root.findGroup(xml_to_close.group_name)
+                if group_to_remove:
+                    self.layers_root.removeChildNode(group_to_remove)
+                    log_msg(logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
+            
+            # 2. Видаляємо вкладку. Це автоматично видалить дочірні віджети (CustomTreeView).
+            for i in range(self.tabWidget.count()):
+                if self.tabWidget.tabText(i) == xml_to_close.group_name:
+                    self.tabWidget.removeTab(i)
+                    log_msg(logFile, f"Вкладку для групи '{xml_to_close.group_name}' видалено.")
+                    break
 
-        ## 1. Знаходимо та видаляємо групу шарів, якщо вона ще не видалена
-        #if not group_already_removed:
-        #    group_to_remove = self.layers_root.findGroup(xml_to_close.group_name)
-        #    if group_to_remove:
-        #        self.layers_root.removeChildNode(group_to_remove)
-        #        log_msg(logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
+            # 3. Видаляємо зі списку відкритих XML
+            if xml_to_close in self.opened_xmls:
+                self.opened_xmls.remove(xml_to_close)
+                log_msg(logFile, f"Файл '{xml_to_close.path}' видалено зі списку відкритих.")
 
-        # 1. Знаходимо та видаляємо групу шарів, якщо вона ще не видалена
-        if not group_already_removed:
-            group_to_remove = self.layers_root.findGroup(xml_to_close.group_name)
-            if group_to_remove:
-                self.layers_root.removeChildNode(group_to_remove)
-                log_msg(logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
+            # 4. Явно очищуємо посилання на XML-об'єкти, ПІСЛЯ видалення віджетів
+            xml_to_close.tree = None
+            xml_to_close.tree_view = None
+            xml_to_close.temp_tree_state = None
+            log_msg(logFile, f"Посилання на XML-об'єкти для групи '{xml_to_close.group_name}' очищено.")
 
+            # --- Кінець змін ---
 
-
-
-        # 2. Видаляємо зі списку відкритих XML
-        if xml_to_close in self.opened_xmls:
-            self.opened_xmls.remove(xml_to_close)
-            log_msg(logFile, f"Файл '{xml_to_close.path}' видалено зі списку відкритих.")
-
-        # 3. Видаляємо вкладку
-        for i in range(self.tabWidget.count()):
-            if self.tabWidget.tabText(i) == xml_to_close.group_name:
-                self.tabWidget.removeTab(i)
-                break
+            if not self.opened_xmls:
+                self.current_xml = None
+                self.update_window_title("")
+                self.update_all_actions_state(is_file_open=False)
+    
+        finally:
+            self._is_closing = False
 
     def get_tooltip_from_tree(self, full_path, default_name):
         """
@@ -644,50 +944,91 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         xml_data = self.get_xml_data_for_tab_index(index)
         if xml_data:
-            self.process_action_close_xml(xml_data)
+            self.process_action_close_xml(xml_to_close=xml_data)
+
+    def on_custom_tab_save_button_clicked(self, index):
+        """
+        Обробляє клік на кастомній кнопці збереження на вкладці.
+        Зберігає зміни для відповідного XML-файлу.
+        """
+        xml_to_save = self.get_xml_data_for_tab_index(index)
+        if xml_to_save:
+            self.save_specific_xml(xml_to_save)
 
     def setup_custom_tab_buttons(self):
         """
         Налаштовує кастомні кнопки закриття для всіх динамічних вкладок.
         """
-        # Використовуємо стандартну, але меншу іконку
-        close_icon = self.style().standardIcon(QStyle.SP_DockWidgetCloseButton)
         tab_bar = self.tabWidget.tabBar()
 
         for i in range(self.tabWidget.count()):
-            # Перевіряємо, чи кнопка вже існує
-            if tab_bar.tabButton(i, QTabBar.RightSide) is not None:
-                continue
+            # Перевіряємо, чи кнопка вже існує, щоб уникнути дублювання
+            if tab_bar.tabButton(i, QTabBar.RightSide) is None:
+                # Створюємо контейнер для кнопок
+                buttons_widget = QWidget()
+                buttons_layout = QHBoxLayout(buttons_widget)
+                # Відступи: зліва 8px, справа 6px для симетрії та простору
+                # 1) назва вкладки - іконка збереження
+                # 2) top margin
+                # 3) кнопка закриття - край вкладки
+                # 4) bottom margin
+                buttons_layout.setContentsMargins(0, 0, 0, 0)
+                # відступ між кнопками
+                buttons_layout.setSpacing(0)
+                # Ключова зміна: змушує компонування резервувати місце для всіх віджетів
+                buttons_layout.setSizeConstraint(QLayout.SetFixedSize)
 
-            tab_button = QPushButton(close_icon, "")
-            tab_button.setFlat(True)
-            tab_button.setCursor(Qt.ArrowCursor)
-            # Встановлюємо фіксований розмір, щоб уникнути розтягування
-            tab_button.setFixedSize(16, 16)
-            tab_button.setStyleSheet("""
-                QPushButton {
-                    border: none;
-                    background: transparent;
-                    padding: 0px;
-                }
-                QPushButton:hover {
-                    background-color: #d3d3d3; /* lightgray */
-                    border-radius: 2px;
-                }
-                QPushButton:pressed {
-                    background-color: #a9a9a9; /* darkgray */
-                }
-            """)
-            # Використовуємо lambda, щоб передати правильний індекс вкладки
-            tab_button.clicked.connect(lambda _, idx=i: self.close_tab(idx))
-            tab_bar.setTabButton(i, QTabBar.RightSide, tab_button)
+                # Створюємо кнопку-індикатор збереження
+                save_button = QPushButton(self.save_icon, "")
+                save_button.setFlat(True)
+                save_button.setFixedSize(16, 16)
+                save_button.setIconSize(QSize(12, 12))
+                save_button.setToolTip("Файл має незбережені зміни")
+                save_button.setEnabled(False) # Спочатку неактивна
+                save_button.setStyleSheet("""
+                    QPushButton {
+                        border: none; background: transparent; padding: 0px;
+                    }
+                """)
+                self.tab_save_buttons[i] = save_button # Зберігаємо посилання
+
+                # Створюємо кнопку закриття
+                close_icon = self.style().standardIcon(QStyle.SP_DockWidgetCloseButton)
+                close_button = QPushButton(close_icon, "")
+                close_button.setFlat(True)
+                close_button.setCursor(Qt.ArrowCursor)
+                close_button.setFixedSize(16, 16)
+                close_button.setIconSize(QSize(12, 12))
+                close_button.setStyleSheet("""
+                    QPushButton {
+                        border: none; background: transparent; padding: 0px; margin-left: 0px;
+                    }
+                    QPushButton:hover {
+                        background-color: #e0e0e0; border-radius: 2px;
+                    }
+                    QPushButton:pressed {
+                        background-color: #a9a9a9;
+                    }
+                """)
+                # Підключаємо сигнали з передачею індексу для надійності
+                save_button.clicked.connect(lambda _, index=i: self.on_custom_tab_save_button_clicked(index))
+                close_button.clicked.connect(lambda _, index=i: self.close_tab(index))
+
+                buttons_layout.addWidget(save_button)
+                buttons_layout.addWidget(close_button)
+                buttons_widget.setLayout(buttons_layout)
+
+                tab_bar.setTabButton(i, QTabBar.RightSide, buttons_widget)
 
 
     def on_node_removed(self, node, parent):
         """Обробляє сигнал видалення вузла з дерева шарів."""
-        if self._is_closing:
-            return
 
+        # QMessageBox.information(
+        #     self.iface.mainWindow(),
+        #     "Сигнал: on_node_removed",
+        #     f"Видалено вузол '{node.name()}' з дерева шарів."
+        # )
         if isinstance(node, QgsLayerTreeGroup):
             group_name = node.name()
             # Перевіряємо, чи видалена група належить нашому плагіну
@@ -704,24 +1045,51 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def on_tab_changed(self, index):
         """Синхронізує активну вкладку з деревом шарів."""
+        # if index != -1:
+        #     QMessageBox.information(
+        #         self.iface.mainWindow(),
+        #         "Сигнал: on_tab_changed",
+        #         f"Переключено на вкладку: '{self.tabWidget.tabText(index)}' (індекс: {index})"
+        #     )
         if index == -1: # Немає активних вкладок
             self.current_xml = None
+            self.update_all_actions_state(is_file_open=False)
             return
+
+        # Оновлюємо індекси у словнику кнопок при зміні вкладки
+        new_save_buttons = {}
+        for i in range(self.tabWidget.count()):
+            new_save_buttons[i] = self.tab_save_buttons.get(i)
+        self.tab_save_buttons = new_save_buttons
 
         xml_data = self.get_xml_data_for_tab_index(index)
         if xml_data:
             self.current_xml = xml_data
+            self.update_all_actions_state(is_file_open=True)
+            self.update_changed_actions_state(is_changed=xml_data.changed)
             group = self.layers_root.findGroup(xml_data.group_name)
             if group:
                 self.iface.layerTreeView().setCurrentNode(group)
-            self.update_window_title(xml_data.path)
+
+    def update_changed_actions_state(self, is_changed):
+        """Оновлює стан дій, які залежать від наявності змін."""
+        if self.plugin:
+            self.plugin.action_save_tool.setEnabled(is_changed)
+            self.plugin.action_restore_backup.setEnabled(is_changed)
+
+    def update_all_actions_state(self, is_file_open):
+        """Оновлює стан дій, які залежать від того, чи відкритий файл."""
+        if self.plugin:
+            self.plugin.action_save_as_template_tool.setEnabled(is_file_open)
+            self.plugin.action_check_tool.setEnabled(is_file_open)
+            self.plugin.action_clear_data.setEnabled(is_file_open)
+            if not is_file_open:
+                self.update_changed_actions_state(False)
 
     def update_tab_indices(self):
         """
         Оновлює індекси вкладок після закриття.
         """
-
-        log_calls(logFile)
         # Ця логіка більше не потрібна, оскільки кнопки закриття стандартні
 
     def generate_layers_obj_name(self, base_name):
@@ -748,7 +1116,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         Обробляє подвійне клацання на елементі в дереві шарів.
         """
-        log_calls(logFile)
+        log_msg(logFile)
 
         # Отримуємо QgsLayerTreeNode, використовуючи QgsLayerTreeView
         item = self.iface.layerTreeView().index2node(index)
@@ -771,6 +1139,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         # (logFile, f"index = {index}")
 
+        # QMessageBox.information(
+        #     self.iface.mainWindow(),
+        #     "Сигнал: clicked",
+        #     f"Клік на елементі дерева шарів."
+        # )
         # Отримуємо QgsLayerTreeNode, використовуючи QgsLayerTreeView
         item = self.iface.layerTreeView().index2node(index)
 
@@ -784,12 +1157,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # Якщо елемент не група, то обробляємо його, то 
         # знаходимо його групу:
         if isinstance(item, QgsLayerTreeLayer):
-            # log_msg(logFile, f"Клік на шарі {item.name()}")
+            log_msg(logFile, f"Клік на шарі {item.name()}")
             # Отримуємо групу шару
             group = self.find_parent_group(item)
             if group:
                 group_name = group.name()
-                # log_msg(logFile, f"Шар '{item.name()}' знаходиться в групі '{group_name}'")
+                log_msg(logFile, f"Шар '{item.name()}' знаходиться в групі '{group_name}'")
                 self.process_group_click(group_name)
             else:
                 # log_msg(logFile, f"Шар '{item.name()}' не належить до жодної групи")
@@ -811,6 +1184,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             QgsLayerTreeGroup: The parent group of the given item, or None if no
                                parent group exists.
         """
+        if item is None:
+            return None
+
         parent = item.parent()
         while parent:
             if isinstance(parent, QgsLayerTreeGroup):
@@ -904,6 +1280,28 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         return True
 
+    def save_specific_xml(self, xml_to_save):
+        """Зберігає конкретний XML-файл без додаткових діалогів."""
+        if not xml_to_save:
+            return
+
+        try:
+            # Зберігаємо дерево вибраного XML
+            xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.path)
+            self.iface.messageBar().pushMessage("Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
+            log_msg(logFile, f"Файл збережено: {xml_to_save.path}")
+
+            # Позначаємо, що зміни збережено
+            xml_to_save.changed = False
+            # Оновлюємо іконку вкладки та стан кнопок
+            if self.update_tab_style_by_group_name(xml_to_save.group_name, is_changed=False):
+                if xml_to_save == self.current_xml:
+                    self.update_changed_actions_state(is_changed=False)
+            self.update_window_title(xml_to_save.path)
+        except Exception as e:
+            log_msg(logFile, f"Помилка при збереженні файлу '{xml_to_save.path}': {e}")
+            QMessageBox.critical(self, "Помилка збереження", f"Не вдалося зберегти файл:\n{e}")
+
 
     def process_group_click(self, group_name):
         """
@@ -938,12 +1336,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # Основна мета — синхронізувати доквіджет з вибраною групою 
         # в дереві шарів QGIS коли користувач клацає групу, 
 
-        # log_calls(logFile, group_name)
+        log_msg(logFile, group_name)
+        logFile.flush()
 
         # Знаходимо відповідну вкладку
         for i in range(self.tabWidget.count()):
             if self.tabWidget.tabText(i) == group_name:
-                # Переключаємось на вкладку, це викличе on_tab_changed
+                # Переключаємось на вкладку, це викличе on_tab_changed, який оновить self.current_xml
                 if self.tabWidget.currentIndex() != i:
                     self.tabWidget.setCurrentIndex(i)
                 else: # Якщо вкладка вже активна, просто оновлюємо дані
@@ -952,30 +1351,841 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 break
 
 
-    def update_xml_with_new_geometry(self, layer, feature_id, geometry):
+    def update_xml_from_geometry_change(self, layer, feature_id):
         """
-        Оновлює XML-файл на основі нової геометрії.
+        Оновлює XML-дерево, коли геометрія точки змінюється в QGIS.
         """
-        # log_calls(logFile, f"layer: {layer.name()}, feature_id: {feature_id}, geometry: {geometry}")
-        log_calls(logFile)
+        log_msg(logFile, f"Оновлення XML для шару: {layer.name()}, ID фічі: {feature_id}")
 
-        # Отримуємо фічу за її ID
+        # 1. Визначаємо, з яким XML-файлом ми працюємо
+        xml_data = self.find_xml_data_for_layer(layer)
+        if not xml_data:
+            log_msg(logFile, f"Не знайдено відповідний XML для шару '{layer.name()}'.")
+            return
+
+        # 2. Перевіряємо, чи це шар точок
+        if layer.name() != "Вузли":
+            log_msg(logFile, f"Шар '{layer.name()}' не є шаром пікетів. Оновлення геометрії ігнорується.")
+            return
+
+        # 3. Отримуємо фічу та її нову геометрію
         feature = layer.getFeature(feature_id)
         if not feature:
             log_msg(logFile, f"Фіча з ID {feature_id} не знайдена в шарі {layer.name()}.")
             return
-
-        # Отримуємо геометрію фічі
         new_geometry = feature.geometry()
-        log_calls(logFile, f"Нова геометрія фічі: {geometry_to_string(new_geometry)}")
+        point_geom = new_geometry.asPoint()
+        uidp = feature.attribute("UIDP")
 
-        # TODO: Тут потрібно додати логіку для оновлення 
-        # XML-файлу на основі нової геометрії
-        QMessageBox.information(self, "update_xml_with_new_geometry()", f"Нова геометрія фічі: {geometry_to_string(new_geometry)}")
+        if not uidp:
+            log_msg(logFile, f"Фіча з ID {feature_id} не має атрибута 'UIDP'.")
+            return
+
+        # 4. Оновлюємо XML-дерево
+        tree = xml_data.tree
+        point_element = tree.find(f".//PointInfo/Point[UIDP='{uidp}']")
+
+        if point_element is None:
+            log_msg(logFile, f"Точка з UIDP '{uidp}' не знайдена в XML.")
+            return
+
+        # Оновлюємо координати (пам'ятаємо про заміну X та Y)
+        point_element.find("X").text = f"{point_geom.y():.3f}"
+        point_element.find("Y").text = f"{point_geom.x():.3f}"
+        log_msg(logFile, f"Оновлено координати для точки UIDP='{uidp}' в XML.")
+
+        # 5. Перераховуємо довжини ліній, що використовують цю точку
+        self.recalculate_line_lengths(tree, uidp)
+
+        # 5.1 Перераховуємо площу ділянки
+        self.recalculate_parcel_area(tree)
+
+        # 6. Оновлюємо вигляд дерева у вкладці
+        xml_data.tree_view.update_view_from_tree()
+
+        # 7. Позначаємо вкладку як змінену
+        xml_data.tree_view.mark_as_changed()
+
+        # НЕ зберігаємо на диск і НЕ перемальовуємо шари тут, щоб уникнути краху.
+        # Зберігаємо тимчасову копію дерева для можливого відкату.
+        if not hasattr(xml_data, 'temp_tree_state') or xml_data.temp_tree_state is None:
+             # Повідомлення для користувача
+             self.iface.messageBar().pushMessage(
+                "Інформація", f"Вузол '{uidp}' було переміщено. Збережіть зміни, щоб оновити XML та шари.",
+                level=Qgis.Info, duration=5
+             )
+             # Створюємо копію тільки якщо її ще немає, щоб зберегти стан *до* першої зміни
+             original_tree = etree.parse(xml_data.path)
+             xml_data.temp_tree_state = original_tree
+
+    def add_lands(self):
+        """
+        Додає угіддя з виділеного полігону до активного XML-файлу.
+        """
+        log_msg(logFile, "Спроба додати угіддя до активного XML.")
+
+        if not self.current_xml:
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання угідь.")
+            return
+
+        # 1. Отримати виділений полігон
+        selected_features = []
+        layers = QgsProject.instance().mapLayers().values()
+        for layer in layers:
+            if layer.type() == layer.VectorLayer:
+                selected_features.extend(layer.selectedFeatures())
+
+        if len(selected_features) != 1:
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            return
+
+        feature = selected_features[0]
+        geom = feature.geometry()
+        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            return
+
+        # 2. Знайти або створити шар "Угіддя"
+        group = self.layers_root.findGroup(self.current_xml.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{self.current_xml.group_name}' не знайдена.")
+            return
+
+        layer_name = "Угіддя"
+        lands_layer = None
+        for child in group.children():
+            if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
+                lands_layer = child.layer()
+                break
+
+        if lands_layer is None:
+            # Створюємо шар, якщо його немає
+            lands_layer = QgsVectorLayer(f"MultiPolygon?crs={self.iface.mapCanvas().mapSettings().destinationCrs().authid()}", layer_name, "memory")
+            lands_layer.loadNamedStyle(os.path.join(os.path.dirname(__file__), "templates", "lands_parcel.qml"))
+            provider = lands_layer.dataProvider()
+            provider.addAttributes([
+                QgsField("LandCode", QVariant.String),
+                QgsField("Size", QVariant.Double),
+            ])
+            lands_layer.updateFields()
+            QgsProject.instance().addMapLayer(lands_layer, False)
+            group.insertChildNode(0, QgsLayerTreeLayer(lands_layer))
+            log_msg(logFile, f"Створено новий шар '{layer_name}' у групі '{group.name()}'.")
+
+        # 3. Додати новий об'єкт до шару
+        new_feature = QgsFeature(lands_layer.fields())
+        new_feature.setGeometry(geom)
+        
+        # Запитуємо у користувача код угіддя
+        land_code_delegate = self.current_xml.tree_view.land_code_delegate
+        land_code_items = land_code_delegate.items
+        
+        land_code_selection, ok = QInputDialog.getItem(self, "Вибір коду угіддя",
+                                                     "Виберіть код угіддя:", land_code_items, 0, False)
+        
+        if not ok or not land_code_selection:
+            log_msg(logFile, "Додавання угіддя скасовано користувачем.")
+            return
+
+        land_code = land_code_delegate.reverse_land_codes.get(land_code_selection)
+        if not land_code:
+            log_msg(logFile, f"Не вдалося отримати код для '{land_code_selection}'.")
+            return
+
+        size_ha = geom.area() / 10000.0
+        new_feature.setAttributes([land_code, size_ha])
+        
+        lands_layer.startEditing()
+        lands_layer.addFeature(new_feature)
+        lands_layer.commitChanges()
+
+        # 4. Додати відповідні елементи до XML-дерева
+        tree = self.current_xml.tree
+        root = tree.getroot()
+        parcel_info_element = root.find(".//ParcelInfo")
+        if parcel_info_element is None:
+            log_msg(logFile, "Елемент 'ParcelInfo' не знайдено в XML.")
+            return
+
+        lands_parcel_element = parcel_info_element.find("LandsParcel")
+        if lands_parcel_element is None:
+            lands_parcel_element = etree.SubElement(parcel_info_element, "LandsParcel")
+
+        land_parcel_info = etree.SubElement(lands_parcel_element, "LandParcelInfo")
+        etree.SubElement(land_parcel_info, "LandCode").text = land_code
+        metric_info = etree.SubElement(land_parcel_info, "MetricInfo")
+        area = etree.SubElement(metric_info, "Area")
+        etree.SubElement(area, "Size").text = f"{size_ha:.4f}"
+        etree.SubElement(area, "MeasurementUnit").text = "га"
+
+        # --- Початок змін: Обробка геометрії через GeometryProcessor ---
+        processor = GeometryProcessor(tree)
+        processed_data = processor.process_new_geometry(geom)
+
+        # Перевіряємо, чи повернулися дані, перш ніж розпаковувати.
+        # processed_data може бути None, якщо геометрія некоректна.
+        if processed_data and processed_data[0] is not None:
+            externals_element, new_points, new_polylines = processed_data
+            if externals_element is not None:
+                metric_info.append(externals_element)
+            log_msg(logFile, "Геометрію для нового угіддя оброблено та додано до XML.")
+            # Оновлюємо лише шар "Угіддя", а не всі шари
+            if lands_layer: # Якщо шар вже існував, перемальовуємо його
+                self.redraw_specific_layer(self.current_xml, "Угіддя")
+            log_msg(logFile, "Шари було перемальовано для відображення нового угіддя.")
+
+        # --- Кінець змін ---
+        
+        # 5. Оновити вигляд дерева та позначити зміни
+        self.current_xml.tree_view.rebuild_tree_view()
+        self.current_xml.tree_view.mark_as_changed()
+
+        self.iface.messageBar().pushMessage("Диск:", f"Угіддя додано до групи '{group.name()}'.", level=Qgis.Success, duration=5)
+        log_msg(logFile, f"Угіддя додано до шару '{layer_name}' та XML для групи '{group.name()}'.")
+
+        # НЕ зберігаємо на диск і НЕ перемальовуємо шари тут, щоб уникнути краху.
+        # Зберігаємо тимчасову копію дерева для можливого відкату.
+        if not hasattr(self.current_xml, 'temp_tree_state') or self.current_xml.temp_tree_state is None:
+             # Повідомлення для користувача
+             self.iface.messageBar().pushMessage(
+                "Інформація", f"Угіддя з кодом '{land_code}' було додано. Збережіть зміни, щоб оновити XML та шари.",
+                level=Qgis.Info, duration=5
+             )
+             # Створюємо копію тільки якщо її ще немає, щоб зберегти стан *до* першої зміни
+             original_tree = etree.parse(self.current_xml.path)
+             self.current_xml.temp_tree_state = original_tree
+
+    def add_lease(self):
+        """
+        Додає оренду з виділеного полігону до активного XML-файлу.
+        """
+        log_msg(logFile, "Спроба додати оренду до активного XML.")
+
+        if not self.current_xml:
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання оренди.")
+            return
+
+        # 1. Отримати виділений полігон
+        selected_features = []
+        layers = QgsProject.instance().mapLayers().values()
+        for layer in layers:
+            if layer.type() == layer.VectorLayer:
+                selected_features.extend(layer.selectedFeatures())
+
+        if len(selected_features) != 1:
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            return
+
+        feature = selected_features[0]
+        geom = feature.geometry()
+        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            return
+
+        # 2. Обробити геометрію та оновити XML
+        tree = self.current_xml.tree
+        processor = GeometryProcessor(tree)
+        
+        try:
+            # Викликаємо новий метод для обробки геометрії оренди
+            processor.process_lease_geometry(geom)
+            log_msg(logFile, "Геометрію для нової оренди оброблено та додано до XML.")
+        except Exception as e:
+            log_msg(logFile, f"Помилка при обробці геометрії оренди: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати оренду: {e}")
+            return
+
+        # 3. Оновити вигляд дерева та позначити зміни
+        self.current_xml.tree_view.rebuild_tree_view()
+        self.mark_as_changed()
+
+        # 4. Створити або оновити шар "Оренда"
+        group = self.layers_root.findGroup(self.current_xml.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{self.current_xml.group_name}' не знайдена для додавання шару оренди.")
+            return
+
+        layer_name = "Оренда"
+        leases_layer = next((child.layer() for child in group.children() if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name), None)
+
+        from .leases import Leases
+        leases_handler = Leases(
+            root=self.current_xml.tree.getroot(),
+            crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+            group=group,
+            plugin_dir=self.plugin.plugin_dir,
+            lines_to_coords_func=self.layers_obj.linesToCoordinates,
+            xml_ua_layers_instance=self.layers_obj
+        )
+
+        if leases_layer is None:
+            log_msg(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий.")
+            leases_layer = leases_handler.add_leases_layer()
+            if not leases_layer:
+                log_msg(logFile, f"Не вдалося створити шар '{layer_name}'.")
+                return
+        else:
+            log_msg(logFile, f"Шар '{layer_name}' знайдено. Оновлюємо його.")
+            # Перемальовуємо шар, щоб додати новий об'єкт
+            leases_handler.redraw_leases_layer(leases_layer)
+
+        self.iface.messageBar().pushMessage("Успіх", f"Оренду додано до групи '{self.current_xml.group_name}'.", level=Qgis.Success, duration=5)
+        log_msg(logFile, f"Оренду додано до XML для групи '{self.current_xml.group_name}'.")
+
+    def add_sublease(self):
+        """
+        Додає суборенду з виділеного полігону до активного XML-файлу.
+        """
+        log_msg(logFile, "Спроба додати суборенду до активного XML.")
+
+        if not self.current_xml:
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання суборенди.")
+            return
+
+        # 1. Отримати виділений полігон
+        selected_features = []
+        layers = QgsProject.instance().mapLayers().values()
+        for layer in layers:
+            if layer.type() == layer.VectorLayer:
+                selected_features.extend(layer.selectedFeatures())
+
+        if len(selected_features) != 1:
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            return
+
+        feature = selected_features[0]
+        geom = feature.geometry()
+        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            return
+
+        # 2. Обробити геометрію та оновити XML
+        tree = self.current_xml.tree
+        processor = GeometryProcessor(tree)
+        
+        try:
+            # Викликаємо новий метод для обробки геометрії суборенди
+            processor.process_sublease_geometry(geom)
+            log_msg(logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
+        except Exception as e:
+            log_msg(logFile, f"Помилка при обробці геометрії суборенди: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати суборенду: {e}")
+            return
+
+        # 3. Оновити вигляд дерева та позначити зміни
+        self.current_xml.tree_view.rebuild_tree_view()
+        self.mark_as_changed()
+
+        # 4. Створити або оновити шар "Суборенда"
+        group = self.layers_root.findGroup(self.current_xml.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{self.current_xml.group_name}' не знайдена для додавання шару суборенди.")
+            return
+
+        layer_name = "Суборенда"
+        subleases_layer = next((child.layer() for child in group.children() if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name), None)
+
+        from .subleases import Subleases
+        subleases_handler = Subleases(
+            root=self.current_xml.tree.getroot(),
+            crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+            group=group,
+            plugin_dir=self.plugin.plugin_dir,
+            lines_to_coords_func=self.layers_obj.linesToCoordinates,
+            xml_ua_layers_instance=self.layers_obj
+        )
+
+        if subleases_layer is None:
+            log_msg(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий.")
+            subleases_layer = subleases_handler.add_subleases_layer()
+            if not subleases_layer:
+                log_msg(logFile, f"Не вдалося створити шар '{layer_name}'.")
+                return
+        else:
+            log_msg(logFile, f"Шар '{layer_name}' знайдено. Оновлюємо його.")
+            # Перемальовуємо шар, щоб додати новий об'єкт
+            subleases_handler.redraw_subleases_layer(subleases_layer)
+
+        self.iface.messageBar().pushMessage("Успіх", f"Суборенду додано до групи '{self.current_xml.group_name}'.", level=Qgis.Success, duration=5)
+        log_msg(logFile, f"Суборенду додано до XML для групи '{self.current_xml.group_name}'.")
+
+    def add_restriction(self):
+        """
+        Додає обмеження з виділеного полігону до активного XML-файлу.
+        """
+        log_msg(logFile, "Спроба додати обмеження до активного XML.")
+
+        if not self.current_xml:
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання обмеження.")
+            return
+
+        # 1. Отримати виділений полігон
+        selected_features = []
+        layers = QgsProject.instance().mapLayers().values()
+        for layer in layers:
+            if layer.type() == layer.VectorLayer:
+                selected_features.extend(layer.selectedFeatures())
+
+        if len(selected_features) != 1:
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            return
+
+        feature = selected_features[0]
+        geom = feature.geometry()
+        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            return
+
+        # 2. Обробити геометрію та оновити XML
+        tree = self.current_xml.tree
+        processor = GeometryProcessor(tree)
+        
+        try:
+            # Викликаємо новий метод для обробки геометрії обмеження
+            processor.process_restriction_geometry(geom)
+            log_msg(logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
+        except Exception as e:
+            log_msg(logFile, f"Помилка при обробці геометрії обмеження: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати обмеження: {e}")
+            return
+
+        # 3. Оновити вигляд дерева та позначити зміни
+        self.current_xml.tree_view.rebuild_tree_view()
+        self.mark_as_changed()
+
+        # 4. Створити або оновити шар "Обмеження"
+        group = self.layers_root.findGroup(self.current_xml.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{self.current_xml.group_name}' не знайдена для додавання шару обмежень.")
+            return
+
+        layer_name = "Обмеження"
+        restrictions_layer = next((child.layer() for child in group.children() if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name), None)
+
+        from .restrictions import Restrictions
+        restrictions_handler = Restrictions(
+            root=self.current_xml.tree.getroot(),
+            crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+            group=group,
+            plugin_dir=self.plugin.plugin_dir,
+            lines_to_coords_func=self.layers_obj.linesToCoordinates,
+            xml_ua_layers_instance=self.layers_obj
+        )
+
+        if restrictions_layer is None:
+            log_msg(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий.")
+            restrictions_layer = restrictions_handler.add_restrictions_layer()
+            if not restrictions_layer:
+                log_msg(logFile, f"Не вдалося створити шар '{layer_name}'.")
+                return
+        else:
+            log_msg(logFile, f"Шар '{layer_name}' знайдено. Оновлюємо його.")
+            # Перемальовуємо шар, щоб додати новий об'єкт
+            restrictions_handler.redraw_restrictions_layer(restrictions_layer)
+
+        self.iface.messageBar().pushMessage("Успіх", f"Обмеження додано до групи '{self.current_xml.group_name}'.", level=Qgis.Success, duration=5)
+        log_msg(logFile, f"Обмеження додано до XML для групи '{self.current_xml.group_name}'.")
+
+    def add_adjacent_unit(self):
+        """
+        Додає суміжника на основі виділеної на карті полілінії.
+        """
+        log_msg(logFile, "Спроба додати суміжника до активного XML.")
+
+        if not self.current_xml:
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання суміжника.")
+            return
+
+        # 1. Отримати виділену полілінію
+        selected_features = []
+        layers = QgsProject.instance().mapLayers().values()
+        for layer in layers:
+            if layer.type() == layer.VectorLayer and layer.geometryType() == QgsWkbTypes.LineGeometry:
+                selected_features.extend(layer.selectedFeatures())
+
+        if len(selected_features) != 1:
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полілінійний об'єкт.")
+            return
+
+        feature = selected_features[0]
+        geom = feature.geometry()
+        if geom.wkbType() not in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полілінією.")
+            return
+
+        # 2. Обробити геометрію та оновити XML
+        tree = self.current_xml.tree
+        processor = GeometryProcessor(tree)
+
+        try:
+            # Викликаємо новий метод для обробки суміжника
+            processor.process_adjacent_unit_geometry(geom)
+            log_msg(logFile, "Геометрію для нового суміжника оброблено та додано до XML.")
+        except Exception as e:
+            log_msg(logFile, f"Помилка при обробці геометрії суміжника: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати суміжника: {e}")
+            return
+
+        # 3. Оновити вигляд дерева та позначити зміни
+        self.current_xml.tree_view.rebuild_tree_view()
+        self.mark_as_changed()
+
+        # --- Початок змін: Створення або оновлення шару "Суміжники" ---
+        group = self.layers_root.findGroup(self.current_xml.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{self.current_xml.group_name}' не знайдена для додавання шару суміжників.")
+            return
+
+        layer_name = "Суміжники"
+        adjacents_layer = None
+        for child in group.children():
+            if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
+                adjacents_layer = child.layer()
+                break
+
+        # Якщо шар не знайдено, створюємо його
+        if adjacents_layer is None:
+            log_msg(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий.")
+            from .adjacents import AdjacentUnits
+            # Створюємо екземпляр класу для доступу до методу створення шару
+            adjacents_handler = AdjacentUnits(
+                root=self.current_xml.tree.getroot(),
+                crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+                group=group,
+                plugin_dir=self.plugin.plugin_dir,
+                xml_ua_layers_instance=self.layers_obj
+            )
+            adjacents_layer = adjacents_handler.add_adjacents_layer()
+            if not adjacents_layer:
+                log_msg(logFile, f"Не вдалося створити шар '{layer_name}'.")
+                return
+        else:
+            # Якщо шар існує, просто оновлюємо його, перемальовуючи
+            log_msg(logFile, f"Шар '{layer_name}' знайдено. Оновлюємо його.")
+            # Потрібно перемалювати шар, щоб відобразити нового суміжника
+            from .adjacents import AdjacentUnits
+            adjacents_handler = AdjacentUnits(
+                root=self.current_xml.tree.getroot(),
+                crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+                group=group,
+                plugin_dir=self.plugin.plugin_dir,
+                xml_ua_layers_instance=self.layers_obj
+            )
+            # Видаляємо старий шар і створюємо новий з оновленими даними
+            adjacents_handler.add_adjacents_layer()
+
+        # --- Кінець змін ---
+
+        self.iface.messageBar().pushMessage("Успіх", f"Суміжника додано до групи '{self.current_xml.group_name}'.", level=Qgis.Success, duration=5)
+        log_msg(logFile, f"Суміжника додано до XML для групи '{self.current_xml.group_name}'. Запускаємо перемалювання шарів.")
+        # --- Початок змін: Виклик повного перемалювання шарів ---
+        self.redraw_layers(self.current_xml)
+        # --- Кінець змін ---
+
+        # 4. Зберегти тимчасову копію для можливого відкату
+        if not hasattr(self.current_xml, 'temp_tree_state') or self.current_xml.temp_tree_state is None:
+            self.iface.messageBar().pushMessage(
+                "Інформація", "Нового суміжника було додано. Збережіть зміни, щоб оновити XML.",
+                level=Qgis.Info, duration=5
+            )
+            original_tree = etree.parse(self.current_xml.path)
+            self.current_xml.temp_tree_state = original_tree
+
+    def get_polyline_lengths(self, tree):
+        """
+        Повертає словник з довжинами поліліній.
+        Ключ - ULID, значення - довжина.
+        """
+        lengths = {}
+        for pl_element in tree.xpath(".//Polyline/PL"):
+            ulid = pl_element.find("ULID").text
+            length_element = pl_element.find("Length")
+            if ulid and length_element is not None and length_element.text:
+                try:
+                    lengths[ulid] = float(length_element.text)
+                except (ValueError, TypeError):
+                    pass
+        return lengths
+
+    def calculate_total_line_length(self, tree):
+        """Обчислює загальну довжину всіх ліній у XML-дереві."""
+        total_length = 0.0
+        for pl_element in tree.xpath(".//Polyline/PL"):
+            length_element = pl_element.find("Length")
+            if length_element is not None and length_element.text:
+                try:
+                    total_length += float(length_element.text)
+                except (ValueError, TypeError):
+                    pass
+        return total_length
+
+    def calculate_parcel_area(self, tree):
+        """Обчислює площу ділянки з XML-дерева."""
+        area_element = tree.find(".//ParcelMetricInfo/Area/Size")
+        if area_element is not None and area_element.text:
+            try:
+                return float(area_element.text)
+            except (ValueError, TypeError):
+                pass
+        return 0.0
+
+    def on_picket_layer_editing_stopped(self, layer):
+        """
+        Обробляє сигнал editingStopped для шару 'Вузли'.
+        Запитує користувача про збереження змін і виконує збереження/перемалювання.
+        """
+        # QMessageBox.information(
+        #     self.iface.mainWindow(),
+        #     "Сигнал: editingStopped",
+        #     f"Зупинено редагування шару: '{layer.name()}'"
+        # )
+        committed = not layer.isModified()
+        log_msg(logFile, f"editingStopped для шару '{layer.name()}', committed: {committed}")
+
+        xml_data = self.find_xml_data_for_layer(layer)
+        if not xml_data or not hasattr(xml_data, 'changed') or not xml_data.changed:
+            return
+
+        from .validators import compute_parcel_area
+
+        if committed:
+            # Отримуємо старі значення з тимчасового дерева
+            old_area = compute_parcel_area(xml_data.temp_tree_state)
+            old_lengths = self.get_polyline_lengths(xml_data.temp_tree_state)
+            
+            # Отримуємо нові значення з поточного дерева
+            new_area = compute_parcel_area(xml_data.tree)
+            new_lengths = self.get_polyline_lengths(xml_data.tree)
+
+            message_lines = []
+            message_lines.append(f"Геометрію пікетів для групи {xml_data.group_name} було змінено.\n")
+
+            # Порівняння площі
+            old_area_ha = old_area / 10000
+            new_area_ha = new_area / 10000
+            if round(old_area_ha, 4) == round(new_area_ha, 4):
+                message_lines.append("Площа ділянки не змінилася.")
+            else:
+                message_lines.append(f"Площа ділянки змінилася з {old_area_ha:.4f} на {new_area_ha:.4f} га.")
+
+            # Порівняння довжин поліліній
+            changed_polylines_messages = []
+            for ulid, old_len in old_lengths.items():
+                new_len = new_lengths.get(ulid)
+                if new_len is not None and round(old_len, 2) != round(new_len, 2):
+                    changed_polylines_messages.append(
+                        f"Довжина полілінії {ulid} змінилася з {old_len:.2f} на {new_len:.2f} м."
+                    )
+            
+            if changed_polylines_messages:
+                message_lines.append("\n" + "\n".join(changed_polylines_messages))
+
+            message_lines.append(f"\nЗберегти ці зміни у файл '{os.path.basename(xml_data.path)}' та оновити шари?")
+
+            full_message = "\n".join(message_lines)
+
+            reply = QMessageBox.question(self, "Збереження змін",
+                                         full_message,
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if reply == QMessageBox.Yes:
+                try:
+                    # Перераховуємо площу перед збереженням
+                    self.recalculate_parcel_area(xml_data.tree)
+                    xml_data.tree.write(xml_data.path, encoding="utf-8", xml_declaration=True)
+                    log_msg(logFile, f"Зміни геометрії збережено у файл: {xml_data.path}")
+                    QTimer.singleShot(0, lambda: self.redraw_layers(xml_data))
+                    self.iface.messageBar().pushMessage("Диск:", f"Зміни збережено та шари оновлено для {os.path.basename(xml_data.path)}", level=Qgis.Success, duration=5)
+                except Exception as e:
+                    log_msg(logFile, f"Помилка при збереженні файлу: {e}")
+                    self.iface.messageBar().pushMessage("Помилка", f"Не вдалося зберегти зміни: {e}", level=Qgis.Critical)
+        else: # Changes were discarded by user in QGIS
+            log_msg(logFile, f"Зміни для '{xml_data.group_name}' відкинуто користувачем. Відновлюємо попередній стан.")
+            if hasattr(xml_data, 'temp_tree_state') and xml_data.temp_tree_state is not None:
+                xml_data.tree = xml_data.temp_tree_state # Revert to the state before editing
+            QTimer.singleShot(0, lambda: self.redraw_layers(xml_data)) # Redraw layers to match the reverted state
+
+        # Reset the changed flag and temp state
+        xml_data.changed = False
+        xml_data.temp_tree_state = None
+
+    def find_xml_data_for_layer(self, layer):
+        """Знаходить об'єкт xml_data, до якого належить шар."""
+        group = self.find_parent_group(self.layers_root.findLayer(layer.id()))
+        if group:
+            return next((xml for xml in self.opened_xmls if xml.group_name == group.name()), None)
+        return None
+
+
+    def recalculate_parcel_area(self, tree):
+        """Перераховує та оновлює площу ділянки в XML-дереві."""
+        from .validators import compute_parcel_area
+        try:
+            area_m2 = compute_parcel_area(tree)
+            area_ha = area_m2 / 10000.0
+
+            area_element = tree.find(".//ParcelMetricInfo/Area/Size")
+            if area_element is not None:
+                area_element.text = f"{area_ha:.4f}"
+                log_msg(logFile, f"Оновлено площу ділянки в XML до {area_ha:.4f} га.")
+            else:
+                log_msg(logFile, "Елемент 'Size' для площі не знайдено в XML.")
+        except Exception as e:
+            log_msg(logFile, f"Помилка при перерахунку площі ділянки: {e}")
+
+
+    def recalculate_line_lengths(self, tree, changed_point_uidp):
+        """Перераховує довжини всіх ліній, які містять змінену точку."""
+        log_msg(logFile, f"Перерахунок довжин ліній для точки UIDP='{changed_point_uidp}'.")
+
+        # Знаходимо всі лінії, що містять точку
+        lines_to_update = tree.xpath(f".//Polyline/PL[Points/P='{changed_point_uidp}']")
+
+        for pl_element in lines_to_update:
+            point_refs = pl_element.findall("Points/P")
+            if len(point_refs) != 2:
+                continue
+
+            p1_uidp = point_refs[0].text
+            p2_uidp = point_refs[1].text
+
+            # Отримуємо координати точок з XML
+            p1_elem = tree.find(f".//PointInfo/Point[UIDP='{p1_uidp}']")
+            p2_elem = tree.find(f".//PointInfo/Point[UIDP='{p2_uidp}']")
+
+            if p1_elem is not None and p2_elem is not None:
+                try:
+                    # Пам'ятаємо, що в XML X та Y поміняні місцями відносно QGIS
+                    x1, y1 = float(p1_elem.find("Y").text), float(p1_elem.find("X").text)
+                    x2, y2 = float(p2_elem.find("Y").text), float(p2_elem.find("X").text)
+
+                    length = ((x2 - x1)**2 + (y2 - y1)**2)**0.5
+
+                    length_element = pl_element.find("Length")
+                    length_element.text = f"{length:.2f}"
+                    ulid = pl_element.find("ULID").text
+                    log_msg(logFile, f"Оновлено довжину для лінії ULID='{ulid}' до {length:.2f} м.")
+                except (ValueError, TypeError) as e:
+                    log_msg(logFile, f"Помилка при перерахунку довжини: {e}")
+
+
+    def redraw_layers(self, xml_data):
+        """Перемальовує шари для даного XML, зберігаючи існуючу групу."""
+        log_msg(logFile, f"Повне перемалювання шарів для групи '{xml_data.group_name}'.")
+
+        group = self.layers_root.findGroup(xml_data.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{xml_data.group_name}' не знайдена для перемалювання.")
+            return
+
+        # 1. Видаляємо всі дочірні вузли з групи
+        group.removeChildren(0, len(group.children()))
+        log_msg(logFile, f"Очищено групу '{xml_data.group_name}'.")
+
+        # 2. Знаходимо та видаляємо "осиротілі" шари з проекту
+        project = QgsProject.instance()
+        layer_ids_to_remove = []
+        for layer_id, layer in project.mapLayers().items():
+            # Якщо шар більше не існує в дереві шарів, він "осиротів"
+            if project.layerTreeRoot().findLayer(layer_id) is None:
+                layer_ids_to_remove.append(layer_id)
+
+        if layer_ids_to_remove:
+            project.removeMapLayers(layer_ids_to_remove)
+            log_msg(logFile, f"Видалено {len(layer_ids_to_remove)} осиротілих шарів з проекту.")
+
+        # 3. Створюємо новий екземпляр xmlUaLayers.
+        # Він знайде існуючу (тепер порожню) групу за іменем і заповнить її новими шарами.
+        self.layers_obj = xmlUaLayers(
+            xmlFilePath=xml_data.path, 
+            tree=xml_data.tree, 
+            plugin=self.plugin
+        )
+
+        log_msg(logFile, f"Шари для групи '{xml_data.group_name}' успішно перемальовано.")
+
+    def redraw_specific_layer(self, xml_data, layer_name):
+        """
+        Перемальовує конкретний шар у групі, не зачіпаючи інші.
+        """
+        log_msg(logFile, f"Перемалювання шару '{layer_name}' для групи '{xml_data.group_name}'.")
+
+        group = self.layers_root.findGroup(xml_data.group_name)
+        if not group:
+            log_msg(logFile, f"Група '{xml_data.group_name}' не знайдена.")
+            return
+
+        # Знаходимо існуючий шар
+        existing_layer = None
+        for child in group.children():
+            if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
+                existing_layer = child.layer()
+                break
+
+        if not existing_layer:
+            log_msg(logFile, f"Шар '{layer_name}' не знайдено в групі для перемалювання.")
+            return
+
+        # Очищуємо шар від усіх фіч
+        existing_layer.startEditing()
+        existing_layer.deleteFeatures(existing_layer.allFeatureIds())
+        existing_layer.commitChanges()
+
+        # --- Початок виправлення ---
+        # Примусово оновлюємо словники точок та ліній в об'єкті layers_obj
+        # перед тим, як використовувати їх для перемалювання.
+        self.layers_obj.points_handler.read_points()
+        self.layers_obj.lines_handler.read_lines()
+        # --- Кінець виправлення ---
+
+        # Створюємо тимчасовий об'єкт для заповнення шару
+        if layer_name == "Угіддя":
+            self._fill_lands_layer(existing_layer, xml_data)
+
+        log_msg(logFile, f"Шар '{layer_name}' успішно перемальовано.")
 
 
 
+    def _fill_lands_layer(self, layer, xml_data):
+        """
+        Заповнює існуючий шар 'Угіддя' даними з XML.
+        Використовується для оновлення шару без його повного видалення та створення.
+        """
+        provider = layer.dataProvider()
+        layer.startEditing()
 
+        # --- Початок змін: Виправлення AttributeError ---
+        # Створюємо тимчасовий об'єкт для доступу до методу _coord_to_polygon
+        from .lands import LandsParcels
+        lands_handler = LandsParcels(xml_data.tree.getroot(), self.iface.mapCanvas().mapSettings().destinationCrs().authid(), self.layers_obj.group, self.layers_obj.plugin_dir, self.layers_root, self.layers_obj.linesToCoordinates, self.layers_obj)
+        # --- Кінець змін ---
+
+        root = xml_data.tree.getroot()
+        lines_to_coords_func = self.layers_obj.linesToCoordinates
+
+        for lands_parcel in root.findall(".//LandsParcel/LandParcelInfo/MetricInfo"):
+            cadastral_code = lands_parcel.findtext("../CadastralCode")
+            land_code = lands_parcel.findtext("../LandCode")
+            size_element = lands_parcel.find("./Area/Size")
+            size = float(size_element.text) if size_element is not None and size_element.text else None
+
+            externals_lines = lands_parcel.find(".//Externals/Boundary/Lines")
+            external_coords = lines_to_coords_func(externals_lines) if externals_lines is not None else []
+
+            internals_lines = lands_parcel.find(".//Internals/Boundary/Lines")
+            internal_coords = lines_to_coords_func(internals_lines) if internals_lines is not None else []
+
+            polygon = lands_handler._coord_to_polygon(external_coords)
+            if internal_coords:
+                polygon.addInteriorRing(lands_handler._coord_to_polygon(internal_coords).exteriorRing())
+
+            feature = QgsFeature(layer.fields())
+            feature.setGeometry(QgsGeometry(polygon))
+            feature.setAttributes([cadastral_code, land_code, size])
+            provider.addFeature(feature)
+
+        layer.commitChanges()
+        log_msg(logFile, f"Шар '{layer.name()}' було оновлено даними з XML.")
     # def customize_layer_tree_context_menu(self, point):
     #     """
     #     Customizes the layerTreeView context menu, removing or disabling the "Rename Group" item.

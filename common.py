@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+# common.py
 import os
 import sys
 import inspect
 import configparser
+from datetime import datetime
 
 from qgis.core import QgsPointXY
 from qgis.core import QgsGeometry
@@ -20,7 +22,9 @@ from gc import get_referents
 from xmlschema import XMLSchema
 
 # region Спільні змінні
-logFile = open(os.path.dirname(__file__) + "/log.md", "w")
+logFile = open(os.path.dirname(__file__) + "/log.md", "w", encoding="utf-8")
+logFile.write(f"# Plugin reloaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+logFile.flush()
 ini_path = os.path.dirname(__file__) + "/templates/xml_ua.ini"
 docs_path = os.path.dirname(__file__) + "/templates/docs_list.ini"
 fields_path = os.path.dirname(__file__) + "/templates/field_dicts.ini"
@@ -84,7 +88,7 @@ class Connections(QObject):
 
         # Перевіряємо, чи з'єднання вже існує
         if self.connection_established(sender, signal_name, slot):
-            log_calls(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+            log_msg(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             QMessageBox.warning(None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             # Виходимо, якщо з'єднання вже є
             return  
@@ -100,9 +104,9 @@ class Connections(QObject):
 
             signal.connect(slot)
             self.connections.append((sender, signal_name, slot))
-            # log_calls(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+            # log_msg(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
         except AttributeError as e:
-            log_calls(logFile, f"Помилка встановлення з'єднання: {e}")
+            log_msg(logFile, f"Помилка встановлення з'єднання: {e}")
 
     def disconnect(self, sender, signal_name, slot):
         """
@@ -118,13 +122,13 @@ class Connections(QObject):
                 signal.disconnect(slot)
                 # Видаляємо з'єднання зі списку
                 self.connections.remove(connection_to_remove)
-                log_calls(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+                log_msg(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             except (TypeError, AttributeError) as e:
                 # Логуємо помилку, якщо від'єднання не вдалося
-                log_calls(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+                log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
         else:
             # Логуємо, якщо з'єднання не було знайдено в нашому списку
-            log_calls(logFile, f"З'єднання для від'єднання не знайдено: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+            log_msg(logFile, f"З'єднання для від'єднання не знайдено: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
 
 
 
@@ -136,11 +140,11 @@ class Connections(QObject):
             try:
                 signal = getattr(sender, signal_name)
                 signal.disconnect(slot)
-                log_calls(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+                log_msg(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             except TypeError as e:
-                log_calls(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+                log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
             except AttributeError as e:
-                log_calls(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+                log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
         self.connections.clear()
         self.connectionRemoved.emit()
         log_msg(logFile, "Всі з'єднання видалено.")
@@ -208,35 +212,6 @@ def log_msg(logFile, msg=""):
     logFile.flush()
 
 
-def get_call_stack(i: int):
-    """Отримує стек викликів у вигляді рядка у зворотному порядку."""
-    stack = inspect.stack()
-    result = ""
-    # Ітеруємо по стеку у зворотному порядку, пропускаючи перші два фрейми
-    i = 0
-    for frame_info in reversed(stack[2:]):
-        i += 1
-        frame = frame_info.frame
-        filename = os.path.basename(frame.f_code.co_filename)
-        lineno = frame.f_lineno
-        spaces = ' ' * (24 - len(filename))
-        func_name = frame.f_code.co_name
-        if filename != "<string>":
-            result += f"\n [{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
-        #result += f"[{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})\n"
-
-    return result
-
-
-def log_calls(logFile: str, msg: str = "") -> None:
-    """ Записує повідомлення в лог-файл з інформацією про стек викликів.
-    """
-    stack_info = get_call_stack(2)
-    #log_message = f"\n#### Стек викликів:{stack_info} {msg}"
-    log_message = f"{stack_info}→\n{msg} \n"
-    #log_message = f"\n## {stack_info}→\n{msg}"
-    logFile.write(log_message)
-    logFile.flush()
 # endregion
 
 def geometry_to_string(geometry):
@@ -581,3 +556,60 @@ area_determination_map = {
     # "Local" — обробляється окремо
 }
 # endregion
+
+def insert_element_in_order(parent_element, new_element):
+    """
+    Вставляє new_element в parent_element у правильному порядку,
+    визначеному схемою для ParcelInfo.
+    """
+    # Визначений порядок елементів у ParcelInfo
+    order = [
+        "ParcelLocationInfo", "CategoryPurposeInfo", "OwnershipInfo",
+        "ParcelMetricInfo", "Proprietors", "Leases", "Subleases", "Restrictions",
+        "LandsParcel", "AdjacentUnits", "TechnicalDocumentationInfo", "AdditionalInfoBlock"
+    ]
+
+    new_tag = new_element.tag
+    if new_tag not in order:
+        parent_element.append(new_element) # Додаємо в кінець, якщо тег невідомий
+        return
+
+    new_element_order_index = order.index(new_tag)
+
+    # Знаходимо позицію для вставки
+    insert_before_element = None
+    for child in parent_element:
+        if child.tag in order and order.index(child.tag) > new_element_order_index:
+            insert_before_element = child
+            break
+
+    if insert_before_element is not None:
+        insert_before_element.addprevious(new_element)
+    else:
+        parent_element.append(new_element)
+
+def insert_element_in_order(parent_element, new_element):
+    """
+    Вставляє new_element в parent_element у правильному порядку,
+    визначеному схемою.
+    """
+    # Порядок елементів для ParcelInfo
+    order_map = {
+        "ParcelInfo": [
+            "ParcelLocationInfo", "CategoryPurposeInfo", "OwnershipInfo",
+            "ParcelMetricInfo", "Proprietors", "Leases", "Subleases", "Restrictions",
+            "LandsParcel", "AdjacentUnits", "TechnicalDocumentationInfo", "AdditionalInfoBlock"
+        ]
+    }
+    order = order_map.get(parent_element.tag)
+
+    if not order or new_element.tag not in order:
+        parent_element.append(new_element)  # Додаємо в кінець, якщо порядок не визначено
+        return
+
+    new_element_order_index = order.index(new_element.tag)
+    for child in reversed(parent_element):
+        if child.tag in order and order.index(child.tag) <= new_element_order_index:
+            child.addnext(new_element)
+            return
+    parent_element.insert(0, new_element)
