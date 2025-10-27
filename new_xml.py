@@ -9,7 +9,7 @@ from datetime import datetime
 from lxml import etree
 
 from qgis.core import QgsWkbTypes, QgsProject, QgsFeature
-from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog
+from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 
 from .common import logFile, log_msg, size, geometry_to_string, xml_template
 
@@ -26,7 +26,7 @@ class NewXmlCreator:
     def execute(self, geometry=None, template_path=None):
         """Основний метод для запуску процесу створення файлу."""
         base_template = template_path or xml_template
-        log_msg(logFile, f"Запуск створення нового XML-файлу. Шаблон: {os.path.basename(base_template)}")
+        #log_msg(logFile, f"Запуск створення нового XML-файлу. Шаблон: {os.path.basename(base_template)}")
 
         if not self.plugin.dockwidget:
             self.plugin.show_dockwidget()
@@ -47,7 +47,7 @@ class NewXmlCreator:
         # Зберігаємо дерево з попередньою метрикою
         self.new_xml_path = self.save_tree_with_intro_metric(tree)
         if not self.new_xml_path:
-            log_msg(logFile, "Не збережено дерево з попередньою метрикою.")
+            #log_msg(logFile, "Не збережено дерево з попередньою метрикою.")
             return
 
         # # Додаємо повну метрику (угіддя, обмеження тощо)
@@ -60,7 +60,7 @@ class NewXmlCreator:
         """
         Перевіряє, чи вибрано один геометричний об'єкт типу полігон або мультиполігон.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         layers = [layer] if layer else QgsProject.instance().mapLayers().values()
         selected_features = []
         for layer in layers:
@@ -81,14 +81,14 @@ class NewXmlCreator:
             QMessageBox.warning(None, "Помилка", "Межі земельної ділянки повинні бути полігоном або мультиполігоном.")
             return None
 
-        log_msg(logFile, f"Вибраний об'єкт: {size(selected_feature)} B\n" + geometry_to_string(selected_feature.geometry()))
+        #log_msg(logFile, f"Вибраний об'єкт: {size(selected_feature)} B\n" + geometry_to_string(selected_feature.geometry()))
         return selected_feature
 
     def set_intro_metric(self, selected_feature, geometry, template_file):
         """
         Створює XML-дерево на основі шаблону, додаючи точки та лінії з вибраного об'єкта.
         """
-        log_msg(logFile, f"Отриманий об'єкт: {size(selected_feature)} B")
+        #log_msg(logFile, f"Отриманий об'єкт: {size(selected_feature)} B")
 
         geometry = selected_feature.geometry()
         geometry_type = geometry.wkbType()
@@ -127,7 +127,7 @@ class NewXmlCreator:
             if file_guid_element is not None:
                 file_guid_element.text = new_guid
             
-            log_msg(logFile, f"Встановлено дату: {current_date_str} та GUID: {new_guid}")
+            #log_msg(logFile, f"Встановлено дату: {current_date_str} та GUID: {new_guid}")
         except Exception as e:
             log_msg(logFile, f"Помилка при встановленні дати або GUID: {e}")
 
@@ -140,7 +140,7 @@ class NewXmlCreator:
             size_element = root.find(".//ParcelMetricInfo/Area/Size")
             if size_element is not None:
                 size_element.text = area_str
-                log_msg(logFile, f"Встановлено площу ділянки: {area_str} га.")
+                #log_msg(logFile, f"Встановлено площу ділянки: {area_str} га.")
             else:
                 log_msg(logFile, "Елемент '.../ParcelMetricInfo/Area/Size' не знайдено у шаблоні.")
         except Exception as e:
@@ -284,21 +284,21 @@ class NewXmlCreator:
 
         # --- Кінець змін ---
 
-        log_msg(logFile, f"tree: {size(tree)} B")
+        #log_msg(logFile, f"tree: {size(tree)} B")
         return tree
 
     def save_tree_with_intro_metric(self, tree):
         """Зберігає дерево з попередньою метрикою, запитуючи шлях у користувача."""
-        log_msg(logFile, f"tree before saving: {size(tree)} B")
+        #log_msg(logFile, f"tree before saving: {size(tree)} B")
 
         save_path, _ = QFileDialog.getSaveFileName(None, "Зберегти новий XML файл", "", "XML файли (*.xml)")
         if not save_path:
-            log_msg(logFile, "Шлях для збереження не вибрано.")
+            #log_msg(logFile, "Шлях для збереження не вибрано.")
             return None
 
         try:
             tree.write(save_path, encoding="utf-8", xml_declaration=True)
-            log_msg(logFile, f"Новий XML файл збережено за адресою: {save_path}")
+            #log_msg(logFile, f"Новий XML файл збережено за адресою: {save_path}")
             return save_path
         except Exception as e:
             QMessageBox.critical(None, "Помилка збереження", f"Не вдалося зберегти файл: {e}")
@@ -306,22 +306,22 @@ class NewXmlCreator:
 
     def set_tree_full_metric(self, tree):
         """Додає до дерева повну метрику (угіддя, обмеження тощо)."""
-        log_msg(logFile, f"tree: {size(tree)} B")
+        #log_msg(logFile, f"tree: {size(tree)} B")
         self.add_land_parcels(tree)
         return tree
 
     def add_land_parcels(self, tree):
         """Додає до дерева угіддя."""
-        log_msg(logFile, f"tree: {size(tree)} B")
+        #log_msg(logFile, f"tree: {size(tree)} B")
 
         source_element = tree.find(".//ParcelMetricInfo/Externals")
         if source_element is None:
-            log_msg(logFile, "Не знайдено елемент ParcelMetricInfo/Externals.")
+            #log_msg(logFile, "Не знайдено елемент ParcelMetricInfo/Externals.")
             return tree
 
         parent_element = tree.find(".//ParcelInfo")
         if parent_element is None:
-            log_msg(logFile, "Не знайдено батьківський елемент для LandsParcel.")
+            #log_msg(logFile, "Не знайдено батьківський елемент для LandsParcel.")
             return tree
 
         lands_parcel_element = etree.SubElement(parent_element, "LandsParcel")
@@ -332,7 +332,7 @@ class NewXmlCreator:
         for child in source_element:
             externals_element.append(copy.deepcopy(child))
 
-        log_msg(logFile, f"tree: {size(tree)} B")
+        #log_msg(logFile, f"tree: {size(tree)} B")
         return tree
 
     # Наступні методи є заглушками і потребують реалізації
@@ -340,7 +340,7 @@ class NewXmlCreator:
         """
         Gets the parcel polygon from the selected feature.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         
         selected_feature = self.get_selection()
         if not selected_feature:
@@ -376,11 +376,11 @@ class NewXmlCreator:
         """
         Adds a land use polygon to the XML tree.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         # TODO: Implement the logic to add the land use polygon to the XML.
         parcel_info_element = tree.find(".//CadastralQuarterInfo/Parcels/ParcelInfo")
         if parcel_info_element is None:
-            log_msg(logFile, "Не знайдено елемент ParcelInfo.")
+            #log_msg(logFile, "Не знайдено елемент ParcelInfo.")
             QMessageBox.warning(None, "Помилка", "Не знайдено елемент ParcelInfo.")
             return
 
@@ -399,7 +399,7 @@ class NewXmlCreator:
             ".//CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Externals"
         )
         if source_element is None:
-            log_msg(logFile, "Не знайдено елемент ParcelMetricInfo/Externals.")
+            #log_msg(logFile, "Не знайдено елемент ParcelMetricInfo/Externals.")
             QMessageBox.warning(None, "Помилка", "Не знайдено елемент ParcelMetricInfo/Externals.")
             return tree
 
@@ -407,7 +407,7 @@ class NewXmlCreator:
             ".//CadastralQuarterInfo/Parcels/ParcelInfo"
         )
         if parent_element is None:
-            log_msg(logFile, "Не знайдено батьківський елемент для LandsParcel.")
+            #log_msg(logFile, "Не знайдено батьківський елемент для LandsParcel.")
             QMessageBox.warning(None, "Помилка", "Не знайдено батьківський елемент для LandsParcel.")
             return tree
 
@@ -419,6 +419,6 @@ class NewXmlCreator:
         for child in source_element:
             externals_element.append(copy.deepcopy(child))
 
-        log_msg(logFile, f"tree: {size(tree)} B")
+        #log_msg(logFile, f"tree: {size(tree)} B")
 
         return tree

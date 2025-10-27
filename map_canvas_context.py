@@ -18,9 +18,27 @@ class MapCanvasContextMenu:
 
     def _trigger_plugin_action(self, action_key, template_path=None):
         """
-        Викликає дію у плагіні:
+        Централізовано обробляє та викликає дії плагіна з контекстного меню.
+
+        Цей метод працює як диспетчер, який отримує ключ дії (`action_key`)
+        та, залежно від його значення, викликає відповідний метод у головному
+        класі плагіна, док-віджеті або інших спеціалізованих класах.
+
+        Args:
+            action_key (str): Рядковий ідентифікатор дії, що має бути виконана.
+                Можливі значення:
+                - "new_from_selection": Створити новий XML-файл з виділеного полігону.
+                - "add_lands_to_active": Додати угіддя до активного XML.
+                - "adjacent": Додати суміжника до активного XML.
+                - "lease": Додати оренду до активного XML.
+                - "sublease": Додати суборенду до активного XML.
+                - "restriction": Додати обмеження до активного XML.
+            template_path (str, optional): Шлях до файлу шаблону. Використовується
+                тільки разом з `action_key="new_from_selection"` для створення
+                XML на основі конкретного шаблону. За замовчуванням `None`.
         """
         from .new_xml import NewXmlCreator
+        #log_msg(logFile, f"Подія: {action_key}")
         
         if action_key == "add_lands_to_active":
             if self.plugin.dockwidget:
@@ -37,9 +55,8 @@ class MapCanvasContextMenu:
         elif action_key == "new_from_selection":
             creator = NewXmlCreator(self.iface, self.plugin)
             creator.execute(template_path=template_path)
-            return # Виходимо після виконання основної дії
+            return
 
-        # --- Початок змін: Виклик методів з dockwidget ---
         method_map = {"lease": "add_lease", "sublease": "add_sublease", "restriction": "add_restriction"}
         method_name = method_map.get(action_key)
         if self.plugin.dockwidget and method_name and hasattr(self.plugin.dockwidget, method_name):
@@ -65,61 +82,91 @@ class MapCanvasContextMenu:
         geom_type = feature.geometry().wkbType()
         return geom_type in (QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon)
 
-    def on_context_menu(self, menu, event):
-        """Показати розширене меню при правому кліку на полотні карти."""
-
-        # Додаємо пункт для створення нового XML, якщо вибрано один полігон
+    def _add_creation_menu(self, menu):
+        """Додає до меню пункти для створення нового XML з виділеного полігону."""
         if self._is_single_polygon_selected():
             menu.addSeparator()
             action_new_from_selection = menu.addAction("Створити XML з полігона")
             action_new_from_selection.triggered.connect(lambda: self._trigger_plugin_action("new_from_selection"))
 
-            # --- Динамічне додавання шаблонів ---
             templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
             if os.path.exists(templates_dir):
                 template_files = [f for f in os.listdir(templates_dir) if f.endswith('.xml') and f != 'template.xml']
                 if template_files:
                     templates_menu = menu.addMenu("Створити XML з шаблону")
-                    
                     for template_file in sorted(template_files):
                         template_name = os.path.splitext(template_file)[0]
                         template_path = os.path.join(templates_dir, template_file)
-                        
                         action = QAction(f"Створити з '{template_name}'", menu)
                         action.triggered.connect(lambda _, t_path=template_path: self._trigger_plugin_action("new_from_selection", template_path=t_path))
                         templates_menu.addAction(action)
 
-        # Додаємо наше меню, тільки якщо є активний XML
+    def _add_geometry_components_menu(self, menu):
+        """Додає до меню пункти для додавання геометричних складових до активного XML."""
         if self.plugin.dockwidget and self.plugin.dockwidget.current_xml:
-            # Формуємо назву меню з іменем активної групи
             group_name = self.plugin.dockwidget.current_xml.group_name
             menu_text = f"Додати геометричні складові до «{group_name}»"
             menu.addSeparator()
             xml_ua_menu = menu.addMenu(menu_text)
 
-            a_land = QAction("Додати угіддя", self.canvas)
-            a_lease = QAction("Додати оренду", self.canvas)
-            a_sublease = QAction("Додати суборенду", self.canvas)
-            a_restr = QAction("Додати обмеження", self.canvas)
-            a_adj = QAction("Додати суміжника", self.canvas)
+            # --- Початок змін: Рефакторинг з використанням структури даних ---
+            # Виносимо конфігурацію дій в окрему структуру для гнучкості та читабельності.
+            actions_config = [
+                {"label": "Додати угіддя", "key": "add_lands_to_active", "separator_before": False},
+                {"label": "Додати оренду", "key": "lease", "separator_before": True},
+                {"label": "Додати суборенду", "key": "sublease", "separator_before": False},
+                {"label": "Додати обмеження", "key": "restriction", "separator_before": True},
+                {"label": "Додати суміжника", "key": "adjacent", "separator_before": False},
+            ]
 
-            a_land.triggered.connect(lambda: self._trigger_plugin_action("add_lands_to_active"))
-            a_lease.triggered.connect(lambda: self._trigger_plugin_action("lease"))
-            a_sublease.triggered.connect(lambda: self._trigger_plugin_action("sublease"))
-            a_restr.triggered.connect(lambda: self._trigger_plugin_action("restriction"))
-            a_adj.triggered.connect(lambda: self._trigger_plugin_action("adjacent"))
+            for config in actions_config:
+                if config["separator_before"]:
+                    xml_ua_menu.addSeparator()
+                action = QAction(config["label"], self.canvas)
+                action.triggered.connect(lambda _, key=config["key"]: self._trigger_plugin_action(key))
+                xml_ua_menu.addAction(action)
+            # --- Кінець змін ---
 
-            xml_ua_menu.addAction(a_land)
-            xml_ua_menu.addSeparator()
-            xml_ua_menu.addAction(a_lease)
-            xml_ua_menu.addAction(a_sublease)
-            xml_ua_menu.addSeparator()
-            xml_ua_menu.addAction(a_restr)
-            xml_ua_menu.addAction(a_adj)
+    def on_context_menu(self, menu, event):
+        """
+        Формує та відображає кастомне контекстне меню на полотні карти.
+
+        Цей метод викликається щоразу при кліку правою кнопкою миші на карті.
+        Він динамічно додає до стандартного меню QGIS додаткові пункти,
+        специфічні для плагіна `xml_ua`.
+
+        Args:
+            menu (QMenu): Існуюче контекстне меню, до якого додаються нові дії.
+            event (QgsMapMouseEvent): Подія миші, що містить інформацію про клік.
+        """
+        # Додаємо меню для створення нового XML-файлу
+        self._add_creation_menu(menu)
+
+        # Додаємо меню для роботи з активним XML-файлом
+        self._add_geometry_components_menu(menu)
 
 def setup_map_canvas_context(iface, plugin):
     """
-    Налаштовує контекстне меню для полотна карти.
+    Налаштовує та інтегрує кастомне контекстне меню в полотно карти QGIS.
+
+    Ця функція створює обробник контекстного меню (`MapCanvasContextMenu`) та
+    підключає його до сигналу `contextMenuAboutToShow` полотна карти. В результаті,
+    при кожному кліку правою кнопкою миші на карті, буде викликатися метод
+    `on_context_menu`, який динамічно формує та відображає меню плагіна.
+
+    Args:
+        iface (QgisInterface): Екземпляр інтерфейсу QGIS, що надає доступ до
+                               головних компонентів, зокрема до полотна карти.
+        plugin (xml_ua): Екземпляр головного класу плагіна. Потрібен для того,
+                         щоб дії з меню могли викликати відповідні методи
+                         плагіна (наприклад, додавання суміжника або створення
+                         нового XML).
+
+    Returns:
+        method or None: Повертає посилання на метод `on_context_menu` створеного
+                        обробника, яке необхідне для подальшого коректного
+                        від'єднання сигналу при вивантаженні плагіна.
+                        Повертає `None`, якщо полотно карти недоступне.
     """
     canvas = iface.mapCanvas()
     if not canvas:

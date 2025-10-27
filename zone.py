@@ -22,7 +22,7 @@ from .common import log_msg
 class CadastralZoneInfo:
     """Клас для обробки кадастрової зони з XML-файлу."""
 
-    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func):
+    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
         """
         Ініціалізація об'єкта для роботи з кадастровою зоною.
 
@@ -38,6 +38,8 @@ class CadastralZoneInfo:
         self.group = group
         self.plugin_dir = plugin_dir
         self.lines_to_coords = lines_to_coords_func
+        self.xml_ua_layers = xml_ua_layers_instance
+        self.xml_data = xml_data
 
     def _coord_to_polygon(self, coordinates):
         """Формує полігон із заданого списку координат."""
@@ -52,17 +54,21 @@ class CadastralZoneInfo:
 
     def add_zone_layer(self):
         """Створює та заповнює шар 'Кадастрова зона'."""
-        layer_name = "Кадастрова зона"
-        layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        self.layer_name = "Кадастрова зона"
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", self.layer_name, "memory")
+        # --- Початок змін: Встановлення прапорця тимчасового шару ---
+        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
+        self.layer.setCustomProperty("skip_save_dialog", True)
+        # --- Кінець змін ---
 
-        if not layer.isValid():
+        if not self.layer.isValid():
             QMessageBox.critical(None, "xml_ua", "Виникла помилка при створенні шару зон.")
             return None
 
-        layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "zone.qml"))
-        provider = layer.dataProvider()
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "zone.qml"))
+        provider = self.layer.dataProvider()
         provider.addAttributes([QgsField("CadastralZoneNumber", QVariant.String)])
-        layer.updateFields()
+        self.layer.updateFields()
 
         zone_number = self.root.findtext(".//CadastralZoneInfo/CadastralZoneNumber")
 
@@ -70,7 +76,7 @@ class CadastralZoneInfo:
             # Використовуємо геометрію з ParcelMetricInfo, оскільки вона тотожна
             parcel_metric_info = self.root.find(".//ParcelMetricInfo")
             if parcel_metric_info is None:
-                log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Не знайдено ParcelMetricInfo для створення геометрії зони '{zone_number}'.")
+                #log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Не знайдено ParcelMetricInfo для створення геометрії зони '{zone_number}'.")
                 external_coords = []
                 internal_coords = []
             else:
@@ -104,22 +110,29 @@ class CadastralZoneInfo:
                     zone_externals.append(etree.fromstring(etree.tostring(parcel_externals.find("Boundary"))))
                 # --- Кінець змін ---
 
-            # log_msg(logFile, f"Створення полігону для зони '{zone_number}'. Зовнішніх контурів: {len(external_coords)}, Внутрішніх: {len(internal_coords)}")
+            # #log_msg(logFile, f"Створення полігону для зони '{zone_number}'. Зовнішніх контурів: {len(external_coords)}, Внутрішніх: {len(internal_coords)}")
             polygon = self._coord_to_polygon(external_coords)
             if internal_coords:
                 # Створюємо внутрішнє кільце як QgsLineString
-                log_msg(logFile, "Додавання внутрішнього кільця до зони.")
+                #log_msg(logFile, "Додавання внутрішнього кільця до зони.")
                 interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
                 # Додаємо його до геометрії полігону
                 if not polygon.isEmpty():
                     polygon.addInteriorRing(interior_ring)
 
-            feature = QgsFeature(layer.fields())
-            # log_msg(logFile, f"Геометрія зони перед додаванням: {polygon.asWkt()}")
+            feature = QgsFeature(self.layer.fields())
+            # #log_msg(logFile, f"Геометрія зони перед додаванням: {polygon.asWkt()}")
             feature.setGeometry(QgsGeometry(polygon))
             feature.setAttributes([zone_number])
             provider.addFeature(feature)
 
-        QgsProject.instance().addMapLayer(layer, False)
-        self.group.addLayer(layer)
-        return layer
+        QgsProject.instance().addMapLayer(self.layer, False)
+        layer_node = self.group.addLayer(self.layer)
+        if hasattr(self, 'xml_ua_layers'):
+            self.xml_ua_layers.last_to_first(self.group)
+
+        if self.xml_data:
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
+            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+
+        return self.layer

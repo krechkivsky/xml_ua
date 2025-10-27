@@ -171,7 +171,7 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
         if section_name in config_docs:
             new_doc_codes = list(config_docs[section_name].keys())
         else:
-            log_msg(logFile, f"Секція [{section_name}] не знайдена у docs_list.ini")
+            #log_msg(logFile, f"Секція [{section_name}] не знайдена у docs_list.ini")
             return
 
         # 3. Знаходимо батьківський елемент TechnicalDocumentationInfo
@@ -484,7 +484,7 @@ class DocumentCodeDelegate(QStyledItemDelegate):
         if 'DocsList' in config_docs:
             return dict(config_docs['DocsList'])
         else:
-            log_msg(logFile, "Секція [DocsList] не знайдена у config_docs.")
+            #log_msg(logFile, "Секція [DocsList] не знайдена у config_docs.")
             return {}
 
     def createEditor(self, parent, option, index):

@@ -49,7 +49,7 @@ def compute_parcel_area(tree):
         float: Обчислена площа в квадратних метрах, або 0.0 у разі помилки.
     """
     if tree is None:
-        log_msg(logFile, "Помилка: дерево XML не передано для обчислення площі.")
+        #log_msg(logFile, "Помилка: дерево XML не передано для обчислення площі.")
         return 0.0
 
     try:
@@ -59,5 +59,5 @@ def compute_parcel_area(tree):
         return 0.0 # Повертаємо заглушку
 
     except Exception as e:
-        log_msg(logFile, f"Помилка під час обчислення площі з геометрії: {e}")
+        #log_msg(logFile, f"Помилка під час обчислення площі з геометрії: {e}")
         return 0.0

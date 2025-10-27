@@ -23,7 +23,7 @@ from .common import log_msg
 class CadastralQuarters:
     """Клас для обробки кадастрових кварталів з XML-файлу."""
 
-    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func):
+    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
         """
         Ініціалізація об'єкта для роботи з кадастровими кварталами.
 
@@ -39,6 +39,8 @@ class CadastralQuarters:
         self.group = group
         self.plugin_dir = plugin_dir
         self.lines_to_coords = lines_to_coords_func
+        self.xml_ua_layers = xml_ua_layers_instance
+        self.xml_data = xml_data
 
     def _get_full_name(self, person_element):
         """Формує повне ім'я особи з XML-елемента."""
@@ -61,21 +63,25 @@ class CadastralQuarters:
 
     def add_quarter_layer(self):
         """Створює та заповнює шар 'Кадастровий квартал'."""
-        layer_name = "Кадастровий квартал"
-        layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        self.layer_name = "Кадастровий квартал"
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", self.layer_name, "memory")
+        # --- Початок змін: Встановлення прапорця тимчасового шару ---
+        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
+        self.layer.setCustomProperty("skip_save_dialog", True)
+        # --- Кінець змін ---
 
-        if not layer.isValid():
+        if not self.layer.isValid():
             QMessageBox.critical(None, "xml_ua", "Виникла помилка при створенні шару кварталів.")
             return None
 
-        layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "quarter.qml"))
-        provider = layer.dataProvider()
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "quarter.qml"))
+        provider = self.layer.dataProvider()
         provider.addAttributes([
             QgsField("CadastralQuarterNumber", QVariant.String),
             QgsField("LocalAuthorityHead", QVariant.String),
             QgsField("DKZRHead", QVariant.String)
         ])
-        layer.updateFields()
+        self.layer.updateFields()
 
         for quarter_element in self.root.findall(".//CadastralQuarterInfo"):
             quarter_number = quarter_element.findtext("CadastralQuarterNumber")
@@ -85,7 +91,7 @@ class CadastralQuarters:
             # Використовуємо геометрію з ParcelMetricInfo, оскільки вона тотожна
             parcel_metric_info = self.root.find(".//ParcelMetricInfo")
             if parcel_metric_info is None:
-                log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Не знайдено ParcelMetricInfo для створення геометрії кварталу '{quarter_number}'.")
+                #log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Не знайдено ParcelMetricInfo для створення геометрії кварталу '{quarter_number}'.")
                 external_coords = []
                 internal_coords = []
             else:
@@ -123,11 +129,18 @@ class CadastralQuarters:
             if internal_coords:
                 polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
 
-            feature = QgsFeature(layer.fields())
+            feature = QgsFeature(self.layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
             feature.setAttributes([quarter_number, auth_head_full_name, dkzr_head_full_name])
             provider.addFeature(feature)
 
-        QgsProject.instance().addMapLayer(layer, False)
-        self.group.addLayer(layer)
-        return layer
+        QgsProject.instance().addMapLayer(self.layer, False)
+        layer_node = self.group.addLayer(self.layer)
+        if hasattr(self, 'xml_ua_layers'):
+            self.xml_ua_layers.last_to_first(self.group)
+
+        if self.xml_data:
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
+            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+
+        return self.layer

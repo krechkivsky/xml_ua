@@ -22,7 +22,7 @@ from .common import logFile
 class LandsParcels:
     """Клас для обробки угідь з XML-файлу."""
 
-    def __init__(self, root, crs_epsg, group, plugin_dir, layers_root, lines_to_coords_func, xml_ua_layers_instance):
+    def __init__(self, root, crs_epsg, group, plugin_dir, layers_root, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
         """
         Ініціалізація об'єкта для роботи з угіддями.
 
@@ -42,6 +42,7 @@ class LandsParcels:
         self.layers_root = layers_root
         self.lines_to_coords = lines_to_coords_func
         self.xml_ua_layers = xml_ua_layers_instance
+        self.xml_data = xml_data
 
     def _coord_to_polygon(self, coordinates):
         """Формує полігон із заданого списку координат."""
@@ -55,9 +56,13 @@ class LandsParcels:
     def add_lands_layer(self):
         """Створює та заповнює шар 'Угіддя'."""
         layer_name = "Угіддя"
-        layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
-        layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "lands_parcel.qml"))
-        provider = layer.dataProvider()
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        # --- Початок змін: Встановлення прапорця тимчасового шару ---
+        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
+        self.layer.setCustomProperty("skip_save_dialog", True)
+        # --- Кінець змін ---
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "lands_parcel.qml"))
+        provider = self.layer.dataProvider()
 
         fields = [
             QgsField("CadastralCode", QVariant.String),
@@ -65,7 +70,7 @@ class LandsParcels:
             QgsField("Size", QVariant.Double),
         ]
         provider.addAttributes(fields)
-        layer.updateFields()
+        self.layer.updateFields()
 
         # --- Зміни: Знаходимо або створюємо LandsParcel у правильному місці ---
         parcel_info = self.root.find(".//ParcelInfo")
@@ -82,7 +87,7 @@ class LandsParcels:
 
             externals_element = lands_parcel.find(".//Externals")
             if externals_element is None:
-                log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Для угіддя '{land_code}' відсутній обов'язковий розділ 'Externals'. Створено порожній об'єкт.")
+                #log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Для угіддя '{land_code}' відсутній обов'язковий розділ 'Externals'. Створено порожній об'єкт.")
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
@@ -91,21 +96,25 @@ class LandsParcels:
             internals_lines = lands_parcel.find(".//Internals/Boundary/Lines")
             internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
 
-            #`log_msg(logFile, f"Створення полігону для угіддя '{land_code}'. Зовнішніх контурів: {len(external_coords)}, Внутрішніх: {len(internal_coords)}")
+            #`#log_msg(logFile, f"Створення полігону для угіддя '{land_code}'. Зовнішніх контурів: {len(external_coords)}, Внутрішніх: {len(internal_coords)}")
             polygon = self._coord_to_polygon(external_coords)
             if internal_coords:
-                log_msg(logFile, "Додавання внутрішнього кільця до угіддя.")
+                #log_msg(logFile, "Додавання внутрішнього кільця до угіддя.")
                 polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
 
-            feature = QgsFeature(layer.fields())
-            # log_msg(logFile, f"Геометрія угіддя перед додаванням: {polygon.asWkt()}")
+            feature = QgsFeature(self.layer.fields())
+            # #log_msg(logFile, f"Геометрія угіддя перед додаванням: {polygon.asWkt()}")
             feature.setGeometry(QgsGeometry(polygon))
             feature.setAttributes([cadastral_code, land_code, size])
             provider.addFeature(feature)
 
-        QgsProject.instance().addMapLayer(layer, False)
-        layer_node = self.group.addLayer(layer)
+        QgsProject.instance().addMapLayer(self.layer, False)
+        layer_node = self.group.addLayer(self.layer)
         self.xml_ua_layers.added_layers.append(layer_node)
         self.xml_ua_layers.last_to_first(self.group)
 
-        return layer
+        if self.xml_data:
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
+            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+
+        return self.layer

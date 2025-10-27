@@ -39,6 +39,7 @@ from .common import category_map
 from .common import purpose_map
 from .common import code_map
 from .common import parcel_field2path_dict
+from .topology import GeometryProcessor
 from .common import area_determination_map
 from .points import Points
 from .lines import PLs
@@ -69,7 +70,8 @@ class xmlUaLayers:
     def __init__(self, 
                 xmlFilePath = "", 
                 tree = None, 
-                plugin=None):
+                plugin=None,
+                xml_data=None):
 
         # xmlFilePath - для формування назви групи шарів
         # tree        - розпарсене дерево xml
@@ -78,6 +80,7 @@ class xmlUaLayers:
         # __init__  виклик конструктора з dockwidget.py:process_action_open
         # обох викликах tree розпарсений
         
+        self.xml_data = xml_data # Store the xml_data object
         self.cleanup()
 
         self.plugin = plugin  
@@ -118,7 +121,7 @@ class xmlUaLayers:
         if existing_group:
             self.group_name = self.fileNameNoExt
             self.group = existing_group
-            log_msg(logFile, f"Використовується існуюча група: '{self.group_name}'")
+            #log_msg(logFile, f"Використовується існуюча група: '{self.group_name}'")
         else:
             # генеруємо унікальне ім'я групи шарів, в яку будуть поміщені шари xml
             self.group_name = self.generate_group_name(self.fileNameNoExt)
@@ -138,61 +141,86 @@ class xmlUaLayers:
         self.crsEpsg = self.crs.authid()
         self.added_layers = []
         
+        # Set custom property on the group itself
+        if self.group:
+            self.group.setCustomProperty("xml_data_group_name", self.group_name)
+            if self.xml_data:
+                self.group.setCustomProperty("xml_data_object_id", id(self.xml_data))
+                # #log_msg(logFile, f"Встановлено custom property на групу '{self.group_name}' з ID xml_data: {id(self.xml_data)}")
+
         self.points_handler = Points(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root)
         self.points_handler.read_points()
 
         self.lines_handler = PLs(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.points_handler.qgisPoints)
         self.lines_handler.read_lines()
         self.qgisLines = self.lines_handler.qgis_lines # Keep for other methods
-        # log_msg(logFile, "Створення шару 'Кадастровий квартал'...")
 
-        quarter_handler = CadastralQuarters(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates)
-        quarter_handler.add_quarter_layer()
-        # log_msg(logFile, "Створення шару 'Кадастрова зона'...")
-
-        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates)
+        # --- Початок змін: Ініціалізація змінних для уникнення UnboundLocalError ---
+        lands_handler = None
+        leases_handler = None
+        subleases_handler = None
+        restrictions_handler = None
+        quarter_handler = None
+        zone_handler = None
+        parcel_handler = None
+        self.adjacents_handler = None
+        # --- Кінець змін ---
+ 
+        # --- Початок змін: Створення шарів у правильному порядку (зверху вниз) ---
+        # Кожен новий шар додається на позицію 0 (наверх групи).
+        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Кадастрова зона
         zone_handler.add_zone_layer()
-        # log_msg(logFile, "Створення шару 'Ділянка'...")
 
-        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self)
+        quarter_handler = CadastralQuarters(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data)
+        quarter_handler.add_quarter_layer()
+
+        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
         parcel_handler.add_parcel_layer()
 
+        lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data) # Угіддя
         if self.root.find(".//LandsParcel") is not None:
-            # log_msg(logFile, "Створення шару 'Угіддя'...")
-            lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self)
             lands_handler.add_lands_layer()
 
+        leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Оренда
         if self.root.find(".//Leases") is not None:
-            # log_msg(logFile, "Створення шару 'Оренда'...")
-            leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self)
             leases_handler.add_leases_layer()
 
+        subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Суборенда
         if self.root.find(".//Subleases") is not None:
-            # log_msg(logFile, "Створення шару 'Суборенда'...")
-            subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self)
             subleases_handler.add_subleases_layer()
 
+        restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Обмеження
         if self.root.find(".//Restrictions") is not None:
-            # log_msg(logFile, "Створення шару 'Обмеження'...")
-            restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self)
             restrictions_handler.add_restrictions_layer()
 
+        self.adjacents_handler = AdjacentUnits(self.root, self.crsEpsg, self.group, self.plugin_dir, self, xml_data=self.xml_data) # Суміжники
         if self.root.find(".//AdjacentUnits") is not None:
-            # log_msg(logFile, "Створення шару 'Суміжники'...")
-            adjacents_handler = AdjacentUnits(self.root, self.crsEpsg, self.group, self.plugin_dir, self)
-            adjacents_handler.add_adjacents_layer()
+            self.adjacents_handler.add_adjacents_layer()
 
-        # Додаємо шари Вузли та Полілінії в кінці, щоб Вузли був знизу
-        # log_msg(logFile, "Створення шару 'Полілінії'...")
-        self.lines_handler.add_lines_layer()
-        # log_msg(logFile, "Створення шару 'Вузли'...")
-        self.points_handler.add_pickets_layer()
+        # --- Початок змін: Виправлення порядку шарів "Вузли" та "Полілінії" ---
+        self.lines_handler.add_lines_layer() # Полілінії
+        self.points_handler.add_pickets_layer() # Вузли
+        # --- Кінець змін ---
+
+        # --- Початок змін: Формування списку з перевіркою на None ---
+        all_handlers = [
+            self.points_handler, self.lines_handler, quarter_handler, zone_handler,
+            parcel_handler, lands_handler, leases_handler, subleases_handler,
+            restrictions_handler, self.adjacents_handler
+        ]
+        # Set custom property on each layer created by handlers
+        # --- Кінець змін ---
+        for layer_obj in all_handlers:
+            if layer_obj and hasattr(layer_obj, 'layer') and layer_obj.layer and self.xml_data: # Assuming each handler has a 'layer' attribute
+                layer_obj.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
+                # #log_msg(logFile, f"Встановлено custom property на шар '{layer_obj.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+        # --- Кінець змін ---
 
     def check_construction_status(self):
         """
         Перевіряє, чи XML-файл "у розробці", перевіряючи наявність ключових елементів.
         """
-        log_msg(logFile)
+        # #log_msg(logFile)
         paths_to_check = [
             "./AdditionalPart/ServiceInfo",
             "./AdditionalPart/InfoLandWork",
@@ -206,10 +234,10 @@ class xmlUaLayers:
 
         for path in paths_to_check:
             if self.root.find(path) is None:
-                log_msg(logFile, f"Елемент не знайдено: {path}. Файл у розробці.")
+                #log_msg(logFile, f"Елемент не знайдено: {path}. Файл у розробці.")
                 return True
 
-        # log_msg(logFile, "Всі необхідні елементи знайдено. Файл не в розробці.")
+        # #log_msg(logFile, "Всі необхідні елементи знайдено. Файл не в розробці.")
         return False
     def generate_group_name(self, base_name):
 
@@ -230,7 +258,7 @@ class xmlUaLayers:
             suffix += 1
 
         group_name = f"{base_name}#{suffix}"
-        log_msg(logFile, f"group_name = {group_name}")
+        #log_msg(logFile, f"group_name = {group_name}")
         return group_name
 
     def cleanup(self):
@@ -306,7 +334,7 @@ class xmlUaLayers:
 
         logstr = ''
         i = 0
-        for line in lines_element.findall(".//Line"):
+        for line in lines_element.findall(".//PL"):
             i += 1
             ulid = line.find("ULID").text
             # logstr += '\n\t' + ulid + '. '+ str(line)
@@ -353,7 +381,7 @@ class xmlUaLayers:
 
     def get_full_name(self, person_element):
 
-        # log_msg(logFile)
+        # #log_msg(logFile)
 
         if person_element is None:
             return ""  # Якщо елемент не знайдено, повертаємо порожній рядок
@@ -373,7 +401,7 @@ class xmlUaLayers:
         # викликається при зміні як атрибутів, так і геометрії об'єкта
         # означає що редагування зупинено і зміни у дереві xml
         # треба зберегти у файл xml
-        log_msg(logFile, f"Зміни збережено у файлі {self.xmlFilePath}.")
+        #log_msg(logFile, f"Зміни збережено у файлі {self.xmlFilePath}.")
         self.layer_modified = True
         self.tree.write(self.xmlFilePath, encoding="utf-8", xml_declaration=True) # type: ignore
         self.show_message("on_editing_stopped", f"Зміни збережено у файлі {self.xmlFilePath}.")
@@ -382,7 +410,7 @@ class xmlUaLayers:
     def handle_parcel_attribute_change(self, layer, fid, field_index, new_value):
 
         field_name = layer.fields()[field_index].name()
-        log_msg(logFile, f"Зміна значення поля №{field_name} на {new_value}")
+        #log_msg(logFile, f"Зміна значення поля №{field_name} на {new_value}")
     
         # блокувати треба щоб, не було повторного виклику форм вводу
         # при відміні користувачем зроблених змін 
@@ -396,7 +424,7 @@ class xmlUaLayers:
         # Випадок зміни "Спосіб визначення площі" - найскладніший
         if field_name == "DeterminationMethod":
             # 1.1: Переобчислення з місцевої системи координат
-            log_msg(logFile, f"Зміна способу визначення площі на {new_value}")
+            #log_msg(logFile, f"Зміна способу визначення площі на {new_value}")
             if new_value == "Переобчислення з місцевої системи координат":
                 # треба ввести "Реєстраційний номер МСК
                 msk_number, ok = QInputDialog.getText(
@@ -431,7 +459,7 @@ class xmlUaLayers:
                 return # "Спосіб визначення площі" -> МСК
             else:
                 # Спосіб визначення площі ділянки не Переобчислення з МСК
-                log_msg(logFile, f"Спосіб визначення площі ділянки змінено на {new_value}")
+                #log_msg(logFile, f"Спосіб визначення площі ділянки змінено на {new_value}")
                 # self.show_message("handle_parcel_attribute_change:", f"Спосіб визначення площі ділянки змінено на {new_value}")
                 # Оновлюємо XML
                 self.update_area_determination_in_tree(new_value)
@@ -440,13 +468,13 @@ class xmlUaLayers:
         # тут починається обробка змін полів відмінних від "Спосіб визначення площі"
 
         if field_name == "ParcelID":
-            log_msg(logFile, f"Зміна ParcelID на {new_value}")
+            #log_msg(logFile, f"Зміна ParcelID на {new_value}")
             # Блокує QGIS
             # layer.changeAttributeValue(fid, field_index, new_value)
             element_path = "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID"
             element = self.tree.find(element_path)
             if element is None:
-                log_msg(logFile, f"Елемент за шляхом {element_path} не знайдено❗")
+                #log_msg(logFile, f"Елемент за шляхом {element_path} не знайдено❗")
                 return
             # Встановлюємо нове значення element
             element.text = new_value
@@ -465,12 +493,12 @@ class xmlUaLayers:
 
         # Виклик цієї функції означає, що:
         # Змінено спосіб обчислення площі ділянки на переобчислення з МСК
-        log_msg(logFile, f"{new_value}")
+        #log_msg(logFile, f"{new_value}")
         # Шлях до елемента, який потрібно змінити відомий:
         element_path = ".//ParcelMetricInfo/Area/DeterminationMethod"
         element = self.tree.find(element_path)
         if element is None:
-            log_msg(logFile, f"Елемент за шляхом {element_path} не знайдено❗")
+            #log_msg(logFile, f"Елемент за шляхом {element_path} не знайдено❗")
             return
         # Видаляємо всі дочірні елементи
         for child in list(element):
@@ -495,11 +523,11 @@ class xmlUaLayers:
             # "Переобчислення з 'SC63-P'",
             # "Переобчислення з 'SC63-T'",
 
-            log_msg(logFile, f"new_value = {new_value}")
+            #log_msg(logFile, f"new_value = {new_value}")
 
             if new_value.startswith("Переобчислення з 'SC63"):
                 zona = new_value[-2]
-                log_msg(logFile, f"zona = {zona}")
+                #log_msg(logFile, f"zona = {zona}")
                 new_element = ET.fromstring(f"<Calculation><CoordinateSystem><SC63><{zona}/></SC63></CoordinateSystem></Calculation>")
             if new_value.startswith("Переобчислення з 'УСК2000'"):
                 new_element = ET.fromstring("<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>")
@@ -542,7 +570,7 @@ class xmlUaLayers:
         group.removeChildNode(last_child) # Видаляємо оригінальний останній дочірній вузол
     def get_full_name(self, person_element):
 
-        # log_msg(logFile)
+        # #log_msg(logFile)
 
         if person_element is None:
             return ""  # Якщо елемент не знайдено, повертаємо порожній рядок
@@ -592,17 +620,18 @@ class xmlUaLayers:
         else:
             parent = root.findGroup(group_name)
             if parent is None:
-                log_msg(logFile, f"'{group_name}' не знайдена. \nШар '{layer_name}' не видалено.")
+                #log_msg(logFile, f"'{group_name}' не знайдена. \nШар '{layer_name}' не видалено.")
                 return
 
         # Знаходимо шар у батьківському вузлі (групі або корені) за іменем
         for child in parent.children():
-            if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
-                layer_id = child.layerId()  # Отримуємо ID шару карти
-                QgsProject.instance().removeMapLayer(layer_id)  # Видаляємо шар з проекту
-                parent.removeChildNode(child)  # Видаляємо шар з дерева
-                log_msg(logFile, f"Шар '{layer_name}' видалено з групи {group_name}") 
-                return  # Виходимо з функції після видалення шару
+            # Перевіряємо, чи вузол все ще валідний перед доступом до його властивостей
+            if child and isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
+                # Видалення вузла з дерева автоматично видалить і шар з проекту,
+                # якщо на нього більше не буде посилань.
+                parent.removeChildNode(child)
+                #log_msg(logFile, f"Вузол шару '{layer_name}' видалено з групи '{group_name}'.")
+                return # Виходимо, оскільки вузол знайдено та видалено.
 
     def add_lands(self):
         """
@@ -737,7 +766,7 @@ class xmlUaLayers:
                 raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
                 raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
-        # log_msg(logFile, "\nlines: \n" + logstr)
+        # #log_msg(logFile, "\nlines: \n" + logstr)
 
         # Створюємо пустий список координат polyline
         polyline = []
@@ -819,6 +848,6 @@ class xmlUaLayers:
             i += 1
             log_str += f"{i}. {coordinate.x():.2f}, {coordinate.y():.2f}\n"
             log_str_coords += f"{i}. {coordinate} \n"
-        # log_msg(logFile, "polyline_coordinates (x, y): \n" + log_str)
+        # #log_msg(logFile, "polyline_coordinates (x, y): \n" + log_str)
 
         return polyline

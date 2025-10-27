@@ -21,7 +21,7 @@ from .common import log_msg
 class Subleases:
     """Клас для обробки даних про суборенду з XML-файлу."""
 
-    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func, xml_ua_layers_instance):
+    def __init__(self, root, crs_epsg, group, plugin_dir, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
         """
         Ініціалізація об'єкта для роботи з суборендою.
 
@@ -39,6 +39,7 @@ class Subleases:
         self.plugin_dir = plugin_dir
         self.lines_to_coords = lines_to_coords_func
         self.xml_ua_layers = xml_ua_layers_instance
+        self.xml_data = xml_data
 
     def _coord_to_polygon(self, coordinates):
         """Формує полігон із заданого списку координат."""
@@ -87,29 +88,45 @@ class Subleases:
         subleases_parent = parcel_info.find("Subleases")
         if subleases_parent is None:
             # Аналогічно до оренди, виходимо, якщо розділу немає
-            log_msg(logFile,"Розділ 'Subleases' відсутній. Шар 'Суборенда' не буде створено.")
+            #log_msg(logFile,"Розділ 'Subleases' відсутній. Шар 'Суборенда' не буде створено.")
             return None
 
         layer_name = "Суборенда"
-        layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
-        layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "sublease.qml"))
-        provider = layer.dataProvider()
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        # --- Початок змін: Встановлення прапорця тимчасового шару ---
+        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
+        self.layer.setCustomProperty("skip_save_dialog", True)
+        # --- Кінець змін ---
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "sublease.qml"))
+        provider = self.layer.dataProvider()
 
+        # --- Початок змін: Додавання поля object_shape ---
         fields = [
             QgsField("RegistrationDate", QVariant.String),
             QgsField("Area", QVariant.Double),
+            QgsField("object_shape", QVariant.String),
         ]
         provider.addAttributes(fields)
-        layer.updateFields()
+        self.layer.updateFields()
 
         for sublease in subleases_parent.findall(".//SubleaseInfo"):
             registration_date = sublease.findtext(".//SubleaseAgreement/RegistrationDate")
+
+            # --- Початок змін: Генерація object_shape ---
+            try:
+                from .topology import GeometryProcessor
+                processor = GeometryProcessor(self.root.getroottree())
+            except Exception as e:
+                log_msg(logFile, f"Не вдалося створити GeometryProcessor в Subleases: {e}")
+                processor = None
+            # --- Кінець змін ---
+
             area_element = sublease.find(".//Area")
             area = float(area_element.text) if area_element is not None and area_element.text else None
 
             externals_element = sublease.find(".//Externals")
             if externals_element is None:
-                log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Для суборенди від '{registration_date}' відсутній обов'язковий розділ 'Externals'. Створено порожній об'єкт.")
+                #log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Для суборенди від '{registration_date}' відсутній обов'язковий розділ 'Externals'. Створено порожній об'єкт.")
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
@@ -118,18 +135,34 @@ class Subleases:
             internals_lines = sublease.find(".//Internals/Boundary/Lines")
             internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
 
+            # --- Початок змін: Генерація та збереження object_shape ---
+            object_shape = ""
+            if processor and externals_element is not None:
+                exterior_shape = processor._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
+                interior_shapes = []
+                internals_container = externals_element.find("Internals")
+                if internals_container is not None:
+                    interior_shapes = [processor._get_polyline_object_shape(internal.find("Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                object_shape = "|".join([exterior_shape] + interior_shapes)
+                log_msg(logFile, f"Додано Суборенду: '{object_shape}'")
+            # --- Кінець змін ---
+
             polygon = self._coord_to_polygon(external_coords)
             if internal_coords:
                 polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
 
-            feature = QgsFeature(layer.fields())
+            feature = QgsFeature(self.layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([registration_date, area])
+            feature.setAttributes([registration_date, area, object_shape])
             provider.addFeature(feature)
 
-        QgsProject.instance().addMapLayer(layer, False)
-        layer_node = self.group.addLayer(layer)
+        QgsProject.instance().addMapLayer(self.layer, False)
+        layer_node = self.group.addLayer(self.layer)
         self.xml_ua_layers.added_layers.append(layer_node)
         self.xml_ua_layers.last_to_first(self.group)
 
-        return layer
+        if self.xml_data:
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
+            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+
+        return self.layer

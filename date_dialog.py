@@ -51,7 +51,7 @@ class DateInputDialog(QDialog):
     def get_date(self):
 
         answer = self.date_edit.date().toString("yyyy-MM-dd")
-        log_msg(logFile, f"answer = {answer}")
+        #log_msg(logFile, f"answer = {answer}")
 
         return answer  # Повертає дату у форматі "YYYY-MM-DD"
 

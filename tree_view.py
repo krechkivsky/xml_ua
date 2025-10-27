@@ -142,45 +142,33 @@ class CustomTreeView(QTreeView):
 
 
     def on_tree_model_data_changed(self, item):
-        """ 
-            Обробка змін у вузлі дерева, запобігання циклічному виклику 
         """
+        Обробляє зміни даних у моделі дерева (QStandardItemModel).
 
-        # 1.Оновлення self.xml_tree:
-        #
-        # У методі on_tree_model_data_changed класу CustomTreeView 
-        # потрібно додати код, який буде оновлювати відповідний 
-        # елемент в self.xml_tree на основі full_path та value.
-        # Для цього потрібно:
-        #   Розпарсити full_path для знаходження відповідного 
-        #   елемента в self.xml_tree.
-        #   Оновити text цього елемента на value.
-        # 
-        # 🔨.Збереження при закритті (опціонально):
-        # 
-        # Додати обробник події закриття док-віджета (closeEvent) 
-        # або плагіна (onClosePlugin), який буде запитувати користувача, 
-        # чи потрібно зберегти зміни, якщо вони були.
-        
+        Цей метод є слотом, який автоматично викликається сигналом `itemChanged`
+        від моделі дерева щоразу, коли користувач або програма змінює дані
+        в будь-якому елементі (наприклад, через редагування значення у другій колонці).
 
-        # QMessageBox.information(
-        #     self.parent.iface.mainWindow(),
-        #     "Сигнал: itemChanged",
-        #     f"Змінено значення елемента: '{item.text()}'"
-        # )
+        Основні дії:
+        1. Встановлює флаг `self.tree_upd` для запобігання рекурсивним викликам.
+        2. Визначає шлях та нове значення зміненого елемента.
+        3. Викликає `update_xml_tree()` для синхронізації змін з внутрішнім XML-деревом (lxml).
+        4. Викликає `mark_as_changed()` у батьківського док-віджета, щоб позначити файл як змінений.
+        5. Випромінює сигнал `dataChangedInTree`, щоб інші компоненти (наприклад, таблиці) могли оновити свої дані.
 
-        log_msg(logFile, f"{item.text()}")
-
+        Викликається:
+        - Автоматично сигналом `self.model.itemChanged` при будь-якій зміні даних в моделі.
+        """
+        # #log_msg(logFile, f"{item.text()}")
         # Якщо вже йде оновлення, нічого не робимо
-        if self.tree_upd:  
-            log_msg(logFile, "пропускаємо оновлення дерева")
-            return
+        # if self.tree_upd:  
+        #     #log_msg(logFile, "пропускаємо оновлення дерева")
+        #     return
 
         # Початок синхронізації
         self.tree_upd = True  
-        log_msg(logFile, f"tree_upd = {self.tree_upd}")
         try:
-            log_msg(logFile, f"tree_upd = {self.tree_upd}")
+            #log_msg(logFile, f"on_tree_model_data_changed: tree_upd = {self.tree_upd}")
             # Отримати шлях до елемента
             full_path = self.get_item_path(item)  
             value = item.text()
@@ -193,15 +181,14 @@ class CustomTreeView(QTreeView):
 
             # Емітуємо сигнал dataChangedInTree для підключених компонентів
             # Передача змін у таблицю через сигнал dataChangedInTree
-            log_msg(logFile, f"emit dataChangedInTree for path: {full_path}")
-            # --- Початок змін: Перевірка та підсвічування після зміни ---
-            self._validate_and_color_tree()
-            # --- Кінець змін ---
+            # #log_msg(logFile, f"emit dataChangedInTree for path: {full_path}. Автоматична валідація вимкнена.")
+            # Автоматична перевірка та підсвічування після зміни вимкнена за запитом користувача.
+            # Валідація тепер викликається вручну через кнопку "Перевірити".
             self.dataChangedInTree.emit(full_path, value)
         finally:
             # Завершення синхронізації
+            # Встановлюємо флаг у False після завершення всіх операцій
             self.tree_upd = False
-            log_msg(logFile, f"tree_upd = {self.tree_upd}")
 
     def update_xml_tree(self, full_path, value):
         """
@@ -214,9 +201,9 @@ class CustomTreeView(QTreeView):
         # Він оновлює text знайденого елемента на value.
         # Додано обробку помилок, якщо елемент не знайдено.
 
-        log_msg(logFile, f"full_path: {full_path}, value: {value}")
+        #log_msg(logFile, f"full_path: {full_path}, value: {value}")
         if self.xml_tree is None:
-            log_msg(logFile, "Error: self.xml_tree is None")
+            #log_msg(logFile, "Error: self.xml_tree is None")
             return
 
         try:
@@ -226,7 +213,7 @@ class CustomTreeView(QTreeView):
             elements = self.xml_tree.getroot().xpath(xpath_expression) # lxml вимагає xpath на кореневому вузлі дерева
             if elements:
                 elements[0].text = value
-                log_msg(logFile, f"Елемент '{full_path}' оновлено значенням '{value}'")
+                # #log_msg(logFile, f"Елемент '{full_path}' оновлено значенням '{value}'")
             else:
                 log_msg(logFile, f"Помилка: Елемент за шляхом '{xpath_expression}' не знайдено в XML.")
         except Exception as e:
@@ -271,7 +258,7 @@ class CustomTreeView(QTreeView):
 
     def get_key_item_path(self, item):
         """Отримує шлях до елемента в дереві"""
-        log_msg(logFile)
+        #log_msg(logFile)
         path = []
         while item:
             path.insert(0, item.text())
@@ -280,7 +267,7 @@ class CustomTreeView(QTreeView):
 
     def get_key_item_path(self, item):
         """Отримує шлях до елемента в дереві"""
-        log_msg(logFile)
+        #log_msg(logFile)
         path = []
         while item:
             path.insert(0, item.text())
@@ -291,7 +278,7 @@ class CustomTreeView(QTreeView):
     def editNode(self, item):
         """ Викликається, коли вузол дерева редагується.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
 
         # Отримання повного шляху до елемента
         full_path = self.get_full_path(item)
@@ -310,7 +297,7 @@ class CustomTreeView(QTreeView):
             Оскільки, не всім елементам дерева можна додавати дочірні.
 
         """
-        # log_msg(logFile, "")
+        # #log_msg(logFile, "")
 
         # Завантажуємо секцію [AllowedDothers]
         if "AllowedDothers" in config:
@@ -570,7 +557,7 @@ class CustomTreeView(QTreeView):
         """
         Примусово оновлює відображення дерева на основі поточного стану self.xml_tree.
         """
-        log_msg(logFile, "Оновлення значень у дереві GUI.")
+        #log_msg(logFile, "Оновлення значень у дереві GUI.")
         if self.xml_tree is None:
             return
 
@@ -799,7 +786,7 @@ class CustomTreeView(QTreeView):
         parent_path = parent_item.data(Qt.UserRole)
         parent_xml_element = self._find_xml_element_by_path(parent_path)
         if parent_xml_element is None:
-            log_msg(logFile, f"Не вдалося знайти батьківський XML елемент для {parent_path}")
+            #log_msg(logFile, f"Не вдалося знайти батьківський XML елемент для {parent_path}")
             return
 
         # Створюємо новий XML елемент
@@ -821,27 +808,74 @@ class CustomTreeView(QTreeView):
 
     def delete_element(self, item):
         """Видаляє елемент з XML та з дерева GUI."""
+        LAYER_TO_XML_PATH = {
+            "Суміжники": ".//AdjacentUnits",
+            "Обмеження": ".//Restrictions",
+            "Суборенда": ".//Subleases",
+            "Оренда": ".//Leases",
+            "Угіддя": ".//LandsParcel"
+        }
+        # Створюємо зворотний словник для пошуку назви шару за шляхом XML
+        XML_PATH_TO_LAYER = {v: k for k, v in LAYER_TO_XML_PATH.items()}
+        PROTECTED_PATHS = [
+            ".//ParcelMetricInfo", # Ділянка
+            ".//CadastralQuarterInfo", # Квартал
+            ".//CadastralZoneInfo", # Зона
+            ".//Polyline", # Полілінії
+            ".//PointInfo" # Вузли
+        ]
+
         item_path = item.data(Qt.UserRole)
+        # Перевіряємо, чи шлях не є захищеним
+        if any(item_path.endswith(p.split('/')[-1]) for p in PROTECTED_PATHS):
+            QMessageBox.warning(self, "Видалення заборонено", f"Видалення елемента '{item.text()}' та відповідного йому шару заборонено.")
+            #log_msg(logFile, f"Спроба видалення захищеного елемента '{item_path}' заблокована.")
+            return
+
         xml_element_to_delete = self._find_xml_element_by_path(item_path)
 
-        if xml_element_to_delete is not None:
-            parent_xml_element = xml_element_to_delete.getparent()
-            if parent_xml_element is not None:
-                parent_xml_element.remove(xml_element_to_delete)
-
-                # Видаляємо з моделі
-                parent_item = item.parent()
-                if parent_item:
-                    parent_item.removeRow(item.row())
-                else: # якщо це кореневий елемент (хоча ми не дозволяємо його видаляти)
-                    self.model.removeRow(item.row())
-
-                # Позначаємо файл як змінений
-                self.parent.mark_as_changed()
-            else:
-                log_msg(logFile, f"Не вдалося видалити елемент без батька: {item_path}")
-        else:
+        if xml_element_to_delete is None:
             log_msg(logFile, f"Не вдалося знайти XML елемент для видалення: {item_path}")
+            return
+
+        parent_xml_element = xml_element_to_delete.getparent()
+        if parent_xml_element is None:
+            log_msg(logFile, f"Не вдалося видалити елемент без батька: {item_path}")
+            return
+
+        # --- Початок змін: Виправлення порядку видалення та очищення ---
+        is_adjacent_unit = False
+        if xml_element_to_delete.tag == 'AdjacentUnitInfo':
+            is_adjacent_unit = True
+            # 1. Видаляємо відповідний об'єкт з карти
+            self.parent.delete_adjacent_from_map(xml_element_to_delete)
+
+        # 2. Видаляємо елемент з XML-дерева
+        try:
+            parent_xml_element.remove(xml_element_to_delete)
+        except ValueError as e:
+            # Перехоплюємо помилку, яка може виникнути, якщо елемент вже було видалено
+            # внаслідок іншої операції (напр. cleanup_geometry).
+            log_msg(logFile, f"Перехоплено очікувану помилку при видаленні вузла: {e}")
+
+        # 3. Якщо це був суміжник, запускаємо безпечне очищення геометрії
+        if is_adjacent_unit:
+            from .topology import GeometryProcessor
+            processor = GeometryProcessor(self.parent.current_xml.tree)
+            # Передаємо список з одним видаленим елементом
+            processor.cleanup_geometry([xml_element_to_delete])
+
+        # --- Кінець змін ---
+
+        # 4. Видаляємо з моделі GUI
+        # 5. Видаляємо відповідний шар з карти, якщо це був останній елемент
+        layer_name_to_remove = XML_PATH_TO_LAYER.get(f".//{item_path.split('/')[-1]}")
+        if layer_name_to_remove and self.parent.layers_obj:
+            self.parent.layers_obj.removeLayer(layer_name_to_remove, self.parent.current_xml.group_name)
+            #log_msg(logFile, f"Шар '{layer_name_to_remove}' видалено з карти.")
+
+        # 6. Позначаємо файл як змінений
+        self.parent.mark_as_changed()
 
     def _find_xml_element_by_path(self, path):
         """Знаходить елемент в self.xml_tree за XPath."""
@@ -863,7 +897,7 @@ class CustomTreeView(QTreeView):
         """ Побудова повного шляху до елемента дерева.
 
         """
-        log_msg(logFile, f"{item.text()}")
+        #log_msg(logFile, f"{item.text()}")
         path = []
         while item:
             path.insert(0, item.text())
@@ -875,7 +909,7 @@ class CustomTreeView(QTreeView):
         """
         Підраховує кількість дочірніх елементів із зазначеним іменем.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         count = 0
         for i in range(parent_item.rowCount()):
             if parent_item.child(i).text() == child_name:
@@ -886,14 +920,14 @@ class CustomTreeView(QTreeView):
         """
         Створює замикання для додавання дочірнього елемента.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         return lambda: self.add_child(parent_item, child_name)
 
     def add_child(self, item, child_name):
         """
         Додає дочірній елемент до вказаного елемента дерева.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         child_item = QStandardItem(child_name)
         child_item.setEditable(False)  # Забороняємо редагування назви елемента
         item.appendRow([child_item, QStandardItem("")])
@@ -902,7 +936,7 @@ class CustomTreeView(QTreeView):
         """
         Змінює значення вибраного елемента.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         index = self.currentIndex()
         if not index.isValid():
             return
@@ -917,7 +951,7 @@ class CustomTreeView(QTreeView):
         """
         Додає дочірній елемент до вибраного елемента.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         index = self.currentIndex()
         if not index.isValid():
             return
@@ -933,7 +967,7 @@ class CustomTreeView(QTreeView):
         """
         Видаляє вибраний елемент.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         index = self.currentIndex()
         if not index.isValid():
             return
@@ -1005,15 +1039,8 @@ class CustomTreeView(QTreeView):
             name_item = item.parent().child(item.row(), 0) if item.parent() else self.model.item(item.row(), 0)
         
         path = name_item.data(Qt.UserRole) if name_item else ""
-        # log_msg(logFile, f"get_item_path for '{item.text()}' -> '{path}'")
+        # #log_msg(logFile, f"get_item_path for '{item.text()}' -> '{path}'")
         return path
-
-    def set_column_width(self, column_index, width_percentage):
-
-        # log_msg(logFile)
-        total_width = self.viewport().width()
-        column_width = int(total_width * width_percentage / 100)
-        self.setColumnWidth(column_index, column_width)
 
     def validate_full_name(self, full_name):
         """
@@ -1022,17 +1049,17 @@ class CustomTreeView(QTreeView):
             мають містити тільки літери українського алфавіту.
         - У Ім'я та По батькові допускаються крапки.
         """
-        log_msg(logFile)
+        #log_msg(logFile)
         pattern = r"^[А-ЯІЇЄҐ][а-яіїєґ']+ [А-ЯІЇЄҐ][а-яіїєґ'\.]+(?: [А-ЯІЇЄҐ][а-яіїєґ'\.]+)?$"
         return bool(re.match(pattern, full_name))
 
     def tree_FileDate_update(self, path, value):
         """ Оновлює FileDate у дереві при зміні FileDate у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_FileDate = self.find_element_index(path)
         if not index_FileDate.isValid():
-            log_msg(logFile, "Елемент FileDate не знайдено у дереві.")
+            #log_msg(logFile, "Елемент FileDate не знайдено у дереві.")
             return
         item_FileDate = self.model.itemFromIndex(index_FileDate)
         item_FileDate.parent().child(item_FileDate.row(), 1).setText(value)
@@ -1040,10 +1067,10 @@ class CustomTreeView(QTreeView):
     def tree_FileGUID_update(self, path, value):
         """ Оновлює FileGUID у дереві при зміні FileGUID у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_FileGUID = self.find_element_index(path)
         if not index_FileGUID.isValid():
-            log_msg(logFile, "Елемент FileGUID не знайдено у дереві.")
+            #log_msg(logFile, "Елемент FileGUID не знайдено у дереві.")
             return
         item_FileGUID = self.model.itemFromIndex(index_FileGUID)
         item_FileGUID.parent().child(item_FileGUID.row(), 1).setText(value)
@@ -1051,10 +1078,10 @@ class CustomTreeView(QTreeView):
     def tree_FormatVersion_update(self, path, value):
         """ Оновлює FormatVersion у дереві при зміні FormatVersion у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_FormatVersion = self.find_element_index(path)
         if not index_FormatVersion.isValid():
-            log_msg(logFile, "Елемент FormatVersion не знайдено у дереві.")
+            #log_msg(logFile, "Елемент FormatVersion не знайдено у дереві.")
             return
         item_FormatVersion = self.model.itemFromIndex(index_FormatVersion)
         item_FormatVersion.parent().child(item_FormatVersion.row(), 1).setText(value)
@@ -1062,10 +1089,10 @@ class CustomTreeView(QTreeView):
     def tree_ReceiverName_update(self, path, value):
         """ Оновлює ReceiverName у дереві при зміні ReceiverName у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_ReceiverName = self.find_element_index(path)
         if not index_ReceiverName.isValid():
-            log_msg(logFile, "Елемент ReceiverName не знайдено у дереві.")
+            #log_msg(logFile, "Елемент ReceiverName не знайдено у дереві.")
             return
         item_ReceiverName = self.model.itemFromIndex(index_ReceiverName)
         item_ReceiverName.parent().child(item_ReceiverName.row(), 1).setText(value)
@@ -1073,10 +1100,10 @@ class CustomTreeView(QTreeView):
     def tree_ReceiverIdentifier_update(self, path, value):
         """ Оновлює ReceiverIdentifier у дереві при зміні ReceiverIdentifier у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_ReceiverIdentifier = self.find_element_index(path)
         if not index_ReceiverIdentifier.isValid():
-            log_msg(logFile, "Елемент ReceiverIdentifier не знайдено у дереві.")
+            #log_msg(logFile, "Елемент ReceiverIdentifier не знайдено у дереві.")
             return
         item_ReceiverIdentifier = self.model.itemFromIndex(
             index_ReceiverIdentifier)
@@ -1086,10 +1113,10 @@ class CustomTreeView(QTreeView):
     def tree_Software_update(self, path, value):
         """ Оновлює Software у дереві при зміні Software у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_Software = self.find_element_index(path)
         if not index_Software.isValid():
-            log_msg(logFile, "Елемент Software не знайдено у дереві.")
+            #log_msg(logFile, "Елемент Software не знайдено у дереві.")
             return
         item_Software = self.model.itemFromIndex(index_Software)
         item_Software.parent().child(item_Software.row(), 1).setText(value)
@@ -1097,10 +1124,10 @@ class CustomTreeView(QTreeView):
     def tree_SoftwareVersion_update(self, path, value):
         """ Оновлює SoftwareVersion у дереві при зміні SoftwareVersion у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_SoftwareVersion = self.find_element_index(path)
         if not index_SoftwareVersion.isValid():
-            log_msg(logFile, "Елемент SoftwareVersion не знайдено у дереві.")
+            #log_msg(logFile, "Елемент SoftwareVersion не знайдено у дереві.")
             return
         item_SoftwareVersion = self.model.itemFromIndex(index_SoftwareVersion)
         item_SoftwareVersion.parent().child(item_SoftwareVersion.row(), 1).setText(value)
@@ -1109,26 +1136,26 @@ class CustomTreeView(QTreeView):
         """ Оновлює CRS у дереві при зміні CRS у таблиці
             Якщо value починається з починається SC63 то після "," -> {X,C,P,T}
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
 
         index_CRS = self.find_element_index(path=full_path, element_name=None)
         if not index_CRS.isValid():
-            log_msg(logFile, "Елемент CoordinateSystem не знайдено у дереві.")
+            #log_msg(logFile, "Елемент CoordinateSystem не знайдено у дереві.")
             return
 
         item_CRS = self.model.itemFromIndex(index_CRS)
         # ✔ 2025.01.30 10:32:42 CoordinateSystem
-        log_msg(logFile, f"Знайдено вузол {item_CRS.text()}")
+        #log_msg(logFile, f"Знайдено вузол {item_CRS.text()}")
         # Треба знайти дочірній елемент CoordinateSystem
         # Якщо він не знайдений, то виходимо
         if item_CRS.rowCount() == 0:
-            log_msg(logFile, f"Дочірній елемент CoordinateSystem не знайдено.")
+            #log_msg(logFile, f"Дочірній елемент CoordinateSystem не знайдено.")
             return
         log_msg(
             logFile, f"Елемент CoordinateSystem має {item_CRS.rowCount()} дочірніх елементів.")
         # Знаходимо дочірній елемент CoordinateSystem
         item_CRS_child = item_CRS.child(0)
-        log_msg(logFile, f"Дочірній елемент {item_CRS_child.text()}")
+        #log_msg(logFile, f"Дочірній елемент {item_CRS_child.text()}")
 
         # Якщо стара CoordinateSystem SC63
         if item_CRS_child.text() == "SC63":
@@ -1137,7 +1164,7 @@ class CustomTreeView(QTreeView):
             if value.startswith("SC63,"):
                 # то парсуємо новий район {X,C,P,T}
                 sc63_region = value.split(",")[1].strip()
-                log_msg(logFile, f"Новий SC63 район: {sc63_region}")
+                #log_msg(logFile, f"Новий SC63 район: {sc63_region}")
                 # Знаходимо старий район - дочірній елемент SC63
                 item_CRS_child_child = item_CRS_child.child(0)
                 # Логуємо район
@@ -1178,7 +1205,7 @@ class CustomTreeView(QTreeView):
                 # парсимо номер нової SC63, який знаходиться після коми
                 sc63_region = value.split(",")[1].strip()
                 # Логуємо номер
-                log_msg(logFile, f"Новий SC63 район: {sc63_region}")
+                #log_msg(logFile, f"Новий SC63 район: {sc63_region}")
                 # Оновлюємо номер
                 item_CRS_child_child.setText(sc63_region)
             # Якщо нова CoordinateSystem Local
@@ -1221,16 +1248,16 @@ class CustomTreeView(QTreeView):
                 # Замінюємо стару CoordinateSystem на нову
                 item_CRS_child.setText(value)
         # Логуємо результат
-        log_msg(logFile, f"Оновлений CoordinateSystem: {value}")
+        #log_msg(logFile, f"Оновлений CoordinateSystem: {value}")
         return
 
     def tree_HeightSystem_update(self, path, value):
         """ Оновлює HeightSystem у дереві при зміні HeightSystem у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_HeightSystem = self.find_element_index(path)
         if not index_HeightSystem.isValid():
-            log_msg(logFile, "Елемент HeightSystem не знайдено у дереві.")
+            #log_msg(logFile, "Елемент HeightSystem не знайдено у дереві.")
             return
         item_HeightSystem = self.model.itemFromIndex(index_HeightSystem)
         # знаходимо дочірній елемент HeightSystem
@@ -1241,10 +1268,10 @@ class CustomTreeView(QTreeView):
     def tree_MeasurementUnit_update(self, path, value):
         """ Оновлює MeasurementUnit у дереві при зміні MeasurementUnit у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_MeasurementUnit = self.find_element_index(path)
         if not index_MeasurementUnit.isValid():
-            log_msg(logFile, "Елемент MeasurementUnit не знайдено у дереві.")
+            #log_msg(logFile, "Елемент MeasurementUnit не знайдено у дереві.")
             return
         item_MeasurementUnit = self.model.itemFromIndex(index_MeasurementUnit)
         # знаходимо дочірній елемент MeasurementUnit
@@ -1255,10 +1282,10 @@ class CustomTreeView(QTreeView):
     def tree_CadastralZoneNumber_update(self, path, value):
         """ Оновлює CadastralZoneNumber у дереві при зміні CadastralZoneNumber у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_CadastralZoneNumber = self.find_element_index(path)
         if not index_CadastralZoneNumber.isValid():
-            log_msg(logFile, "Елемент CadastralZoneNumber не знайдено у дереві.")
+            #log_msg(logFile, "Елемент CadastralZoneNumber не знайдено у дереві.")
             return
         item_CadastralZoneNumber = self.model.itemFromIndex(
             index_CadastralZoneNumber)
@@ -1268,10 +1295,10 @@ class CustomTreeView(QTreeView):
     def tree_CadastralQuarterNumber_update(self, path, value):
         """ Оновлює CadastralQuarterNumber у дереві при зміні CadastralQuarterNumber у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_CadastralQuarterNumber = self.find_element_index(path)
         if not index_CadastralQuarterNumber.isValid():
-            log_msg(logFile, "Елемент CadastralQuarterNumber не знайдено у дереві.")
+            #log_msg(logFile, "Елемент CadastralQuarterNumber не знайдено у дереві.")
             return
         item_CadastralQuarterNumber = self.model.itemFromIndex(
             index_CadastralQuarterNumber)
@@ -1281,10 +1308,10 @@ class CustomTreeView(QTreeView):
     def tree_ParcelID_update(self, path, value):
         """ Оновлює ParcelID у дереві при зміні ParcelID у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_ParcelID = self.find_element_index(path)
         if not index_ParcelID.isValid():
-            log_msg(logFile, "Елемент ParcelID не знайдено у дереві.")
+            #log_msg(logFile, "Елемент ParcelID не знайдено у дереві.")
             return
         item_ParcelID = self.model.itemFromIndex(index_ParcelID)
         item_ParcelID.parent().child(item_ParcelID.row(), 1).setText(value)
@@ -1292,10 +1319,10 @@ class CustomTreeView(QTreeView):
     def tree_LocalAuthorityHead_update(self, path, value):
         """ Оновлює LocalAuthorityHead у дереві при зміні LocalAuthorityHead у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_LocalAuthorityHead = self.find_element_index(path)
         if not index_LocalAuthorityHead.isValid():
-            log_msg(logFile, "Елемент LocalAuthorityHead не знайдено у дереві.")
+            #log_msg(logFile, "Елемент LocalAuthorityHead не знайдено у дереві.")
             return
         # Парсимо value Прізвище, Ім'я та (за потреби) По батькові мають містити тільки літери українського алфавіту.
         # У Ім'я та По батькові допускаються крапки, якщо є ініціали (наприклад, І.І.)
@@ -1306,7 +1333,7 @@ class CustomTreeView(QTreeView):
 
         # Перевіряємо валідність значення
         if not self.validate_full_name(value):
-            log_msg(logFile, f"Невірний формат значення '{value}'")
+            #log_msg(logFile, f"Невірний формат значення '{value}'")
             return
         # Розділяємо значення на Прізвище, Ім'я та (за потреби) По батькові
         if len(value.split(" ")) == 2:
@@ -1354,10 +1381,10 @@ class CustomTreeView(QTreeView):
     def tree_DKZRHead_update(self, path, value):
         """ Оновлює DKZRHead у дереві при зміні DKZRHead у таблиці
         """
-        log_msg(logFile, f"{value}")
+        #log_msg(logFile, f"{value}")
         index_DKZRHead = self.find_element_index(path)
         if not index_DKZRHead.isValid():
-            log_msg(logFile, "Елемент DKZRHead не знайдено у дереві.")
+            #log_msg(logFile, "Елемент DKZRHead не знайдено у дереві.")
             return
         # Парсимо value Прізвище, Ім'я та (за потреби) По батькові мають містити тільки літери українського алфавіту.
         # У Ім'я та По батькові допускаються крапки, якщо є ініціали (наприклад, І.І.)
@@ -1368,7 +1395,7 @@ class CustomTreeView(QTreeView):
 
         # Перевіряємо валідність значення
         if not self.validate_full_name(value):
-            log_msg(logFile, f"Невірний формат значення '{value}'")
+            #log_msg(logFile, f"Невірний формат значення '{value}'")
             return
         # Розділяємо значення на Прізвище, Ім'я та (за потреби) По батькові
         if len(value.split(" ")) == 2:
@@ -1444,7 +1471,7 @@ class CustomTreeView(QTreeView):
                 self.xsd_appinfo[full_path] = appinfo[0].text.strip()
 
             # Логування для перевірки
-            # log_msg(logFile, f"Extracted: {full_path} -> {self.xsd_appinfo.get(full_path, '')}")
+            # #log_msg(logFile, f"Extracted: {full_path} -> {self.xsd_appinfo.get(full_path, '')}")
 
         # Обробка вкладених структур у xsd:complexType
         complex_type = element.xpath('./xsd:complexType', namespaces=ns)
@@ -1473,7 +1500,7 @@ class CustomTreeView(QTreeView):
         Парсує XSD-файл і витягує описи для елементів.
         Формує словник, де ключ — повний шлях до елемента, значення — опис.
         """
-        # log_msg(logFile, )
+        # #log_msg(logFile, )
 
         self.xsd_appinfo = {}
         self.xsd_descriptions = {}
@@ -1499,12 +1526,12 @@ class CustomTreeView(QTreeView):
                 logFile, f"Помилка при парсингу XSD: {e}")  # pylint: disable=broad-except
 
         # Логування перших 10 значень для контролю
-        # log_msg(logFile, "Перші 10 значень словника українських назв:")
+        # #log_msg(logFile, "Перші 10 значень словника українських назв:")
         # count = 0
         # for path, name in self.xsd_appinfo.items():
         #     if count >= 10:
         #         break
-        #     log_msg(logFile, f"{path}: {name}")
+        #     #log_msg(logFile, f"{path}: {name}")
         #     count += 1
 
 
@@ -1574,7 +1601,7 @@ class CustomTreeView(QTreeView):
         """ Рекурсивно додає XML-елементи до моделі дерева, встановлюючи підказки.
         """
         name = etree.QName(element).localname
-        # log_msg(logFile, f"name = {name}")
+        # #log_msg(logFile, f"name = {name}")
         # Оновлюємо повний шлях
         if full_path:
             full_path = f"{full_path}/{name}"
@@ -1771,7 +1798,7 @@ class CustomTreeView(QTreeView):
         """
             Знаходить індекс елемента у дереві на основі шляху або імені.
         """
-        # log_msg(logFile) # recursion
+        # #log_msg(logFile) # recursion
         if path:
             # Логіка пошуку за шляхом
             current_index = QModelIndex()
@@ -2000,14 +2027,17 @@ class CustomTreeView(QTreeView):
             is_branch_valid = is_self_valid and is_structure_valid and not has_invalid_child
 
             # 5. Зафарбовуємо елемент
-            # Помилка в самому вузлі (значення або структура), а не в дочірніх
             has_direct_error = not is_self_valid or not is_structure_valid
-            brush = error_brush if has_direct_error else default_brush
-            item.setForeground(brush)
+            
+            # --- Початок змін: Безпечне оновлення кольору ---
+            # Використовуємо setData з роллю ForegroundRole, щоб уникнути рекурсивного виклику itemChanged
+            brush_to_set = error_brush if has_direct_error else default_brush
+            item.model().setData(item.index(), brush_to_set, Qt.ForegroundRole)
             value_item = item.parent().child(
                 item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
             if value_item:
-                value_item.setForeground(brush)
+                value_item.model().setData(value_item.index(), brush_to_set, Qt.ForegroundRole)
+            # --- Кінець змін ---
 
             # --- Початок змін: Розкриття дерева до елемента з помилкою ---
             if has_direct_error:

@@ -15,6 +15,7 @@ from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtXml import QDomDocument
 
 from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtWidgets import QDockWidget
 
 from types import ModuleType, FunctionType
 from gc import get_referents
@@ -23,8 +24,30 @@ from xmlschema import XMLSchema
 
 # region Спільні змінні
 logFile = open(os.path.dirname(__file__) + "/log.md", "w", encoding="utf-8")
-logFile.write(f"# Plugin reloaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+logFile.write(f"## Plugin reloaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 logFile.flush()
+
+# --- Початок змін: Приховування "фантомних" віджетів при перезавантаженні ---
+try:
+    from qgis.utils import iface # Імпортуємо iface
+
+    if iface: # Перевіряємо, чи iface доступний
+        
+        main_window = iface.mainWindow()
+        # logFile.write(f"main_window: {str(main_window)}\n\n")
+        # logFile.flush()
+
+        if main_window:
+            # Шукаємо всі док-віджети, які є екземплярами нашого класу
+            for widget in main_window.findChildren(QDockWidget):
+                # logFile.write(f"INFO: Перевірка віджета: Title='{widget.windowTitle()}', Visible={widget.isVisible()}\n")
+                if widget.windowTitle() == "xml_ua" and widget.isVisible():
+                    widget.hide()
+                    logFile.write(f"INFO: Приховано старий видимий віджет під час перезавантаження плагіна.\n")
+except Exception as e:
+    logFile.write(f"WARNING: Не вдалося приховати старий віджет під час перезавантаження: {e}\n")
+# --- Кінець змін ---
+
 ini_path = os.path.dirname(__file__) + "/templates/xml_ua.ini"
 docs_path = os.path.dirname(__file__) + "/templates/docs_list.ini"
 fields_path = os.path.dirname(__file__) + "/templates/field_dicts.ini"
@@ -68,27 +91,27 @@ class Connections(QObject):
 
     def connect(self, sender, signal_name, slot):
         """
-        Встановлює з'єднання між сигналом та слотом, якщо воно ще не встановлено.
-        """
-        # Основний метод для встановлення з'єднання. Він приймає три аргументи:
-        # sender: Об'єкт, який емітує сигнал.
-        # signal_name: Ім'я сигналу (рядок).
-        # slot: Функція (слот), яка буде викликана при емісії сигналу.
-        # Метод спочатку перевіряє, чи вже існує з'єднання між заданим відправником, 
-        # ім'ям сигналу та слотом, використовуючи метод connection_established(). 
-        # Якщо з'єднання вже існує, метод виводить попередження та завершує роботу. 
-        # В іншому випадку, він намагається отримати сигнал за його ім'ям 
-        # з об'єкта sender за допомогою getattr(). 
-        # Якщо сигнал не знайдено або не є сигналом PyQt, 
-        # виникає виключення AttributeError. Якщо все пройшло успішно, 
-        # з'єднання встановлюється за допомогою signal.connect(slot), 
-        # а дані про з'єднання додаються до списку self.connections.
+        Встановлює з'єднання між сигналом та слотом, якщо воно ще не існує.
 
-        # log_calls(logFile, f"Встановлення з'єднання:\n\t {type(sender).__name__}, \n\t'{signal_name}', \n\t{slot.__name__}")
+        Цей метод є централізованим способом керування з'єднаннями в плагіні.
+        Він перевіряє, чи з'єднання вже було встановлено раніше, щоб уникнути
+        дублювання, яке може призвести до багаторазового виклику слотів.
+
+        Аргументи:
+            sender (QObject): Об'єкт, який випромінює сигнал.
+            signal_name (str): Назва сигналу у вигляді рядка (наприклад, "clicked").
+            slot (function): Метод (слот), який має бути викликаний.
+
+        Викликається:
+        - З різних частин плагіна (`__init__.py`, `dockwidget.py`, `tree_view.py` тощо)
+          для налаштування взаємодії між компонентами інтерфейсу та логікою.
+        """
+
+        # #log_msg(logFile, f"Запит на встановлення з'єднання:\n\tвід {type(sender).__name__}, \n\tна '{signal_name}', \n\tдо {slot.__name__}")
 
         # Перевіряємо, чи з'єднання вже існує
         if self.connection_established(sender, signal_name, slot):
-            log_msg(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+            #log_msg(logFile, f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             QMessageBox.warning(None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             # Виходимо, якщо з'єднання вже є
             return  
@@ -96,7 +119,7 @@ class Connections(QObject):
         try:
             # Отримуємо сигнал за назвою від об'єкта sender
             signal = getattr(sender, signal_name)
-            # log_msg(logFile, f"Отримано сигнал: {signal}")
+            # #log_msg(logFile, f"Отримано сигнал: {signal}")
 
             # Перевіряємо чи signal є сигналом або функцією
             if not isinstance(signal, pyqtSignal) and not callable(signal):
@@ -104,7 +127,7 @@ class Connections(QObject):
 
             signal.connect(slot)
             self.connections.append((sender, signal_name, slot))
-            # log_msg(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+            # #log_msg(logFile, f"Встановлено з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
         except AttributeError as e:
             log_msg(logFile, f"Помилка встановлення з'єднання: {e}")
 
@@ -122,7 +145,7 @@ class Connections(QObject):
                 signal.disconnect(slot)
                 # Видаляємо з'єднання зі списку
                 self.connections.remove(connection_to_remove)
-                log_msg(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+                #log_msg(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             except (TypeError, AttributeError) as e:
                 # Логуємо помилку, якщо від'єднання не вдалося
                 log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
@@ -140,14 +163,14 @@ class Connections(QObject):
             try:
                 signal = getattr(sender, signal_name)
                 signal.disconnect(slot)
-                log_msg(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+                #log_msg(logFile, f"Від'єднано з'єднання: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
             except TypeError as e:
                 log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
             except AttributeError as e:
                 log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
         self.connections.clear()
         self.connectionRemoved.emit()
-        log_msg(logFile, "Всі з'єднання видалено.")
+        #log_msg(logFile, "Всі з'єднання видалено.")
 
 
     def connection_established(self, sender, signal_name, slot) -> bool:

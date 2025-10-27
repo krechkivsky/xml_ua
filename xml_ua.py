@@ -167,7 +167,7 @@ class xml_ua:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        # log_msg(logFile, "xml_ua")
+        # #log_msg(logFile, "xml_ua")
         return QCoreApplication.translate('xml_ua', message)
     def add_action(
         self,
@@ -219,7 +219,7 @@ class xml_ua:
         :rtype: QAction
         """
 
-        log_msg(logFile)
+        #log_msg(logFile)
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -258,7 +258,7 @@ class xml_ua:
 
     def unload(self):
         """Відключає сигнали, видаляє елементи інтерфейсу та очищує ресурси при вивантаженні плагіна."""
-        log_msg(logFile, "Початок вивантаження плагіна.")
+        #log_msg(logFile, "Початок вивантаження плагіна.")
 
         # Від'єднуємо обробник контекстного меню полотна карти
         self.disconnect_map_canvas_context()
@@ -266,7 +266,7 @@ class xml_ua:
         # --- Початок змін: Надійне закриття всіх ресурсів ---
         # 1. Знаходимо всі існуючі док-віджети цього плагіна.
         existing_dockwidgets = self.iface.mainWindow().findChildren(xml_uaDockWidget)
-        log_msg(logFile, f"Знайдено {len(existing_dockwidgets)} док-віджетів для повного очищення.")
+        #log_msg(logFile, f"Знайдено {len(existing_dockwidgets)} док-віджетів для повного очищення.")
 
         # 2. Спочатку закриваємо всі вкладки та пов'язані з ними групи шарів у кожному віджеті.
         for dw in existing_dockwidgets:
@@ -277,6 +277,10 @@ class xml_ua:
 
         # 3. Після закриття вкладок, видаляємо самі док-віджети з інтерфейсу QGIS.
         for dw in existing_dockwidgets:
+            try:
+                dw.closingPlugin.disconnect(self.onClosePlugin)
+            except (TypeError, RuntimeError):
+                pass
             self.iface.removeDockWidget(dw)
         self.dockwidget = None  # Очищуємо основне посилання
         # --- Кінець змін ---
@@ -291,18 +295,19 @@ class xml_ua:
         if self.toolbar:
             try:
                 self.iface.mainWindow().removeToolBar(self.toolbar)
-                log_msg(logFile, f"Тулбар '{self.toolbar.objectName()}' видалено.")
+                #log_msg(logFile, f"Тулбар '{self.toolbar.objectName()}' видалено.")
             except Exception as e:
-                log_msg(logFile, f"Не вдалося видалити тулбар: {e}")
+                #log_msg(logFile, f"Не вдалося видалити тулбар: {e}")
+                pass
             self.toolbar = None
 
         # Відключаємо глобальні сигнали проекту
         try:
             QgsProject.instance().layersAdded.disconnect(self.on_layers_added)
-            log_msg(logFile, "Сигнал 'layersAdded' успішно відключено.")
+            #log_msg(logFile, "Сигнал 'layersAdded' успішно відключено.")
         except TypeError:
             # Сигнал не був підключений
-            log_msg(logFile, f"Помилка при відключенні сигналу 'layersAdded': {e}")
+            pass
 
     def disconnect_map_canvas_context(self):
         """Від'єднує обробник контекстного меню від полотна карти."""
@@ -311,10 +316,10 @@ class xml_ua:
             if canvas:
                 try:
                     canvas.contextMenuAboutToShow.disconnect(self.map_canvas_context_handler)
-                    log_msg(logFile, "Обробник контекстного меню полотна карти успішно від'єднано.")
+                    #log_msg(logFile, "Обробник контекстного меню полотна карти успішно від'єднано.")
                 except TypeError:
-                    # TypeError виникає, якщо сигнал не був підключений або обробник вже від'єднано
-                    log_msg(logFile, f"Помилка при від'єднанні обробника контекстного меню: {e}")
+                    # Ігноруємо помилку, якщо сигнал не був підключений
+                    pass
             self.map_canvas_context_handler = None
 
     def on_feature_added(self, layer, feature_id):
@@ -323,7 +328,9 @@ class xml_ua:
         #     "Сигнал: on_feature_added",
         #     f"Додано фічу до шару: '{layer.name()}'"
         # )
-        log_msg(logFile, f"Додано фічу ID:{feature_id} до шару: '{layer.name()}'")
+        #log_msg(logFile, f"Додано фічу ID:{feature_id} до шару: '{layer.name()}'")
+        pass
+
 
     def on_feature_removed(self, layer, feature_id):
         try:
@@ -333,10 +340,25 @@ class xml_ua:
             #     "Сигнал: on_feature_removed",
             #     f"Видалено фічу ID:{feature_id} з шару: '{layer.name()}'"
             # )
-            log_msg(logFile, f"Видалено фічу ID:{feature_id} з шару: '{layer.name()}'")
+            #log_msg(logFile, f"Видалено фічу ID:{feature_id} з шару: '{layer.name()}'")
+            pass
         except RuntimeError:
-            log_msg(logFile, "Перехоплено RuntimeError: шар вже видалено на рівні C++.")
+            #log_msg(logFile, "Перехоплено RuntimeError: шар вже видалено на рівні C++.")
+            pass
             return
+
+    def on_committed_features_removed(self, layer_id, feature_ids):
+        """Передає керування док-віджету після видалення об'єктів."""
+        # --- Початок змін: Виправлення помилки AttributeError ---
+        # Сигнал committedFeaturesRemoved передає layer_id (рядок), а не об'єкт шару.
+        # Отримуємо об'єкт шару за його ID.
+        layer = QgsProject.instance().mapLayer(layer_id)
+        if not layer:
+            return # Шар міг бути видалений
+
+        if self.dockwidget:
+            self.dockwidget.handle_committed_features_removed(layer, feature_ids)
+        # --- Кінець змін ---
 
     def on_geometry_changed(self, layer, feature_id, geom):
         # QMessageBox.information(
@@ -344,7 +366,7 @@ class xml_ua:
         #     "Сигнал: on_geometry_changed",
         #     f"Змінено геометрію для шару: '{layer.name()}'\nID фічі: {feature_id}"
         # )
-        log_msg(logFile, f"Геометрію змінено для шару '{layer.name()}', feature_id: {feature_id}")
+        #log_msg(logFile, f"Геометрію змінено для шару '{layer.name()}', feature_id: {feature_id}")
         if self.dockwidget and self.is_layer_in_opened_xmls_group(layer):
             self.dockwidget.update_xml_from_geometry_change(layer, feature_id)
 
@@ -360,7 +382,7 @@ class xml_ua:
         """
 
         layer_name = layer.name()
-        log_msg(logFile, f"'{layer_name}'")
+        #log_msg(logFile, f"'{layer_name}'")
 
         if not self.dockwidget or not hasattr(self.dockwidget, 'opened_xmls'):
             return False
@@ -378,6 +400,8 @@ class xml_ua:
                         if child.layer() == layer:
                             return True
         return False
+    
+
     def run(self):
         """
         Executes the plugin's main functionality.
@@ -394,7 +418,7 @@ class xml_ua:
         """
 
         if not QgsProject.instance().fileName():
-            log_msg(logFile, "Немає відкритого проекту. Плагін не буде запущено.")
+            #log_msg(logFile, "Немає відкритого проекту. Плагін не буде запущено.")
             self.iface.messageBar().pushMessage(
                 "XML-UA",
                 "Спочатку треба відкрити проект.",
@@ -402,27 +426,40 @@ class xml_ua:
             )
             return
         
-        self.show_dockwidget()
-    def on_save_tool(self):
-        log_msg(logFile)
+        # --- Початок змін: Створення віджета без показу ---
+        # Гарантуємо, що док-віджет існує, але не робимо його видимим.
+        # Видимість контролюється виключно методом show_dockwidget (toggle).
         if self.dockwidget is None:
-            log_msg(logFile, "Error: dockwidget is None")
+            # #log_msg(logFile, "Док-віджет не існує. Створюємо його у фоновому режимі.")
+            self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
+            self.dockwidget.closingPlugin.connect(self.onClosePlugin)
+            self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
+            self.dockwidget.hide() # Явно приховуємо після створення
+        # --- Кінець змін ---
+    def on_save_tool(self):
+        #log_msg(logFile)
+        if self.dockwidget is None:
+            #log_msg(logFile, "Error: dockwidget is None")
             QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Док віджет не ініціалізовано.")
             return
         self.dockwidget.process_action_save()
         return
     def on_save_as_template_tool(self):
-        log_msg(logFile)
+        #log_msg(logFile)
         if self.dockwidget is None:
-            log_msg(logFile, "Error: dockwidget is None")
+            #log_msg(logFile, "Error: dockwidget is None")
             QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Док віджет не ініціалізовано.")
             return
         self.dockwidget.process_action_save_as_template()
         return
+    
+    
     def on_check_tool(self):
-        log_msg(logFile)
+        #log_msg(logFile)
         self.dockwidget.process_action_check()
         return
+    
+    
     def on_open_tool(self): 
         # Обробка дії "Відкрити XML"
         # Перевіряємо, чи проект відкритий
@@ -438,20 +475,25 @@ class xml_ua:
         # 
         self.run()
 
-        # Підключення відслідковування дій 
-        # по зміні топології (перенесено сюди)
-        self.dockwidget.process_action_open()
-
+        # --- Початок змін: Відкриття файлу без показу віджета ---
+        # Переконуємося, що віджет існує, і викликаємо логіку відкриття файлу.
+        if self.dockwidget:
+            self.dockwidget.process_action_open()
+        else:
+            #log_msg(logFile, "Критична помилка: dockwidget не був створений перед викликом on_open_tool.")
+            pass
         # Підключаємо сигнали для всіх шарів
         # self.connect_layer_signals()
+    
     def on_clear_tool(self):
         """Обробляє дію "Закрити", закриваючи поточний активний XML-файл."""
         if self.dockwidget and self.dockwidget.current_xml:
-            log_msg(logFile, f"Закриття поточного файлу: {self.dockwidget.current_xml.path}")
+            #log_msg(logFile, f"Закриття поточного файлу: {self.dockwidget.current_xml.path}")
             self.dockwidget.process_action_close_xml(self.dockwidget.current_xml)
         else:
-            log_msg(logFile, "Немає активного файлу для закриття.")
+            #log_msg(logFile, "Немає активного файлу для закриття.")
             QMessageBox.information(self.iface.mainWindow(), "Інформація", "Немає активного файлу для закриття.")
+
 
     def clear_widget_data(self): 
 
@@ -491,7 +533,7 @@ class xml_ua:
                 model.setHorizontalHeaderLabels(["Елемент", "Значення"])
 
         except AttributeError:
-            log_msg(logFile, f"AttributeError: {AttributeError}")
+            #log_msg(logFile, f"AttributeError: {AttributeError}")
             pass # Handle the case where the dockwidget might not be fully initialized or if some views are missing.
 
         self.dockwidget.setWindowTitle("XML-файл обміну кадастровою інформацією")
@@ -526,31 +568,51 @@ class xml_ua:
                     if len(child.children()) == 0:
                         groups_to_remove.append(child)
             for group_to_remove in groups_to_remove:
-                # log_msg(logFile, f"Видалено порожню групу: {group_to_remove.name()}")
+                # #log_msg(logFile, f"Видалено порожню групу: {group_to_remove.name()}")
                 group.removeChildNode(group_to_remove)
         # Видалення порожніх груп
         remove_empty_groups(root)
+
+
     def show_dockwidget(self):
-        """Створює та/або показує док-віджет, гарантуючи існування лише одного екземпляра."""
-        # log_calls(logFile)
-    
-        # Шукаємо існуючий док-віджет
+        """
+        Керує створенням та видимістю док-віджета.
+
+        Цей метод працює як перемикач (toggle).
+        - Якщо док-віджет не існує, він створюється і показується.
+        - Якщо док-віджет існує, але прихований, він показується.
+        - Якщо док-віджет існує і видимий, він приховується.
+
+        Викликається:
+        - `tools_button.clicked`: при натисканні на головну іконку плагіна на панелі інструментів.
+        """
+        # Спочатку перевіряємо, чи є у нас посилання на віджет
+        # --- Початок змін: Надійний пошук віджета ---
+        # Завжди шукаємо віджет в інтерфейсі, оскільки посилання self.dockwidget
+        # може бути застарілим після перезавантаження плагіна.
+        found_dockwidget = self.iface.mainWindow().findChild(xml_uaDockWidget, "")
         if self.dockwidget is None:
-            # Спробувати знайти, можливо він був створений, але посилання втрачено
-            self.dockwidget = self.iface.mainWindow().findChild(xml_uaDockWidget, "")
-    
-        if self.dockwidget is None:
-            # log_msg(logFile, "Док-віджет не знайдено. Створюємо новий.")
+            # Якщо віджет не знайдено, створюємо новий екземпляр
+            ##log_msg(logFile, "Док-віджет не знайдено. Створюємо новий.")
             self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
+            self.dockwidget.hide() # Завжди приховуємо після створення
+        # --- Кінець змін ---
+
+        # --- Початок змін: Логіка видимості віджета ---
+        # Показуємо віджет, тільки якщо є відкриті файли.
+        if self.dockwidget.opened_xmls:
+            if self.dockwidget.isVisible():
+                self.dockwidget.hide()
+            else:
+                self.dockwidget.show()
+                self.dockwidget.raise_()
         else:
-            log_msg(logFile, "Док-віджет вже існує. Показуємо його.")
-    
-        # Переконуємося, що віджет видимий
-        self.dockwidget.show()
-        # Піднімаємо його на передній план
-        self.dockwidget.raise_()
+            # Якщо файлів немає, віджет залишається прихованим, і ми показуємо повідомлення.
+            self.dockwidget.hide()
+            self.iface.messageBar().pushMessage("Інфо", "Відкрийте XML-файл, щоб побачити його структуру.", level=Qgis.Info, duration=4)
+        # --- Кінець змін ---
     def initGui(self):
         """Створює меню та панель інструментів після запуску QGIS."""
         self.create_toolbar_and_menu()
@@ -569,7 +631,7 @@ class xml_ua:
 
     def reload_map_canvas_context(self):
         """Перезавантажує обробник контекстного меню полотна карти."""
-        log_msg(logFile, "Перезавантаження контекстного меню полотна карти.")
+        #log_msg(logFile, "Перезавантаження контекстного меню полотна карти.")
         from .map_canvas_context import setup_map_canvas_context
         self.disconnect_map_canvas_context()
         self.map_canvas_context_handler = setup_map_canvas_context(self.iface, self)
@@ -587,7 +649,7 @@ class xml_ua:
             if layer.name() == "Вузли":
                 # Перевіряємо, чи сигнал ще не підключено, щоб уникнути дублювання
                 layer.editingStopped.connect(lambda l=layer: self.dockwidget.on_picket_layer_editing_stopped(l))
-                log_msg(logFile, f"Відкладено підключено editingStopped для існуючого шару '{layer.name()}'")
+                #log_msg(logFile, f"Відкладено підключено editingStopped для існуючого шару '{layer.name()}'")
         """Створює меню та панель інструментів після запуску QGIS."""
         self.create_toolbar_and_menu()
 
@@ -603,10 +665,10 @@ class xml_ua:
         existing_toolbar = self.iface.mainWindow().findChild(QToolBar, "xml_ua")
 
         if existing_toolbar:
-            #log_msg(logFile, f"Тулбар '{existing_toolbar.objectName()}' вже існує. Використовуємо його.")
+            ##log_msg(logFile, f"Тулбар '{existing_toolbar.objectName()}' вже існує. Використовуємо його.")
             self.toolbar = existing_toolbar  # Використовуємо знайдений тулбар
         else:
-            #log_msg(logFile, f"Тулбар 'xml_ua' не знайдено. Створюємо новий.")
+            ##log_msg(logFile, f"Тулбар 'xml_ua' не знайдено. Створюємо новий.")
             self.toolbar = self.iface.addToolBar(u'xml_ua') # Переносимо сюди
             self.toolbar.setObjectName(u'xml_ua') # І сюди
 
@@ -696,6 +758,7 @@ class xml_ua:
                 # Використовуємо lambda для захоплення поточного шару `layer`
                 layer.featureAdded.connect(lambda fid, l=layer: self.on_feature_added(l, fid))
                 layer.featureDeleted.connect(lambda fid, l=layer: self.on_feature_removed(l, fid))
+                layer.committedFeaturesRemoved.connect(lambda l, fids: self.on_committed_features_removed(l, fids))
                 layer.geometryChanged.connect(lambda fid, geom, l=layer: self.on_geometry_changed(l, fid, geom))
 
                 # Підключаємо editingStopped для шару "Вузли"
@@ -709,7 +772,7 @@ class xml_ua:
 
     def restore_from_copy(self):
         """Відновлює активний XML-файл з його резервної копії."""
-        log_msg(logFile, "Запущено процедуру відновлення з копії.")
+        #log_msg(logFile, "Запущено процедуру відновлення з копії.")
 
         if not self.dockwidget or not self.dockwidget.current_xml:
             QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Немає активного файлу для відновлення.")
@@ -732,7 +795,7 @@ class xml_ua:
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         
         if reply == QMessageBox.No:
-            log_msg(logFile, "Відновлення скасовано користувачем.")
+            #log_msg(logFile, "Відновлення скасовано користувачем.")
             return
 
         try:
@@ -740,18 +803,18 @@ class xml_ua:
             self.dockwidget.process_action_close_xml(active_xml, force_close=True)
             # 2. Замінюємо оригінальний файл копією
             shutil.copy2(backup_path, original_path)
-            log_msg(logFile, f"Файл '{original_path}' відновлено з '{backup_path}'.")
+            #log_msg(logFile, f"Файл '{original_path}' відновлено з '{backup_path}'.")
             # 3. Відкриваємо відновлений файл
             self.dockwidget.open_xml_file(original_path)
             self.iface.messageBar().pushMessage("Диск:", f"Файл '{os.path.basename(original_path)}' успішно відновлено.", level=Qgis.Success, duration=5)
         except Exception as e:
-            log_msg(logFile, f"Помилка під час відновлення: {e}")
+            #log_msg(logFile, f"Помилка під час відновлення: {e}")
             QMessageBox.critical(self.iface.mainWindow(), "Помилка відновлення", f"Сталася помилка: {e}")
 
     def on_new_tool(self):
 
         """Обробник для створення нового XML-файлу."""
-        log_msg(logFile)
+        #log_msg(logFile)
         # Створюємо екземпляр класу для створення нового файлу
         creator = NewXmlCreator(self.iface, self)
         # Запускаємо процес
