@@ -71,7 +71,8 @@ class xmlUaLayers:
                 xmlFilePath = "", 
                 tree = None, 
                 plugin=None,
-                xml_data=None):
+                xml_data=None,
+                context="open"):
 
         # xmlFilePath - для формування назви групи шарів
         # tree        - розпарсене дерево xml
@@ -84,6 +85,7 @@ class xmlUaLayers:
         self.cleanup()
 
         self.plugin = plugin  
+        self.context = context
 
         xmlUaLayers._id_counter += 1
 
@@ -168,28 +170,28 @@ class xmlUaLayers:
  
         # --- Початок змін: Створення шарів у правильному порядку (зверху вниз) ---
         # Кожен новий шар додається на позицію 0 (наверх групи).
-        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Кадастрова зона
+        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Кадастрова зона
         zone_handler.add_zone_layer()
 
-        quarter_handler = CadastralQuarters(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data)
+        quarter_handler = CadastralQuarters(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data)
         quarter_handler.add_quarter_layer()
 
-        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
+        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data)
         parcel_handler.add_parcel_layer()
 
-        lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data) # Угіддя
+        lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Угіддя
         if self.root.find(".//LandsParcel") is not None:
             lands_handler.add_lands_layer()
 
-        leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Оренда
+        leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Оренда
         if self.root.find(".//Leases") is not None:
             leases_handler.add_leases_layer()
 
-        subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Суборенда
+        subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Суборенда
         if self.root.find(".//Subleases") is not None:
             subleases_handler.add_subleases_layer()
 
-        restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Обмеження
+        restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Обмеження
         if self.root.find(".//Restrictions") is not None:
             restrictions_handler.add_restrictions_layer()
 
@@ -315,16 +317,22 @@ class xmlUaLayers:
 
         group.insertChildNode(0, cloned_last_child)
         group.removeChildNode(last_child)
-    def linesToCoordinates(self, lines_element):
+
+
+    def linesToCoordinates(self, lines_element, context):
         """ Формує список координат замкненого полігону на основі ULID ліній 
             і їх точок.
 
             Parameters:
                 lines_element (xml.etree.ElementTree.Element): 
+                context (str, optional): Контекст виклику ('open', 'new', 'modify').
+                                         Defaults to "unknown".
 
             Returns:
                 list: Список координат замкненого полігону.
         """
+
+        log_msg(logFile, f"'{context}'")
 
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
@@ -334,7 +342,12 @@ class xmlUaLayers:
 
         logstr = ''
         i = 0
-        for line in lines_element.findall(".//PL"):
+        if context == "modify":
+            search_string = ".//PL"
+        else:
+            search_string = ".//Line"
+
+        for line in lines_element.findall(search_string):
             i += 1
             ulid = line.find("ULID").text
             # logstr += '\n\t' + ulid + '. '+ str(line)

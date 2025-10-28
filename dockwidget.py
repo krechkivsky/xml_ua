@@ -479,7 +479,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.current_xml.tree_view = tree_view # type: ignore
 
         # Завантажуємо дані
-        self.load_data(xml_path, tree=None)
+        self.load_data(xml_path, tree=None) # type: ignore
 
         # Оновлюємо дерево
         tree_view.expand_initial_elements()
@@ -488,7 +488,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # --- Кінець змін ---
 
         # ініціалізуємо заповнення шарів, передаючи xml_data
-        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin, xml_data=self.current_xml) # Pass self.plugin
+        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin, xml_data=self.current_xml, context="open") # Pass self.plugin
         self.current_xml.group_name = self.layers_obj.group.name()
 
         # Оновлюємо назву вкладки на назву групи
@@ -652,7 +652,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # --- Кінець змін ---
 
         # ініціалізуємо заповнення шарів
-        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin, xml_data=self.current_xml)
+        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin, xml_data=self.current_xml, context="new")
         self.current_xml.group_name = self.layers_obj.group.name()
 
         # Оновлюємо назву вкладки на назву групи
@@ -1747,8 +1747,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             root=self.current_xml.tree.getroot(),
             crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
             group=group,
-            plugin_dir=self.plugin.plugin_dir,
-            lines_to_coords_func=self.layers_obj.linesToCoordinates,
+            plugin_dir=self.plugin.plugin_dir, # type: ignore
+            lines_to_coords_func=lambda elem: self.layers_obj.linesToCoordinates(elem, context='modify'), # type: ignore
             xml_ua_layers_instance=self.layers_obj
         )
 
@@ -1825,8 +1825,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             root=self.current_xml.tree.getroot(),
             crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
             group=group,
-            plugin_dir=self.plugin.plugin_dir,
-            lines_to_coords_func=self.layers_obj.linesToCoordinates,
+            plugin_dir=self.plugin.plugin_dir, # type: ignore
+            lines_to_coords_func=lambda elem: self.layers_obj.linesToCoordinates(elem, context='modify'), # type: ignore
             xml_ua_layers_instance=self.layers_obj
         )
 
@@ -1903,8 +1903,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             root=self.current_xml.tree.getroot(),
             crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
             group=group,
-            plugin_dir=self.plugin.plugin_dir,
-            lines_to_coords_func=self.layers_obj.linesToCoordinates,
+            plugin_dir=self.plugin.plugin_dir, # type: ignore
+            lines_to_coords_func=lambda elem: self.layers_obj.linesToCoordinates(elem, context='modify'), # type: ignore
             xml_ua_layers_instance=self.layers_obj
         )
 
@@ -2474,10 +2474,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             size = float(size_element.text) if size_element is not None and size_element.text else None
 
             externals_lines = lands_parcel.find(".//Externals/Boundary/Lines")
-            external_coords = lines_to_coords_func(externals_lines) if externals_lines is not None else []
+            external_coords = lines_to_coords_func(externals_lines, "modify") if externals_lines is not None else []
 
             internals_lines = lands_parcel.find(".//Internals/Boundary/Lines")
-            internal_coords_list = [lines_to_coords_func(b.find('Lines')) for b in lands_parcel.findall(".//Internals/Boundary")]
+            internal_coords_list = [lines_to_coords_func(b.find('Lines'), "modify") for b in lands_parcel.findall(".//Internals/Boundary")]
 
             polygon = lands_handler._coord_to_polygon(external_coords)
             for internal_coords in internal_coords_list:
