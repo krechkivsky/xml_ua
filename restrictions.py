@@ -70,12 +70,18 @@ class Restrictions:
             externals_lines = restriction.find(".//Externals/Boundary/Lines")
             external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
 
-            internals_lines = restriction.find(".//Internals/Boundary/Lines")
-            internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
+            internal_coords_list = [self.lines_to_coords(b.find('Lines')) for b in restriction.findall(".//Internals/Boundary") if b.find('Lines') is not None]
 
             polygon = self._coord_to_polygon(external_coords)
-            if internal_coords:
-                polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
+            if not polygon.isEmpty():
+                for internal_coords in internal_coords_list:
+                    if internal_coords:
+                        # --- Початок змін: Створення QgsLineString безпосередньо ---
+                        # Створюємо QgsLineString напряму, щоб уникнути проблем з володінням пам'яттю
+                        # тимчасового QgsPolygon, що викликало крах QGIS.
+                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                        polygon.addInteriorRing(interior_ring)
+                        # --- Кінець змін ---
 
             feature = QgsFeature(layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
@@ -94,10 +100,7 @@ class Restrictions:
 
         layer_name = "Обмеження"
         self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
-        # --- Початок змін: Встановлення прапорця тимчасового шару ---
-        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
         self.layer.setCustomProperty("skip_save_dialog", True)
-        # --- Кінець змін ---
         self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "restriction.qml"))
         provider = self.layer.dataProvider()
 
@@ -133,10 +136,9 @@ class Restrictions:
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
-                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
+                external_coords = self.lines_to_coords(externals_lines, context='open') if externals_lines is not None else []
 
-            internals_lines = restriction.find(".//Internals/Boundary/Lines")
-            internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
+            internal_coords_list = [self.lines_to_coords(b.find('Lines'), context='open') for b in restriction.findall(".//Internals/Boundary") if b.find('Lines') is not None]
 
             # --- Початок змін: Генерація та збереження object_shape ---
             object_shape = ""
@@ -147,12 +149,19 @@ class Restrictions:
                 if internals_container is not None:
                     interior_shapes = [processor._get_polyline_object_shape(internal.find("Boundary/Lines")) for internal in internals_container.findall("Boundary")]
                 object_shape = "|".join([exterior_shape] + interior_shapes)
-                log_msg(logFile, f"Додано Обмеження '{object_shape}'")
+                # log_msg(logFile, f"Додано Обмеження '{object_shape}'")
             # --- Кінець змін ---
 
             polygon = self._coord_to_polygon(external_coords)
-            if internal_coords:
-                polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
+            if not polygon.isEmpty():
+                for internal_coords in internal_coords_list:
+                    if internal_coords:
+                        # --- Початок змін: Створення QgsLineString безпосередньо ---
+                        # Створюємо QgsLineString напряму, щоб уникнути проблем з володінням пам'яттю
+                        # тимчасового QgsPolygon, що викликало крах QGIS.
+                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                        polygon.addInteriorRing(interior_ring)
+                        # --- Кінець змін ---
 
             feature = QgsFeature(self.layer.fields())
             feature.setGeometry(QgsGeometry(polygon))

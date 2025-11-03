@@ -3,16 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# MkDocs
-/site/
-docs/site/
 
 # IDE
 /.vscode/
 /.idea/
 
 # Logs
-*.log
 *.md
 
 # Jupyter Notebook
@@ -21,9 +17,8 @@ docs/site/
 # Virtual Environment
 .venv/
 
-# Backups and Scratch
-/backups/
-/scratchs/
+# Python caches
+__pycache__/
 
-# Context
-context.py
+# vscode trash
+QGIS3-profiles-PL-python-plugins-xml_ua-tree_view.py

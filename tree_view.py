@@ -1700,9 +1700,9 @@ class CustomTreeView(QTreeView):
             # Починаємо побудову з кореня
             build_tree(root, self.model.invisibleRootItem())
             
-            # Валідація при завантаженні вимкнена для пришвидшення.
-            # Вона буде виконуватися вручну через кнопку "Перевірити".
-            # self._validate_and_color_tree()
+            # --- Початок змін: Вимкнення валідації при завантаженні ---
+            # Валідація при завантаженні файлу вимкнена. Користувач запустить її вручну.
+            # --- Кінець змін ---
 
         except Exception as e:
             log_msg(logFile, f"Помилка при завантаженні XML: {e}")
@@ -1920,6 +1920,22 @@ class CustomTreeView(QTreeView):
         error_brush = QBrush(QColor("red"))
         errors = []
 
+        # --- Початок змін: Очищення старих помилок ---
+        # Перед новою валідацією скидаємо колір для всіх елементів на стандартний.
+        self.validation_errors.clear() # Очищуємо словник помилок
+
+        def clear_colors(item):
+            """Рекурсивно скидає колір для елемента та його дочірніх елементів."""
+            item.setForeground(default_brush)
+            value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+            if value_item:
+                value_item.setForeground(default_brush)
+            for row in range(item.rowCount()):
+                clear_colors(item.child(row, 0))
+
+        if self.model.invisibleRootItem().hasChildren():
+            clear_colors(self.model.invisibleRootItem().child(0, 0))
+        # --- Кінець змін ---
         def clear_tooltips(item):
             """Рекурсивно очищує старі помилки з підказок."""
             path = item.data(Qt.UserRole)

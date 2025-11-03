@@ -82,10 +82,10 @@ class CadastralZoneInfo:
             else:
                 # Читаємо геометрію з ділянки
                 externals_lines = parcel_metric_info.find(".//Externals/Boundary/Lines")
-                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
+                external_coords = self.lines_to_coords(externals_lines, context='open') if externals_lines is not None else []
 
                 internals_lines = parcel_metric_info.find(".//Internals/Boundary/Lines")
-                internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
+                internal_coords = self.lines_to_coords(internals_lines, context='open') if internals_lines is not None else []
 
                 # Забезпечуємо наявність та копіюємо геометрію в розділ зони
                 # --- Початок змін: Вставка Externals у правильну позицію ---

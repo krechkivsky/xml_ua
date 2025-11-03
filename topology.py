@@ -22,7 +22,7 @@ class GeometryProcessor:
         self.max_uidp = self._get_max_id('.//PointInfo/Point', 'UIDP')
         self.max_pn = self._get_max_id('.//PointInfo/Point', 'PN')
         self.max_ulid = self._get_max_id('.//Polyline/PL', 'ULID')
-        self.tolerance = 0.10  # 10 см
+        self.tolerance = 0.10  # 5 см
         self.point_info = self.root.find(".//PointInfo")
         self.polyline_info = self.root.find(".//Polyline")
         self.existing_points = self._get_existing_points()
@@ -91,7 +91,7 @@ class GeometryProcessor:
             distance = math.sqrt((new_x - existing_x)**2 + (new_y - existing_y)**2)
             
             if distance < self.tolerance:
-                log_msg(logFile, f"Знайдено існуючу точку UIDP: {uidp} в межах допуску {self.tolerance}м. Використовуємо її.")
+                log_msg(logFile, f"Знайдено існуючу точку UIDP: {uidp} в межах допуску {self.tolerance}м. Координати ({new_x:.3f}, {new_y:.3f}) замінено на ({existing_x:.3f}, {existing_y:.3f}).")
                 return uidp
         # --- Кінець змін ---
         
@@ -281,6 +281,33 @@ class GeometryProcessor:
                 self.points[new_uidp] = {'x': qgis_point.x(), 'y': qgis_point.y(), 'elem': p_elem}
 
         # 2. Обробка поліліній (сегментів)
+        # --- Початок змін: Виправлення алгоритму валідації полігонів ---
+        # Видалення послідовних дублікатів
+        final_ring_uidps = []
+        if ring_uidps:
+            final_ring_uidps.append(ring_uidps[0])
+            for i in range(1, len(ring_uidps)):
+                if ring_uidps[i] != ring_uidps[i-1]:
+                    final_ring_uidps.append(ring_uidps[i])
+                else:
+                    log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Видалено помилкове послідовне входження точки UIDP: {ring_uidps[i]} у полігональному об'єкті.")
+        ring_uidps = final_ring_uidps
+
+        # Перевіряємо, чи полігон замкнений, і видаляємо останню точку, якщо вона дублює першу.
+        # Це робиться ПІСЛЯ видалення послідовних дублікатів.
+        if len(ring_uidps) > 1 and ring_uidps[0] == ring_uidps[-1]:
+            ring_uidps = ring_uidps[:-1]
+        
+        # Перевірка на непослідовні дублікати (самоперетин) для полігонів.
+        if len(ring_uidps) != len(set(ring_uidps)):
+            seen = set()
+            duplicates = {x for x in ring_uidps if x in seen or seen.add(x)} # noqa
+            object_shape = "-".join(ring_uidps)
+            error_msg = f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} входять в контур більше одного разу (самоперетин).\n\nObject Shape: {object_shape}\n\nОб'єкт не буде додано."
+            log_msg(logFile, error_msg)
+            raise ValueError(error_msg)
+        # --- Кінець змін ---
+
         for i in range(len(ring_uidps)):
             p1_uidp = ring_uidps[i]
             p2_uidp = ring_uidps[(i + 1) % len(ring_uidps)]
@@ -351,7 +378,25 @@ class GeometryProcessor:
                 point_uidps.append(uidp1)
             point_uidps.append(uidp2)
             ulid = self._create_polyline(uidp1, uidp2, p1, p2)
-            line_ulids.append(ulid)
+            # --- Початок змін: Виправлення дублювання ULID ---
+            if ulid not in line_ulids:
+                line_ulids.append(ulid)
+            # --- Кінець змін ---
+
+        # --- Початок змін: Оновлена валідація послідовності точок для суміжника ---
+        # Видалення послідовних дублікатів
+        final_point_uidps = [point_uidps[i] for i in range(len(point_uidps)) if i == 0 or point_uidps[i] != point_uidps[i-1]]
+        if len(final_point_uidps) < len(point_uidps):
+            log_msg(logFile, "ПОПЕРЕДЖЕННЯ: Видалено помилкові послідовні входження точок у геометрії суміжника.")
+
+        # Перевірка на непослідовні дублікати (самоперетин)
+        if len(final_point_uidps) != len(set(final_point_uidps)):
+            seen = set()
+            duplicates = {x for x in final_point_uidps if x in seen or seen.add(x)}
+            error_msg = f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} входять в контур суміжника більше одного разу (самоперетин). Об'єкт не буде додано."
+            log_msg(logFile, error_msg)
+            raise ValueError(error_msg)
+        # --- Кінець змін ---
 
         # Формуємо рядок object_shape
         object_shape = "-".join(point_uidps)
@@ -559,7 +604,7 @@ class GeometryProcessor:
         
         parent_tag = lines_container.getparent().tag if lines_container.getparent() is not None else "N/A"
         ulids_in_container = [line.findtext('ULID') for line in lines_container.findall('Line') if line.findtext('ULID') is not None]
-        log_msg(logFile, f"'{parent_tag}' ULIDs: {ulids_in_container}")
+        # log_msg(logFile, f"'{parent_tag}' ULIDs: {ulids_in_container}")
         # --- Кінець змін ---
         if lines_container is None:
             return ""
@@ -614,91 +659,110 @@ class GeometryProcessor:
                     break  # Ланцюжок розірвано
         # --- Кінець змін ---
         # --- Початок змін: Логування на виході ---
+        # --- Початок змін: Детальне логування object_shape ---
+        log_msg(logFile, f"Відновлено послідовність точок (UIDP): {shape_points}")
         result = "-".join(shape_points)
-        log_msg(logFile, f"object_shape: '{result}'")
+        # log_msg(logFile, f"object_shape: '{result}'")
         return result
-        # --- Кінець змін ---
 
     def get_shape_from_qgis_feature(self, feature: 'QgsFeature'):
         """
         Відновлює object_shape для графічного об'єкта QGIS.
         """
-        geom = feature.geometry()
-        if geom.isNull() or geom.wkbType() not in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
-            return ""
-
-        if geom.type() == QgsWkbTypes.MultiLineString:
-            polyline = geom.asMultiPolyline()[0]
-        else:
-            polyline = geom.asPolyline()
-
-        shape_uidps = []
-        for p in polyline:
-            uidp = self.find_point_uidp(p)
-            if uidp:
-                shape_uidps.append(uidp)
-            else:
-                log_msg(logFile, f"Попередження: не знайдено UIDP для точки з координатами {p.x()}, {p.y()}")
+        # --- Початок змін: Додавання відсутнього методу та узагальнення cleanup_geometry ---
+        # ... (код методу get_shape_from_qgis_feature)
+        # ...
         return "-".join(shape_uidps)
 
-    def cleanup_geometry(self, deleted_adj_units):
+    def get_object_shape_from_externals(self, externals_element):
+        """
+        Відновлює та повертає object_shape для полігонального об'єкта
+        (ділянка, угіддя, оренда тощо) з його елемента <Externals>.
+        """
+        if externals_element is None:
+            return ""
+
+        exterior_shape = self._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
+        interior_shapes = []
+        internals_container = externals_element.find("Internals")
+        if internals_container is not None:
+            interior_shapes = [self._get_polyline_object_shape(internal.find("Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+        
+        all_rings = [exterior_shape] + interior_shapes
+        return "|".join(filter(None, all_rings))
+
+    def cleanup_geometry(self, deleted_elements):
         """
         Безпечно видаляє "осиротілі" лінії та точки згідно з уточненим алгоритмом.
         """
         log_msg(logFile, "--- Початок безпечного очищення геометрії ---")
 
-        # 1. Створюємо список object_shape суміжників, що підлягають видаленню
-        deleted_adj_shapes = [self._get_polyline_object_shape(adj.find('AdjacentBoundary/Lines')) for adj in deleted_adj_units]
-        log_msg(logFile, f"1. Суміжники до видалення (object_shape): {deleted_adj_shapes}")
+        # 1. Збираємо object_shape об'єктів, що були видалені (для логування)
+        deleted_shapes = []
+        for elem in deleted_elements:
+            if elem.tag == 'AdjacentUnitInfo':
+                deleted_shapes.append(self._get_polyline_object_shape(elem.find('AdjacentBoundary/Lines')))
+            else:  # Полігональні об'єкти
+                externals = elem.find('.//Externals')
+                if externals:
+                    deleted_shapes.append(self.get_object_shape_from_externals(externals))
+        log_msg(logFile, f"1. Об'єкти до видалення (object_shape): {deleted_shapes}")
 
-        # 2. Створюємо список object_shape суміжників, що залишаються
-        remaining_adj_shapes = [self._get_polyline_object_shape(adj.find('AdjacentBoundary/Lines')) for adj in self.root.findall(".//AdjacentUnitInfo")]
-        log_msg(logFile, f"2. Суміжники, що залишаються (object_shape): {remaining_adj_shapes}")
+        # 2. Створюємо список object_shape ВСІХ об'єктів, що ЗАЛИШИЛИСЯ в XML-дереві
+        remaining_shapes = []
+        # Ділянка
+        parcel_externals = self.root.find(".//ParcelMetricInfo/Externals")
+        if parcel_externals:
+            remaining_shapes.append(self.get_object_shape_from_externals(parcel_externals))
+        # Суміжники
+        for adj in self.root.findall(".//AdjacentUnitInfo"):
+            remaining_shapes.append(self._get_polyline_object_shape(adj.find('AdjacentBoundary/Lines')))
+        # Угіддя
+        for land in self.root.findall(".//LandParcelInfo"):
+            remaining_shapes.append(self.get_object_shape_from_externals(land.find('MetricInfo/Externals')))
+        # Оренда, Суборенда, Обмеження
+        for tag in ["LeaseInfo", "SubleaseInfo", "RestrictionInfo"]:
+            for item in self.root.findall(f".//{tag}"):
+                remaining_shapes.append(self.get_object_shape_from_externals(item.find('Externals')))
+        log_msg(logFile, f"2. Об'єкти, що залишаються в XML (object_shape): {remaining_shapes}")
 
-        # 3. Додаємо object_shape ділянки
-        parcel_lines = self.root.find(".//ParcelMetricInfo/Externals/Boundary/Lines")
-        parcel_shape = self._get_polyline_object_shape(parcel_lines)
-        log_msg(logFile, f"3. Ділянка (object_shape): {parcel_shape}")
-
-        # 4. Створюємо множину точок, які залишаються
+        # 3. Створюємо множину точок, які потрібно зберегти (з усіх контурів, що залишилися)
         points_to_keep = set()
-        for shape in remaining_adj_shapes + [parcel_shape]:
-            if shape: points_to_keep.update(shape.split('-'))
+        # Використовуємо filter(None, ...) для пропуску порожніх shape
+        for shape in filter(None, remaining_shapes):
+            if shape:
+                for ring_shape in shape.split('|'):
+                    points_to_keep.update(ring_shape.split('-'))
         log_msg(logFile, f"4. Точки, що залишаються (UIDP): {sorted(list(points_to_keep))}")
 
-        # 5. Створюємо множину точок, кандидатів на видалення
-        points_candidates_for_deletion = set()
-        for shape in deleted_adj_shapes:
-            if shape: points_candidates_for_deletion.update(shape.split('-'))
-        log_msg(logFile, f"5. Точки-кандидати на видалення (UIDP): {sorted(list(points_candidates_for_deletion))}")
+        # 5. Збираємо всі точки, що існують в XML
+        all_points_in_xml = set(self.points.keys())
+        log_msg(logFile, f"4. Всі точки в XML (UIDP): {sorted(list(all_points_in_xml))}")
 
-        # 6. Фільтруємо множину точок на видалення
-        final_points_to_delete = points_candidates_for_deletion - points_to_keep
-        log_msg(logFile, f"6. Точки, що будуть видалені (UIDP): {sorted(list(final_points_to_delete))}")
+        # 6. Визначаємо точки, які потрібно видалити (ті, що є в XML, але не використовуються в об'єктах, що залишаються)
+        final_points_to_delete = all_points_in_xml - points_to_keep
+        log_msg(logFile, f"5. Точки, що будуть видалені (осиротілі) (UIDP): {sorted(list(final_points_to_delete))}")
 
-        # 7. Створюємо множину ліній, кандидатів на видалення
-        lines_candidates_for_deletion = set()
-        for shape in deleted_adj_shapes:
-            if shape:
-                points = shape.split('-')
-                for i in range(len(points) - 1):
-                    lines_candidates_for_deletion.add(frozenset([points[i], points[i+1]]))
-        log_msg(logFile, f"7. Лінії-кандидати на видалення: {[f'{p1}-{p2}' for p1, p2 in lines_candidates_for_deletion]}")
-
-        # 8. Створюємо множину ліній, які залишаються
+        # 7. Визначаємо лінії, які залишаються
         lines_to_keep = set()
-        for shape in remaining_adj_shapes + [parcel_shape]:
+        for shape in filter(None, remaining_shapes):
             if shape:
-                points = shape.split('-')
-                for i in range(len(points) - 1):
-                    lines_to_keep.add(frozenset([points[i], points[i+1]]))
-        log_msg(logFile, f"8. Лінії, що залишаються: {[f'{p1}-{p2}' for p1, p2 in lines_to_keep]}")
+                for ring_shape in shape.split('|'):
+                    points = ring_shape.split('-')
+                    for i in range(len(points) - 1):
+                        lines_to_keep.add(frozenset([points[i], points[i+1]]))
+        # --- Початок змін: Виправлення помилки ValueError при логуванні ---
+        # Додано перевірку, щоб уникнути помилки, якщо frozenset містить менше 2 елементів
+        lines_to_keep_str = [f"{list(s)[0]}-{list(s)[1]}" for s in lines_to_keep if len(s) == 2]
+        log_msg(logFile, f"7. Лінії, що залишаються: {lines_to_keep_str}")
+        # --- Кінець змін ---
 
-        # 9. Фільтруємо множину ліній на видалення
-        final_lines_to_delete = lines_candidates_for_deletion - lines_to_keep
-        log_msg(logFile, f"9. Лінії, що будуть видалені: {[f'{p1}-{p2}' for p1, p2 in final_lines_to_delete]}")
+        # 8. Визначаємо лінії на видалення (всі, що не увійшли до lines_to_keep)
+        all_line_segments = {frozenset(pl['points']) for pl in self.polylines.values()}
+        final_lines_to_delete = all_line_segments - lines_to_keep
+        # ERROR log_msg(logFile, f"8. Лінії, що будуть видалені: {[f'{p1}-{p2}' for p1, p2 in final_lines_to_delete]}")
 
-        # 10. Видаляємо лінії з <Polyline>
+        # 9. Видаляємо лінії з <Polyline>
         polyline_container = self.root.find('.//Polyline')
         if polyline_container is not None and final_lines_to_delete:
             ulids_to_delete = set()
@@ -712,7 +776,7 @@ class GeometryProcessor:
                     polyline_container.remove(elem)
                 log_msg(logFile, f"Видалено {len(lines_to_remove_elems)} ліній з <Polyline>.")
 
-        # 11. Видаляємо точки з <PointInfo>
+        # 10. Видаляємо точки з <PointInfo>
         point_info_container = self.root.find('.//PointInfo')
         if point_info_container is not None and final_points_to_delete:
             points_to_remove_elems = [pt['elem'] for uidp, pt in self.points.items() if uidp in final_points_to_delete]
@@ -720,14 +784,15 @@ class GeometryProcessor:
                 point_info_container.remove(elem)
             log_msg(logFile, f"Видалено {len(points_to_remove_elems)} точок з <PointInfo>.")
 
-        # 12. Оновлюємо внутрішні кеші процесора
-        self.polylines = self._get_all_polylines()
+        # 11. Оновлюємо внутрішні кеші процесора
         self.points = self._get_all_points()
+        self.polylines = self._get_all_polylines()
         log_msg(logFile, "--- Завершено безпечне очищення геометрії ---")
 
-        # 13. Перенумеровуємо геометрію, щоб усунути прогалини
+        # 12. Перенумеровуємо геометрію, щоб усунути прогалини
         self.renumber_geometry()
         log_msg(logFile, "Геометрію (вузли та лінії) було перенумеровано.")
+        # --- Кінець змін ---
 
     def renumber_geometry(self):
         """

@@ -167,41 +167,44 @@ class xmlUaLayers:
         parcel_handler = None
         self.adjacents_handler = None
         # --- Кінець змін ---
- 
-        # --- Початок змін: Створення шарів у правильному порядку (зверху вниз) ---
-        # Кожен новий шар додається на позицію 0 (наверх групи).
-        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Кадастрова зона
+        # --- Початок змін: Виправлення порядку шарів та відновлення суміжників ---
+        # Шари додаються в зворотньому порядку, оскільки кожен новий шар вставляється наверх групи.
+        # Правильний порядок: Суміжники, Обмеження, Суборенда, Оренда, Угіддя, Ділянка, Квартал, Зона, Полілінії, Вузли.
+
+        self.points_handler.add_pickets_layer() # Вузли
+        self.lines_handler.add_lines_layer() # Полілінії
+
+        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data)
         zone_handler.add_zone_layer()
 
-        quarter_handler = CadastralQuarters(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data)
+        quarter_handler = CadastralQuarters(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data)
         quarter_handler.add_quarter_layer()
 
-        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data)
+        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
         parcel_handler.add_parcel_layer()
 
-        lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Угіддя
+        lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
         if self.root.find(".//LandsParcel") is not None:
             lands_handler.add_lands_layer()
 
-        leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Оренда
+
+        leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Оренда
         if self.root.find(".//Leases") is not None:
             leases_handler.add_leases_layer()
 
-        subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Суборенда
+        subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Суборенда
         if self.root.find(".//Subleases") is not None:
             subleases_handler.add_subleases_layer()
 
-        restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir, lambda elem: self.linesToCoordinates(elem, context=self.context), self, xml_data=self.xml_data) # Обмеження
+        restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data) # Обмеження
         if self.root.find(".//Restrictions") is not None:
             restrictions_handler.add_restrictions_layer()
 
-        self.adjacents_handler = AdjacentUnits(self.root, self.crsEpsg, self.group, self.plugin_dir, self, xml_data=self.xml_data) # Суміжники
+        # --- Початок змін: Відновлення логіки створення шару суміжників ---
+        self.adjacents_handler = AdjacentUnits(self.root, self.crsEpsg, self.group, self.plugin_dir, self, xml_data=self.xml_data)
         if self.root.find(".//AdjacentUnits") is not None:
             self.adjacents_handler.add_adjacents_layer()
-
-        # --- Початок змін: Виправлення порядку шарів "Вузли" та "Полілінії" ---
-        self.lines_handler.add_lines_layer() # Полілінії
-        self.points_handler.add_pickets_layer() # Вузли
+        # --- Кінець змін ---
         # --- Кінець змін ---
 
         # --- Початок змін: Формування списку з перевіркою на None ---
@@ -216,6 +219,7 @@ class xmlUaLayers:
             if layer_obj and hasattr(layer_obj, 'layer') and layer_obj.layer and self.xml_data: # Assuming each handler has a 'layer' attribute
                 layer_obj.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
                 # #log_msg(logFile, f"Встановлено custom property на шар '{layer_obj.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+        # --- Кінець змін ---
         # --- Кінець змін ---
 
     def check_construction_status(self):
@@ -332,7 +336,7 @@ class xmlUaLayers:
                 list: Список координат замкненого полігону.
         """
 
-        log_msg(logFile, f"'{context}'")
+        # log_msg(logFile, f"'{context}'")
 
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
@@ -841,6 +845,30 @@ class xmlUaLayers:
 
             if found_next_line:
                 continue
+
+            # Шукаємо співпадіння polyline[0] (початок) з початками залишку lines[0][1],...lines[-1][1]
+            for i, (ulid, coords) in enumerate(lines):
+                if coords[0] == polyline[0]:
+                    # Додаємо точки, крім першої (щоб уникнути дублювання)
+                    polyline = [QgsPointXY(point.x(), point.y()) for point in coords[1:]] + polyline
+                    lines.pop(i)
+                    found_next_line = True
+                    break
+
+            if not found_next_line:
+                raise ValueError("Полілінія не з'єднана.")
+
+                # log_str = ""
+                # log_str_coords = ""
+                # i = 0
+                # for coordinate in polyline:
+                #     i += 1
+                #     log_str += f"{i}. {coordinate.x():.2f}, {coordinate.y():.2f}\n"
+                #     log_str_coords += f"{i}. {coordinate} \n"
+                # #log_msg(logFile, "polyline_coordinates (x, y): \n" + log_str)
+
+                # return polyline
+
 
             # Шукаємо співпадіння polyline[0] (початок) з початками залишку lines[0][1],...lines[-1][1]
             for i, (ulid, coords) in enumerate(lines):

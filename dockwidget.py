@@ -91,7 +91,7 @@ from .delegates import DispatcherDelegate, DocumentCodeDelegate
 from .layers import xmlUaLayers
 
 from .common import logFile
-from .common import log_msg
+from .common import log_msg, log_calls
 from .topology import GeometryProcessor
 from .common import geometry_to_string
 from .common import size
@@ -307,6 +307,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def process_action_check(self):
         """Перевіряє поточний активний XML-файл."""
+        # --- Початок змін: Показ віджета, якщо він прихований ---
+        # Якщо віджет невидимий, показуємо його, щоб користувач бачив результати.
+        if not self.isVisible():
+            self.show()
+            self.raise_()
+        # --- Кінець змін ---
+
         current_tab_widget = self.tabWidget.currentWidget()
         if not self.current_xml or not current_tab_widget:
             QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для перевірки.")
@@ -326,6 +333,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             log_msg(logFile, f"Запуск повної валідації для файлу: {self.current_xml.path}")
             self.iface.messageBar().pushMessage("xml_ua:", f"Перевірка файлу: {os.path.basename(self.current_xml.path)}...", level=Qgis.Info, duration=5)
             
+            # --- Початок змін: Очищення всіх старих повідомлень ---
+            # Видаляємо всі попередні повідомлення з панелі, щоб уникнути їх накопичення.
+            self.iface.messageBar().clearWidgets()
+            # --- Кінець змін ---
+            
             # Запускаємо валідацію з генерацією звіту
             errors_list = tree_view._validate_and_color_tree(generate_report=True)
             
@@ -342,7 +354,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                             self.iface.messageBar().pushMessage(
                                 f"Помилка валідації #{i}", error, level=Qgis.Warning, duration=0)
                     
-                    log_msg(logFile, f"Знайдено {len(errors_list)} помилок. Звіт збережено у '{report_path}'.")
+                    # log_msg(logFile, f"Знайдено {len(errors_list)} помилок. Звіт збережено у '{report_path}'.")
                 except Exception as e:
                     log_msg(logFile, f"Не вдалося зберегти звіт про помилки: {e}")
                     QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти звіт про помилки: {e}")
@@ -380,31 +392,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
             return
 
-        # TODO: тут поки неповна шивка перевірка
+        # --- Початок змін: Вимкнення валідації при відкритті ---
+        # Перевірка структури файлу при відкритті вимкнена згідно з вимогою.
+        # Користувач може запустити перевірку вручну, коли це буде потрібно.
         # if not self.validate_xml_structure(xml_path):
-        #     # TODO: тут треба виводити помилку на панелі QGIS - 
-        #     # чому саме validate_xml_structure видала False
-        #     # для цього її логіка роботи: визначення помилок
-        #     # замість validate_xml_structure вона повинна 
-        #     # називатися errors_list ==> [] якщо все ок
         #     log_msg(logFile, "Неправильна структура файлу XML.")
-        #     # Виводимо попередження про помилку на панелі QGIS
         #     self.iface.messageBar().pushMessage(
-        #                         "xml_ua:", 
-        #                         "Неправильна структура файлу XML.", 
-        #                         level=Qgis.Critical, 
+        #                         "xml_ua:",
+        #                         "Неправильна структура файлу XML.",
+        #                         level=Qgis.Critical,
         #                         duration=0)
-            
         #     return
-        # else:
-        #     # log_msg(logFile, "Файл відповідає структурі XML.")
-        #     # Виводимо повідомлення про успіх на панелі QGIS
-        #     self.iface.messageBar().pushMessage(
-        #                         "xml_ua:", 
-        #                         "Файл відповідає структурі XML.", 
-        #                         level=Qgis.Success, 
-        #                         duration=5)
-        #     pass
+        # --- Кінець змін ---
         # endregion
         
         # --- Початок змін: Оновлена логіка резервного копіювання ---
@@ -450,7 +449,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """Відкриває XML файл, створює вкладку та шари."""
         # --- Початок змін: Логування відкриття файлу ---
         current_time = datetime.now().strftime("%H:%M:%S")
-        log_msg(logFile, f"[{current_time}] Відкриття файлу: {os.path.basename(xml_path)}")
+        # log_msg(logFile, f"[{current_time}] Відкриття файлу: {os.path.basename(xml_path)}")
         # --- Кінець змін ---
 
         # Якщо файл відкривається не через process_action_open (напр. при відновленні),
@@ -715,7 +714,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         Позначає поточний XML-файл як змінений і оновлює заголовок вікна.
         """
         if self.current_xml and not self.current_xml.changed:
-            log_msg(logFile, f"Файл '{self.current_xml.path}' позначено як змінений.")
+            # log_msg(logFile, f"Файл '{self.current_xml.path}' позначено як змінений.")
             self.current_xml.changed = True
             # --- Початок змін: Встановлення нового прапорця ---
             self.current_xml.was_ever_changed = True # Фіксуємо, що зміни були
@@ -1103,6 +1102,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
           видаляє відповідний розділ з XML-дерева.
         - Ігнорує видалення захищених шарів ("Ділянка", "Вузли" тощо).
         """
+        log_calls(logFile, f"Обробка видалення шару: {layer_id}")
         LAYER_TO_XML_PATH = {
             # --- Початок змін: Уточнення XPath для надійності ---
             "Суміжники": ".//ParcelInfo/AdjacentUnits",
@@ -1119,7 +1119,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         layer_name = layer.name()
-        log_msg(logFile, f"Видалення '{layer_name}': {str(layer_id)}.")
+        log_calls(logFile, f"Видалення '{layer_name}': {str(layer_id)[-4]}.")
 
         xml_data = self.find_xml_data_for_layer(layer)
         if not xml_data:
@@ -1560,7 +1560,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         Додає угіддя з виділеного полігону до активного XML-файлу.
         """
-        log_msg(logFile, "Спроба додати угіддя до активного XML.")
+        log_calls(logFile, "Нове угіддя додається з виділеного полігону.")
 
         if not self.current_xml:
             QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання угідь.")
@@ -1586,14 +1586,22 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # --- Початок змін: Обробка геометрії через GeometryProcessor для отримання object_shape ---
         tree = self.current_xml.tree
         processor = GeometryProcessor(tree)
-        externals_element, new_points, new_polylines, object_shape = processor.process_new_geometry(geom)
-        log_msg(logFile, f"Додавання угіддя: геометрія виділеного полігону (object_shape): '{object_shape}'")
+        try:
+            externals_element, new_points, new_polylines, object_shape = processor.process_new_geometry(geom) # noqa
+        except ValueError as e:
+            QMessageBox.critical(self, "Критична помилка топології", str(e))
+            return
+
+        log_calls(logFile, f"Додавання угіддя: '{object_shape}'")
         # 2. Знайти або створити шар "Угіддя"
         layers_root = QgsProject.instance().layerTreeRoot()
         group = layers_root.findGroup(self.current_xml.group_name)
         if not group:
             log_msg(logFile, f"Група '{self.current_xml.group_name}' не знайдена.")
             return
+        else:
+            log_calls(logFile, f"Група '{self.current_xml.group_name}' знайдена.")
+
 
         layer_name = "Угіддя"
         lands_layer = None
@@ -1603,7 +1611,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 break
 
         if lands_layer is None:
-            # Створюємо шар, якщо його немає
+            log_msg(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий шар.")
             lands_layer = QgsVectorLayer(f"MultiPolygon?crs={self.iface.mapCanvas().mapSettings().destinationCrs().authid()}", layer_name, "memory")
             lands_layer.loadNamedStyle(os.path.join(os.path.dirname(__file__), "templates", "lands_parcel.qml"))
             provider = lands_layer.dataProvider()
@@ -1640,9 +1648,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         new_feature.setAttributes([land_code, size_ha])
         
         lands_layer.startEditing()
-        lands_layer.addFeature(new_feature)
-        lands_layer.commitChanges()
-        # --- Кінець змін ---
         # 4. Додати відповідні елементи до XML-дерева (використовуємо вже отримані externals_element)
         root = tree.getroot()
         parcel_info_element = root.find(".//ParcelInfo")
@@ -1661,28 +1666,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         etree.SubElement(area, "Size").text = f"{size_ha:.4f}"
         etree.SubElement(area, "MeasurementUnit").text = "га"
 
-        # Перевіряємо, чи повернулися дані, перш ніж розпаковувати.
-        # processed_data може бути None, якщо геометрія некоректна.
         if externals_element is not None:
-            if externals_element is not None:
-                metric_info.append(externals_element) # type: ignore
-            log_msg(logFile, f"Додавання: шар 'Угіддя', джерело 'геометричний об''єкт', object_shape: '{object_shape}'") # type: ignore
+            metric_info.append(externals_element)
+            log_msg(logFile, f"Додано '{object_shape}' до метрики в XML.")
 
         # 5. Оновити вигляд дерева та позначити зміни
         self.current_xml.tree_view.rebuild_tree_view()
-        self.current_xml.tree_view.mark_as_changed()
+        self.mark_as_changed()
 
-        # --- Початок змін: Переміщення перемалювання шару ---
-        # Перемальовуємо шар, щоб відобразити новий об'єкт
-        self.redraw_specific_layer(self.current_xml, "Угіддя")
+        # --- Початок змін: Використання єдиного надійного методу перемалювання ---
+        self.redraw_current_group()
         # --- Кінець змін ---
-        # НЕ зберігаємо на диск і НЕ перемальовуємо шари тут, щоб уникнути краху.
-        # Зберігаємо тимчасову копію дерева для можливого відкату.
+        
         if not hasattr(self.current_xml, 'temp_tree_state') or self.current_xml.temp_tree_state is None:
              # Повідомлення для користувача
              self.iface.messageBar().pushMessage(
                 "Інформація", f"Угіддя з кодом '{land_code}' було додано. Збережіть зміни, щоб оновити XML та шари.",
-                level=Qgis.Info, duration=5
+                level=Qgis.Info, duration=25
              )
              # Створюємо копію тільки якщо її ще немає, щоб зберегти стан *до* першої зміни
              original_tree = etree.parse(self.current_xml.path)
@@ -1722,6 +1722,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             # Викликаємо новий метод для обробки геометрії оренди
             processor.process_lease_geometry(geom)
+            log_msg(logFile, "Геометрію для нової оренди оброблено та додано до XML.")
+        except ValueError as e:
+            QMessageBox.critical(self, "Критична помилка топології", str(e))
+            return
+
             log_msg(logFile, "Геометрію для нової оренди оброблено та додано до XML.")
         except Exception as e:
             log_msg(logFile, f"Помилка при обробці геометрії оренди: {e}")
@@ -1801,6 +1806,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             # Викликаємо новий метод для обробки геометрії суборенди
             processor.process_sublease_geometry(geom)
             log_msg(logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
+        except ValueError as e:
+            QMessageBox.critical(self, "Критична помилка топології", str(e))
+            return
+
+            log_msg(logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
         except Exception as e:
             log_msg(logFile, f"Помилка при обробці геометрії суборенди: {e}")
             QMessageBox.critical(self, "Помилка", f"Не вдалося додати суборенду: {e}")
@@ -1878,6 +1888,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             # Викликаємо новий метод для обробки геометрії обмеження
             processor.process_restriction_geometry(geom)
+            log_msg(logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
+        except ValueError as e:
+            QMessageBox.critical(self, "Критична помилка топології", str(e))
+            return
+
             log_msg(logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
         except Exception as e:
             log_msg(logFile, f"Помилка при обробці геометрії обмеження: {e}")
@@ -2001,56 +2016,20 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             # Викликаємо новий метод для обробки суміжника
             processor.process_adjacent_unit_geometry(geom)
-            log_msg(logFile, f"Геометрію для суміжника {object_shape} оброблено та додано до XML.")
-            log_msg(logFile, f"ID дерева XML після обробки: {id(self.current_xml.tree)}")
-            # --- Початок змін: Логування стану дерева ---
-            adj_units_after = self.current_xml.tree.find(".//AdjacentUnits")
-            if adj_units_after is None:
-                log_msg(logFile, "(після обробки): Розділ 'AdjacentUnits' ВІДСУТНІЙ.")
-            else:
-                count = len(adj_units_after.findall("AdjacentUnitInfo"))
-                log_msg(logFile, f"(після обробки): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
-            # --- Кінець змін ---
-        except Exception as e:
-            # log_msg(logFile, f"Помилка при обробці геометрії суміжника: {e}")
-            # QMessageBox.critical(self, "Помилка", f"Не вдалося додати суміжника: {e}")
+        except ValueError as e:
+            QMessageBox.critical(self, "Критична помилка топології", str(e))
             return
 
-        log_msg(logFile, "Початок безпечного оновлення шарів.")
-        if self.layers_obj:
-            # --- Початок змін: Примусове оновлення XML-дерева в обробниках --- #
-            # Перед перемалюванням шарів, ми оновлюємо посилання на XML-дерево #
-            # у всіх обробниках, щоб вони використовували актуальну версію з новим суміжником. #
-            updated_root = self.current_xml.tree.getroot()
-            self.layers_obj.points_handler.root = updated_root
-            self.layers_obj.lines_handler.root = updated_root
-            self.layers_obj.adjacents_handler.root = updated_root
-            # --- Кінець змін --- #
-            # 1. Оновлюємо шари "Вузли" та "Полілінії", оскільки могли бути додані нові елементи.
-            log_msg(logFile, "Оновлення шарів 'Вузли' та 'Полілінії'...")
-            self.layers_obj.points_handler.redraw_pickets_layer()
-            self.layers_obj.lines_handler.redraw_lines_layer()
-
-            # --- Початок змін: Логування стану дерева ---
-            adj_units_before_redraw = self.current_xml.tree.find(".//AdjacentUnits")
-            if adj_units_before_redraw is None:
-                log_msg(logFile, "(перед перемалюванням шару суміжників): Розділ 'AdjacentUnits' ВІДСУТНІЙ.")
-            else:
-                count = len(adj_units_before_redraw.findall("AdjacentUnitInfo"))
-                log_msg(logFile, f"(перед перемалюванням шару суміжників): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
-            # --- Кінець змін ---
-            # 2. Оновлюємо шар "Суміжники".
-            log_msg(logFile, "Оновлення шару 'Суміжники'...")
-            # add_adjacents_layer тепер сам видалить старий шар і створить новий,
-            # заповнений актуальними даними. Це надійно.
-            self.layers_obj.adjacents_handler.add_adjacents_layer()
+        except Exception as e:
+            return
 
         # --- Початок змін: Переміщення оновлення дерева в кінець ---
         # 3. Оновлюємо вигляд дерева та позначаємо зміни ПІСЛЯ оновлення шарів.
         self.current_xml.tree_view.rebuild_tree_view()
         self.mark_as_changed()
-        # --- Кінець змін ---
-        # self.iface.messageBar().pushMessage("Успіх", f"Суміжника додано до групи '{self.current_xml.group_name}'.", level=Qgis.Success, duration=5)
+
+        # 4. Повністю перемалювати поточну групу
+        self.redraw_current_group()
 
         # 4. Зберегти тимчасову копію для можливого відкату
         if not hasattr(self.current_xml, 'temp_tree_state') or self.current_xml.temp_tree_state is None:
@@ -2142,10 +2121,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # --- Кінець змін ---
         else: # Changes were discarded by user in QGIS
             log_msg(logFile, f"Зміни для '{xml_data.group_name}' відкинуто користувачем. Відновлюємо попередній стан.")
-            if hasattr(xml_data, 'temp_tree_state') and xml_data.temp_tree_state is not None:
-                xml_data.tree = xml_data.temp_tree_state # Revert to the state before editing
-            # --- Початок змін: Заміна руйнівного redraw_layers на безпечне оновлення ---
-            QTimer.singleShot(0, lambda: self.update_geometry_dependent_layers(xml_data)) # Redraw layers to match the reverted state
+            # --- Початок змін: Виправлення логіки відкату ---
+            if hasattr(xml_data, 'temp_tree_state') and xml_data.temp_tree_state is not None: # noqa
+                xml_data.tree = xml_data.temp_tree_state  # Revert to the state before editing
+                # Перемальовуємо шари, щоб вони відповідали відновленому стану XML
+                self.redraw_layers(xml_data)
+                # Оновлюємо дерево GUI
+                xml_data.tree_view.rebuild_tree_view()
             # --- Кінець змін ---
 
         # Reset the changed flag and temp state
@@ -2153,65 +2135,53 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         xml_data.temp_tree_state = None
 
     def handle_committed_features_removed(self, layer, feature_ids):
-        """Обробляє подію ПІСЛЯ видалення об'єктів з шару 'Суміжники'."""
+        """Обробляє подію ПІСЛЯ видалення об'єктів з шару."""
         layer_name = layer.name()
-        if layer_name != "Суміжники":
+        supported_layers = {
+            "Суміжники": ".//AdjacentUnitInfo",
+            "Угіддя": ".//LandParcelInfo",
+            "Оренда": ".//LeaseInfo",
+            "Суборенда": ".//SubleaseInfo",
+            "Обмеження": ".//RestrictionInfo"
+        }
+
+        if layer_name not in supported_layers:
             return
 
         xml_data = self.find_xml_data_for_layer(layer)
-        if not xml_data:
+        if not xml_data or not hasattr(layer, 'deleted_features_shapes'):
             return
-        
+
         log_msg(logFile, f"Видалено {len(feature_ids)} об'єкт(ів) з шару '{layer_name}'. Початок синхронізації з XML.")
 
-        # 1. Отримуємо object_shape всіх об'єктів, що ЗАЛИШИЛИСЯ на шарі
         processor = GeometryProcessor(xml_data.tree)
-        remaining_shapes = set()
-        for feature in layer.getFeatures():
-            shape = processor.get_shape_from_qgis_feature(feature)
-            if shape:
-                remaining_shapes.add(shape)
+        shapes_to_delete = layer.deleted_features_shapes
+        del layer.deleted_features_shapes
 
-        # 2. Визначаємо, які елементи видалити з XML
-        all_xml_adj_units = xml_data.tree.findall(".//AdjacentUnitInfo")
-        adj_units_to_delete = []
+        xpath_search = supported_layers[layer_name]
+        all_xml_elements = xml_data.tree.findall(xpath_search)
+        elements_to_delete = []
 
-        for adj_unit in all_xml_adj_units:
-            lines_container = adj_unit.find('AdjacentBoundary/Lines')
-            shape = processor._get_polyline_object_shape(lines_container)
-            # Якщо shape з XML не знайдено серед тих, що залишились на карті,
-            # цей елемент є кандидатом на видалення.
-            if shape not in remaining_shapes:
-                log_msg(logFile, f"Визначено суміжника до видалення з XML. Shape: '{shape}'.")
-                adj_units_to_delete.append(adj_unit)
+        for element in all_xml_elements:
+            shape = processor.get_object_shape_from_externals(element.find('.//Externals'))
+            if shape in shapes_to_delete:
+                elements_to_delete.append(element)
 
-        if adj_units_to_delete:
-            # 3. Видаляємо елементи <AdjacentUnitInfo> з дерева
-            adj_container = xml_data.tree.find(".//AdjacentUnits")
-            if adj_container is not None:
-                for unit in adj_units_to_delete:
-                    adj_container.remove(unit)
-            # 4. Запускаємо очищення "осиротілої" геометрії
-            processor.cleanup_geometry(adj_units_to_delete)
+        if not elements_to_delete:
+            log_msg(logFile, "Не знайдено елементів для видалення з XML.")
+            return
 
-            # Оновлюємо дерево та позначаємо зміни
-            # --- Початок змін: Перенумерація геометрії --- #
-            # processor.renumber_geometry() # Цей виклик тепер всередині cleanup_geometry
-            # log_msg(logFile, "Геометрію (вузли та лінії) було перенумеровано.") #
-            # --- Кінець змін --- #
-            xml_data.tree_view.rebuild_tree_view()
-            self.mark_as_changed()
+        # 3. Видаляємо елементи з XML-дерева
+        for element in elements_to_delete:
+            parent = element.getparent()
+            if parent is not None:
+                log_msg(logFile, f"Видалення елемента '{element.tag}' з XML.")
+                parent.remove(element)
 
-            # Зберігаємо зміни автоматично
-            try:
-                xml_data.tree_view.save_xml_tree(xml_data.tree, xml_data.path)
-                log_msg(logFile, f"Зміни (видалення суміжників) збережено у файл: {xml_data.path}")
-                # Скидаємо прапорець змін після збереження
-                xml_data.changed = False
-                self.update_tab_style_by_group_name(xml_data.group_name, is_changed=False)
-                self.update_changed_actions_state(is_changed=False)
-            except Exception as e:
-                log_msg(logFile, f"Помилка при автоматичному збереженні після видалення суміжників: {e}")
+        processor.cleanup_geometry(elements_to_delete)
+
+        xml_data.tree_view.rebuild_tree_view()
+        self.mark_as_changed()
 
     def delete_adjacent_from_map(self, xml_element_to_delete):
         """
@@ -2437,6 +2407,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self._fill_lands_layer(existing_layer, xml_data)
         elif layer_name == "Суміжники":
             self._fill_adjacents_layer(existing_layer, xml_data)
+        elif layer_name == "Оренда":
+            self._fill_leases_layer(existing_layer, xml_data)
+        elif layer_name == "Суборенда":
+            self._fill_subleases_layer(existing_layer, xml_data)
+        elif layer_name == "Обмеження":
+            self._fill_restrictions_layer(existing_layer, xml_data)
 
         log_msg(logFile, f"Шар '{layer_name}' успішно перемальовано.")
 
@@ -2449,11 +2425,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         provider = layer.dataProvider()
         layer.startEditing()
-        # --- Початок змін: Виправлення AttributeError ---
-        # Створюємо тимчасовий об'єкт для доступу до методу _coord_to_polygon, оскільки він не є статичним
+
         from .lands import LandsParcels
-        lands_handler = LandsParcels(xml_data.tree.getroot(), self.iface.mapCanvas().mapSettings().destinationCrs().authid(), self.layers_obj.group, self.layers_obj.plugin_dir, QgsProject.instance().layerTreeRoot(), self.layers_obj.linesToCoordinates, self.layers_obj)
-        # --- Кінець змін ---
+        from .topology import GeometryProcessor
+        lands_handler = LandsParcels(xml_data.tree.getroot(), self.iface.mapCanvas().mapSettings().destinationCrs().authid(), self.layers_obj.group, self.layers_obj.plugin_dir, QgsProject.instance().layerTreeRoot(), self.layers_obj.linesToCoordinates, self.layers_obj, xml_data=xml_data)
+        processor = GeometryProcessor(xml_data.tree)
 
         root = xml_data.tree.getroot()
 
@@ -2473,100 +2449,81 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             size_element = lands_parcel.find("./Area/Size")
             size = float(size_element.text) if size_element is not None and size_element.text else None
 
-            externals_lines = lands_parcel.find(".//Externals/Boundary/Lines")
+            # --- Початок змін: Виправлення логіки отримання геометрії ---
+            externals_element = lands_parcel.find("Externals")
+            externals_lines = externals_element.find("Boundary/Lines") if externals_element is not None else None
             external_coords = lines_to_coords_func(externals_lines, "modify") if externals_lines is not None else []
 
-            internals_lines = lands_parcel.find(".//Internals/Boundary/Lines")
-            internal_coords_list = [lines_to_coords_func(b.find('Lines'), "modify") for b in lands_parcel.findall(".//Internals/Boundary")]
+            internals_container = lands_parcel.find("Internals")
+            internal_coords_list = []
+            if internals_container is not None:
+                internal_coords_list = [lines_to_coords_func(b.find('Lines'), "modify") for b in internals_container.findall("Boundary") if b.find('Lines') is not None]
+
+            object_shape = ""
+            if processor and externals_element is not None:
+                exterior_shape = processor._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
+                interior_shapes = []
+                if internals_container is not None:
+                    interior_shapes = [processor._get_polyline_object_shape(internal.find("Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                all_rings = [exterior_shape] + interior_shapes
+                object_shape = "|".join(filter(None, all_rings))
 
             polygon = lands_handler._coord_to_polygon(external_coords)
-            for internal_coords in internal_coords_list:
-                if internal_coords:
-                    polygon.addInteriorRing(lands_handler._coord_to_polygon(internal_coords).exteriorRing())
+            if not polygon.isEmpty():
+                for internal_coords in internal_coords_list:
+                    if internal_coords:
+                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                        polygon.addInteriorRing(interior_ring)
+            # --- Кінець змін ---
 
             feature = QgsFeature(layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([cadastral_code, land_code, size])
+            # --- Початок змін: Додавання object_shape до атрибутів ---
+            feature.setAttributes([cadastral_code, land_code, size, object_shape])
+            # --- Кінець змін ---
             provider.addFeature(feature)
 
         layer.commitChanges()
         log_msg(logFile, f"Шар '{layer.name()}' було оновлено даними з XML.")
 
-    def _fill_adjacents_layer(self, layer, xml_data):
+    def redraw_current_group(self):
         """
-        Заповнює існуючий шар 'Суміжники' даними з XML.
+        Повністю видаляє та перестворює групу шарів для поточного активного XML-файлу.
+        Це найнадійніший спосіб оновити всі шари після зміни геометрії.
         """
-        provider = layer.dataProvider()
-        layer.startEditing()
+        if not self.current_xml:
+            log_msg(logFile, "Помилка: немає активного XML для перемалювання групи.")
+            return
 
-        from .adjacents import AdjacentUnits
-        adjacents_handler = AdjacentUnits(
-            xml_data.tree.getroot(),
-            self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
-            self.layers_obj.group,
-            self.layers_obj.plugin_dir,
-            self.layers_obj,
-            xml_data=xml_data
+        xml_data = self.current_xml
+        group_name = xml_data.group_name # type: ignore
+        log_msg(logFile, f"Запуск повного перемалювання групи '{group_name}'.")
+
+        # 1. Видаляємо стару групу
+        layers_root = QgsProject.instance().layerTreeRoot()
+        group_to_remove = layers_root.findGroup(group_name)
+        if group_to_remove:
+            # Примусово відкидаємо зміни в буфері редагування для всіх шарів у групі
+            for child_node in group_to_remove.children():
+                if isinstance(child_node, QgsLayerTreeLayer):
+                    child_node.layer().rollBack()
+            layers_root.removeChildNode(group_to_remove)
+            log_msg(logFile, f"Стару групу '{group_name}' та всі її шари видалено.")
+
+        # 2. Створюємо новий екземпляр xmlUaLayers, який сам створить нову групу та шари
+        # Це гарантує правильний порядок та відсутність дублікатів.
+        # Ключовий момент: оновлюємо self.layers_obj, щоб плагін працював з новим об'єктом.
+        self.layers_obj = xmlUaLayers(
+            xmlFilePath=xml_data.path, # type: ignore
+            tree=xml_data.tree, # type: ignore
+            plugin=self.plugin,
+            xml_data=xml_data,
+            context="redraw"
         )
 
-        root = xml_data.tree.getroot()
-        adjacents_parent = root.find(".//AdjacentUnits")
-        if adjacents_parent is None:
-            layer.commitChanges()
-            return
-
-        for adjacent in adjacents_parent.findall(".//AdjacentUnitInfo"):
-            cadastral_number = adjacent.findtext(".//CadastralNumber")
-            proprietor = adjacents_handler._get_proprietor_name(adjacent)
-            boundary_element = adjacent.find(".//AdjacentBoundary/Lines")
-            if boundary_element is not None:
-                boundary_coords = self.layers_obj.lines_element2polyline(boundary_element)
-                if boundary_coords and len(boundary_coords) >= 2:
-                    line_string = QgsLineString([QgsPointXY(p.y(), p.x()) for p in boundary_coords])
-                    feature = QgsFeature(layer.fields())
-                    feature.setGeometry(QgsGeometry(line_string))
-                    feature.setAttributes([cadastral_number, proprietor])
-                    provider.addFeature(feature)
-        layer.commitChanges()
-
-    def update_geometry_dependent_layers(self, xml_data):
-        """
-        Безпечно оновлює шари, що залежать від геометрії (Вузли, Полілінії, Суміжники),
-        не зачіпаючи інші шари.
-        """
-        if not xml_data or not self.layers_obj:
-            log_msg(logFile, "Немає даних для оновлення шарів, що залежать від геометрії.")
-            return
-
-        log_msg(logFile, f"Запуск безпечного оновлення шарів для групи '{xml_data.group_name}'.")
-
-        # 1. Оновлюємо шари "Вузли" та "Полілінії"
-        self.layers_obj.points_handler.redraw_pickets_layer()
-        self.layers_obj.lines_handler.redraw_lines_layer()
-
-        # 2. Оновлюємо шар "Суміжники"
-        from .adjacents import AdjacentUnits
-        group = QgsProject.instance().layerTreeRoot().findGroup(xml_data.group_name)
-        if not group:
-            return
-
-        layer_name = "Суміжники"
-
-        # Перевіряємо, чи є взагалі розділ AdjacentUnits в XML
-        if xml_data.tree.find(".//AdjacentUnits") is not None:
-            # Створюємо екземпляр обробника
-            adjacents_handler = AdjacentUnits(
-                root=xml_data.tree.getroot(),
-                crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
-                group=group,
-                plugin_dir=self.plugin.plugin_dir,
-                xml_ua_layers_instance=self.layers_obj,
-                xml_data=xml_data
-            )
-            # add_adjacents_layer тепер сам видалить старий шар і створить новий,
-            # заповнений актуальними даними. Це надійно.
-            adjacents_handler.add_adjacents_layer()
-            log_msg(logFile, f"Шар '{layer_name}' було оновлено/створено.")
+        # 3. Примусово оновлюємо карту, щоб відобразити зміни
+        self.iface.mapCanvas().refresh()
+        log_msg(logFile, f"Шари для групи '{group_name}' успішно перемальовано, карта оновлена.")
 
     # def customize_layer_tree_context_menu(self, point):
     #     """

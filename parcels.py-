@@ -41,10 +41,7 @@ class CadastralParcel:
         """Створює та заповнює шар 'Ділянка'."""
         layer_name = "Ділянка"
         self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
-        # --- Початок змін: Встановлення прапорця тимчасового шару ---
-        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
         self.layer.setCustomProperty("skip_save_dialog", True)
-        # --- Кінець змін ---
         self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "parcel.qml"))
         provider = self.layer.dataProvider()
 
@@ -74,10 +71,10 @@ class CadastralParcel:
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
-                external_coords = self.lines_to_coords(externals_lines, context='open') if externals_lines is not None else []
+                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
 
             internals_lines = parcel_metric_info.find(".//Internals/Boundary/Lines")
-            internal_coords = self.lines_to_coords(internals_lines, context='open') if internals_lines is not None else []
+            internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
 
             object_shape = ""
             if processor and externals_element is not None:

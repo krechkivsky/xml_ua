@@ -22,7 +22,7 @@ from .common import logFile
 class LandsParcels:
     """Клас для обробки угідь з XML-файлу."""
 
-    def __init__(self, root, crs_epsg, group, plugin_dir, layers_root, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
+    def __init__(self, tree_or_root, crs_epsg, group, plugin_dir, layers_root, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
         """
         Ініціалізація об'єкта для роботи з угіддями.
 
@@ -35,7 +35,15 @@ class LandsParcels:
             lines_to_coords_func (function): Функція для перетворення ліній у координати.
             xml_ua_layers_instance: Екземпляр класу xmlUaLayers для доступу до його методів.
         """
-        self.root = root
+        # --- Початок змін: Уніфікація роботи з XML-деревом ---
+        # Обробляємо як кореневий елемент, так і ціле дерево
+        if hasattr(tree_or_root, 'getroot'):
+            self.tree = tree_or_root
+            self.root = tree_or_root.getroot()
+        else:
+            self.root = tree_or_root
+            self.tree = tree_or_root.getroottree()
+        # --- Кінець змін ---
         self.crs_epsg = crs_epsg
         self.group = group
         self.plugin_dir = plugin_dir
@@ -53,14 +61,88 @@ class LandsParcels:
         polygon = QgsPolygon(line_string)
         return polygon
 
+    # --- Початок змін: Повністю перероблений метод для надійного перемальовування ---
+    def redraw_lands_layer(self, layer):
+        """Очищує та заповнює існуючий шар 'Угіддя'."""
+        provider = layer.dataProvider()
+        layer.startEditing()
+        layer.deleteFeatures(layer.allFeatureIds())
+
+        # --- Початок змін: Гарантуємо наявність поля object_shape ---
+        fields = layer.fields()
+        if fields.indexFromName('object_shape') == -1:
+            provider.addAttributes([QgsField("object_shape", QVariant.String)])
+            layer.updateFields()
+        # --- Початок змін: Гарантуємо наявність поля CadastralCode ---
+        if fields.indexFromName('CadastralCode') == -1:
+            provider.addAttributes([QgsField("CadastralCode", QVariant.String)])
+            layer.updateFields()
+        # --- Кінець змін ---
+        # --- Кінець змін ---
+
+        lands_parcel_container = self.root.find(".//ParcelInfo/LandsParcel")
+        if lands_parcel_container is None:
+            layer.commitChanges()
+            return
+
+        try:
+            from .topology import GeometryProcessor
+            processor = GeometryProcessor(self.tree)
+            log_msg(logFile, "GeometryProcessor успішно створено в redraw_lands_layer.")
+        except Exception as e:
+            log_msg(logFile, f"Не вдалося створити GeometryProcessor в LandsParcels (redraw): {e}")
+            processor = None
+
+        # Ітеруємо по кожному LandParcelInfo
+        for land_parcel_info in lands_parcel_container.findall("LandParcelInfo"):
+            cadastral_code = land_parcel_info.findtext("CadastralCode")
+            land_code = land_parcel_info.findtext("LandCode")
+            metric_info = land_parcel_info.find("MetricInfo")
+            if metric_info is None:
+                continue
+
+            size_element = metric_info.find("./Area/Size")
+            size = float(size_element.text) if size_element is not None and size_element.text else None
+
+            externals_element = metric_info.find("Externals")
+            
+            # Відновлюємо геометрію та object_shape
+            object_shape = processor.get_object_shape_from_externals(externals_element) if processor else ""
+            
+            external_coords = self.lines_to_coords(externals_element.find("Boundary/Lines"), context='modify') if externals_element is not None and externals_element.find("Boundary/Lines") is not None else []
+            
+            internal_coords_list = []
+            internals_container = externals_element.find("Internals") if externals_element is not None else None
+            if internals_container is not None:
+                internal_coords_list = [self.lines_to_coords(b.find('Lines'), context='modify') for b in internals_container.findall("Boundary") if b.find('Lines') is not None]
+
+            # Створюємо полігон та додаємо його на шар
+            polygon = self._create_polygon_with_holes(external_coords, internal_coords_list)
+            if not polygon.isEmpty():
+                feature = QgsFeature(layer.fields())
+                feature.setGeometry(QgsGeometry(polygon))
+                feature.setAttributes([cadastral_code, land_code, size, object_shape])
+                provider.addFeature(feature)
+
+        layer.commitChanges()
+        log_msg(logFile, f"Шар '{layer.name()}' успішно перемальовано. Додано {layer.featureCount()} об'єкт(ів).")
+
+    def _create_polygon_with_holes(self, exterior_coords, interior_coords_list):
+        """Створює полігон з отворами."""
+        polygon = self._coord_to_polygon(exterior_coords)
+        if not polygon.isEmpty():
+            for interior_coords in interior_coords_list:
+                if interior_coords:
+                    interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in interior_coords])
+                    polygon.addInteriorRing(interior_ring)
+        return polygon
+    # --- Кінець змін ---
+
     def add_lands_layer(self):
         """Створює та заповнює шар 'Угіддя'."""
         layer_name = "Угіддя"
-        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
-        # --- Початок змін: Встановлення прапорця тимчасового шару ---
-        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
-        self.layer.setCustomProperty("skip_save_dialog", True)
-        # --- Кінець змін ---
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")        
+        self.layer.setCustomProperty("skip_save_dialog", True)        
         self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "lands_parcel.qml"))
         provider = self.layer.dataProvider()
 
@@ -68,6 +150,7 @@ class LandsParcels:
             QgsField("CadastralCode", QVariant.String),
             QgsField("LandCode", QVariant.String),
             QgsField("Size", QVariant.Double),
+            QgsField("object_shape", QVariant.String),
         ]
         provider.addAttributes(fields)
         self.layer.updateFields()
@@ -78,6 +161,15 @@ class LandsParcels:
         if lands_parcel_parent is None:
             lands_parcel_parent = etree.Element("LandsParcel")
             insert_element_in_order(parcel_info, lands_parcel_parent)
+
+        # --- Початок змін: Ініціалізація GeometryProcessor ---
+        try:
+            from .topology import GeometryProcessor
+            processor = GeometryProcessor(self.root.getroottree())
+        except Exception as e:
+            log_msg(logFile, f"Не вдалося створити GeometryProcessor в LandsParcels: {e}")
+            processor = None
+        # --- Кінець змін ---
 
         for lands_parcel in self.root.findall(".//LandsParcel/LandParcelInfo/MetricInfo"):
             cadastral_code = lands_parcel.findtext("../CadastralCode")
@@ -91,21 +183,39 @@ class LandsParcels:
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
-                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
+                external_coords = self.lines_to_coords(externals_lines, context='open') if externals_lines is not None else []
 
-            internals_lines = lands_parcel.find(".//Internals/Boundary/Lines")
-            internal_coords = self.lines_to_coords(internals_lines) if internals_lines is not None else []
+            # --- Початок змін: Виправлення помилки RuntimeError при обробці отворів ---
+            internal_coords_list = [self.lines_to_coords(b.find('Lines'), context='open') for b in lands_parcel.findall(".//Internals/Boundary") if b.find('Lines') is not None]
 
-            #`#log_msg(logFile, f"Створення полігону для угіддя '{land_code}'. Зовнішніх контурів: {len(external_coords)}, Внутрішніх: {len(internal_coords)}")
+            # --- Початок змін: Генерація та збереження object_shape ---
+            object_shape = ""
+            if processor and externals_element is not None:
+                exterior_shape = processor._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
+                interior_shapes = []
+                internals_container = externals_element.find("Internals")
+                if internals_container is not None:
+                    interior_shapes = [processor._get_polyline_object_shape(internal.find("Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                all_rings = [exterior_shape] + interior_shapes
+                object_shape = "|".join(filter(None, all_rings))
+            # --- Кінець змін ---
+
             polygon = self._coord_to_polygon(external_coords)
-            if internal_coords:
-                #log_msg(logFile, "Додавання внутрішнього кільця до угіддя.")
-                polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
+            if not polygon.isEmpty():
+                for internal_coords in internal_coords_list:
+                    if internal_coords:
+                        # --- Початок змін: Створення QgsLineString безпосередньо ---
+                        # Створюємо QgsLineString напряму, щоб уникнути проблем з володінням пам'яттю
+                        # тимчасового QgsPolygon, що викликало крах QGIS.
+                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                        polygon.addInteriorRing(interior_ring)
+                        # --- Кінець змін ---
+            # --- Кінець змін ---
 
             feature = QgsFeature(self.layer.fields())
             # #log_msg(logFile, f"Геометрія угіддя перед додаванням: {polygon.asWkt()}")
             feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([cadastral_code, land_code, size])
+            feature.setAttributes([cadastral_code, land_code, size, object_shape])
             provider.addFeature(feature)
 
         QgsProject.instance().addMapLayer(self.layer, False)

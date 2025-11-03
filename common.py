@@ -235,6 +235,39 @@ def log_msg(logFile, msg=""):
     logFile.flush()
 
 
+def get_call_stack(i: int):
+    """Отримує стек викликів у вигляді рядка у зворотному порядку."""
+    stack = inspect.stack()
+    result = ""
+    # Ітеруємо по стеку у зворотному порядку, пропускаючи перші два фрейми
+    i = 0
+    for frame_info in reversed(stack[2:]):
+        i += 1
+        frame = frame_info.frame
+        filename = os.path.basename(frame.f_code.co_filename)
+        lineno = frame.f_lineno
+        spaces = ' ' * (24 - len(filename))
+        func_name = frame.f_code.co_name
+        if filename != "<string>":
+            result += f"\n [{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
+        #result += f"[{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})\n"
+
+    return result
+
+
+def log_calls(logFile: str, msg: str = "") -> None:
+    """ Записує повідомлення в лог-файл з інформацією про стек викликів.
+    """
+    stack_info = get_call_stack(2)
+    #log_message = f"\n#### Стек викликів:{stack_info} {msg}"
+    log_message = f"{stack_info}→\n{msg} \n"
+    #log_message = f"\n## {stack_info}→\n{msg}"
+    logFile.write(log_message)
+    logFile.flush()
+
+
+
+
 # endregion
 
 def geometry_to_string(geometry):
