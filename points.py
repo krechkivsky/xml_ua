@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# points.py
+
 
 import os
 from qgis.core import (
@@ -15,6 +14,7 @@ from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
 
 from .common import log_msg, logFile
+
 
 class Points:
     """Клас для обробки точок (вузлів) з XML-файлу."""
@@ -50,7 +50,8 @@ class Points:
         for point in self.root.findall(".//PointInfo/Point"):
             uidp = point.findtext("UIDP")
             pn = point.findtext("PN")
-            dmt = next((dm.tag for DM in self.DMs if (dm := point.find(f"DeterminationMethod/{DM}")) is not None), None)
+            dmt = next((dm.tag for DM in self.DMs if (dm := point.find(
+                f"DeterminationMethod/{DM}")) is not None), None)
             x = point.findtext("X")
             y = point.findtext("Y")
             h = point.findtext("H")
@@ -72,11 +73,10 @@ class Points:
     def redraw_pickets_layer(self):
         """Очищує та заповнює існуючий шар 'Вузли'."""
         if not hasattr(self, 'layer') or not self.layer:
-            #log_msg(logFile, "Шар 'Вузли' не існує для перемалювання.")
+
             return
 
-        #log_msg(logFile, "Перемалювання шару 'Вузли'.")
-        self.read_points() # Перечитуємо точки з XML
+        self.read_points()  # Перечитуємо точки з XML
 
         provider = self.layer.dataProvider()
         self.layer.startEditing()
@@ -84,7 +84,8 @@ class Points:
 
         for xmlPoint in self.xmlPoints:
             feature = QgsFeature(self.layer.fields())
-            feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(xmlPoint["Y"]), float(xmlPoint["X"]))))
+            feature.setGeometry(QgsGeometry.fromPointXY(
+                QgsPointXY(float(xmlPoint["Y"]), float(xmlPoint["X"]))))
             feature.setAttributes([
                 xmlPoint["UIDP"], xmlPoint["PN"], xmlPoint["H"],
                 xmlPoint["MX"], xmlPoint["MY"], xmlPoint["MH"],
@@ -99,30 +100,29 @@ class Points:
         """
         layer_name = "Вузли"
 
-        # Перевірка, чи шар вже існує в групі
         existing_layer_node = self.group.findLayer(layer_name)
         if existing_layer_node:
-            #log_msg(logFile, f"Шар '{layer_name}' вже існує. Видаляємо його для оновлення.")
+
             self.group.removeChildNode(existing_layer_node)
             QgsProject.instance().removeMapLayer(existing_layer_node.layerId())
 
-        self.layer = QgsVectorLayer(f"Point?crs={self.crs_epsg}", layer_name, "memory")
-        # --- Початок змін: Встановлення прапорця тимчасового шару ---
-        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
+        self.layer = QgsVectorLayer(
+            f"Point?crs={self.crs_epsg}", layer_name, "memory")
+
         self.layer.setCustomProperty("skip_save_dialog", True)
-        # --- Кінець змін ---
 
         if not self.layer.isValid():
-            QMessageBox.critical(None, "xml_ua", "Виникла помилка при створенні шару точок.")
+            QMessageBox.critical(
+                None, "xml_ua", "Виникла помилка при створенні шару точок.")
             return None
 
-        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "points.qml"))
-        # --- Початок змін: Блокування редагування шару ---
+        self.layer.loadNamedStyle(os.path.join(
+            self.plugin_dir, "templates", "points.qml"))
+
         self.layer.setReadOnly(True)
-        # --- Кінець змін ---
-        
+
         provider = self.layer.dataProvider()
-        # #log_msg(logFile, f"Створено шар '{layer_name}' з {len(self.xmlPoints)} точками.")
+
         provider.addAttributes([
             QgsField("UIDP", QVariant.String),
             QgsField("PN", QVariant.String),
@@ -136,7 +136,8 @@ class Points:
 
         for xmlPoint in self.xmlPoints:
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(xmlPoint["Y"]), float(xmlPoint["X"]))))
+            feature.setGeometry(QgsGeometry.fromPointXY(
+                QgsPointXY(float(xmlPoint["Y"]), float(xmlPoint["X"]))))
             feature.setAttributes([
                 xmlPoint["UIDP"], xmlPoint["PN"], xmlPoint["H"],
                 xmlPoint["MX"], xmlPoint["MY"], xmlPoint["MH"],
@@ -150,7 +151,7 @@ class Points:
             self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
-            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+            self.layer.setCustomProperty(
+                "xml_data_object_id", id(self.xml_data))
 
         return self.layer

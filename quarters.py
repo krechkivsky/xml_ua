@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# quarters.py
+
 
 import os
 from qgis.core import (
@@ -17,7 +16,7 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from lxml import etree
 
 from .common import logFile
-from .common import log_msg
+from .common import ensure_object_layer_fields, log_msg
 
 
 class CadastralQuarters:
@@ -54,84 +53,104 @@ class CadastralQuarters:
     def _coord_to_polygon(self, coordinates):
         """Формує полігон із заданого списку координат."""
         if not coordinates:
-            return QgsPolygon() # Повертаємо порожній полігон
-        # Створюємо QgsLineString для зовнішнього кільця.
-        exterior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in coordinates])
-        # Передаємо кільце в конструктор QgsPolygon. Володіння кільцем переходить до полігону.
+            return QgsPolygon()  # Повертаємо порожній полігон
+
+        exterior_ring = QgsLineString(
+            [QgsPointXY(p.y(), p.x()) for p in coordinates])
+
         polygon = QgsPolygon(exterior_ring)
         return polygon
 
     def add_quarter_layer(self):
         """Створює та заповнює шар 'Кадастровий квартал'."""
         self.layer_name = "Кадастровий квартал"
-        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", self.layer_name, "memory")
-        # --- Початок змін: Встановлення прапорця тимчасового шару ---
-        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
+        self.layer = QgsVectorLayer(
+            f"MultiPolygon?crs={self.crs_epsg}", self.layer_name, "memory")
+
         self.layer.setCustomProperty("skip_save_dialog", True)
-        # --- Кінець змін ---
 
         if not self.layer.isValid():
-            QMessageBox.critical(None, "xml_ua", "Виникла помилка при створенні шару кварталів.")
+            QMessageBox.critical(
+                None, "xml_ua", "Виникла помилка при створенні шару кварталів.")
             return None
 
-        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "quarter.qml"))
+        self.layer.loadNamedStyle(os.path.join(
+            self.plugin_dir, "templates", "quarter.qml"))
         provider = self.layer.dataProvider()
-        provider.addAttributes([
-            QgsField("CadastralQuarterNumber", QVariant.String),
-            QgsField("LocalAuthorityHead", QVariant.String),
-            QgsField("DKZRHead", QVariant.String)
-        ])
-        self.layer.updateFields()
+        ensure_object_layer_fields(self.layer)
+
+        try:
+            from .topology import GeometryProcessor
+            processor = GeometryProcessor(self.root.getroottree())
+        except Exception:
+            processor = None
+
+        object_id = 0
 
         for quarter_element in self.root.findall(".//CadastralQuarterInfo"):
-            quarter_number = quarter_element.findtext("CadastralQuarterNumber")
-            auth_head_full_name = self._get_full_name(quarter_element.find("RegionalContacts/LocalAuthorityHead"))
-            dkzr_head_full_name = self._get_full_name(quarter_element.find("RegionalContacts/DKZRHead"))
+            object_id += 1
 
-            # Використовуємо геометрію з ParcelMetricInfo, оскільки вона тотожна
             parcel_metric_info = self.root.find(".//ParcelMetricInfo")
             if parcel_metric_info is None:
-                #log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Не знайдено ParcelMetricInfo для створення геометрії кварталу '{quarter_number}'.")
+
                 external_coords = []
                 internal_coords = []
+                externals_lines = None
+                internals_lines = None
             else:
-                # Читаємо геометрію з ділянки
-                externals_lines = parcel_metric_info.find(".//Externals/Boundary/Lines")
-                external_coords = self.lines_to_coords(externals_lines, context='open') if externals_lines is not None else []
-                
-                internals_lines = parcel_metric_info.find(".//Internals/Boundary/Lines")
-                internal_coords = self.lines_to_coords(internals_lines, context='open') if internals_lines is not None else []
 
-                # Забезпечуємо наявність та копіюємо геометрію в розділ кварталу
-                # --- Початок змін: Вставка Externals у правильну позицію ---
+                externals_lines = parcel_metric_info.find(
+                    ".//Externals/Boundary/Lines")
+                external_coords = self.lines_to_coords(
+                    externals_lines) if externals_lines is not None else []
+
+                internals_lines = parcel_metric_info.find(
+                    ".//Internals/Boundary/Lines")
+                internal_coords = self.lines_to_coords(
+                    internals_lines) if internals_lines is not None else []
+
                 quarter_externals = quarter_element.find("Externals")
                 if quarter_externals is not None:
-                    quarter_element.remove(quarter_externals) # Видаляємо, щоб перевставити
-                
-                quarter_externals = etree.Element("Externals") # Створюємо новий
 
-                regional_contacts_element = quarter_element.find("RegionalContacts")
+                    quarter_element.remove(quarter_externals)
+
+                quarter_externals = etree.Element(
+                    "Externals")  # Створюємо новий
+
+                regional_contacts_element = quarter_element.find(
+                    "RegionalContacts")
                 if regional_contacts_element is not None:
-                    regional_contacts_element.addnext(quarter_externals) # Вставляємо після RegionalContacts
+
+                    regional_contacts_element.addnext(quarter_externals)
                 else:
-                    quarter_element.append(quarter_externals) # Якщо RegionalContacts не знайдено, додаємо в кінець
-                # Копіюємо Externals
+
+                    quarter_element.append(quarter_externals)
+
                 parcel_externals = parcel_metric_info.find("Externals")
                 if parcel_externals is not None:
-                    # Видаляємо старий Boundary, якщо він є, і копіюємо новий
+
                     old_boundary = quarter_externals.find("Boundary")
                     if old_boundary is not None:
                         quarter_externals.remove(old_boundary)
-                    quarter_externals.append(etree.fromstring(etree.tostring(parcel_externals.find("Boundary"))))
-                # --- Кінець змін ---
+                    quarter_externals.append(etree.fromstring(
+                        etree.tostring(parcel_externals.find("Boundary"))))
 
             polygon = self._coord_to_polygon(external_coords)
             if internal_coords:
-                polygon.addInteriorRing(self._coord_to_polygon(internal_coords).exteriorRing())
+                polygon.addInteriorRing(self._coord_to_polygon(
+                    internal_coords).exteriorRing())
 
             feature = QgsFeature(self.layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([quarter_number, auth_head_full_name, dkzr_head_full_name])
+            object_shape = ""
+            if processor:
+                try:
+                    exterior_shape = processor._get_polyline_object_shape(externals_lines) if externals_lines is not None else ""
+                    interior_shape = processor._get_polyline_object_shape(internals_lines) if internals_lines is not None else ""
+                    object_shape = "|".join([s for s in (exterior_shape, interior_shape) if s])
+                except Exception:
+                    object_shape = ""
+            feature.setAttributes([object_id, object_shape])
             provider.addFeature(feature)
 
         QgsProject.instance().addMapLayer(self.layer, False)
@@ -140,7 +159,7 @@ class CadastralQuarters:
             self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
-            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+            self.layer.setCustomProperty(
+                "xml_data_object_id", id(self.xml_data))
 
         return self.layer

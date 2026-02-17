@@ -1,19 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <UkrainianCadastralExchangeFile>
   <AdditionalPart>
     <ServiceInfo>
       <FileID>
-        <FileDate>2024-01-01</FileDate>
-        <FileGUID>00000000-0000-0000-0000-000000000000</FileGUID>
+        <FileDate>2026-02-14</FileDate>
+        <FileGUID>6CA75834-3786-4501-8105-FF6A7F90BA5A</FileGUID>
       </FileID>
       <FormatVersion>0.7</FormatVersion>
-      <ReceiverName></ReceiverName>
+      <ReceiverName/>
       <Software>xml_ua</Software>
       <SoftwareVersion>1.0</SoftwareVersion>
     </ServiceInfo>
     <InfoLandWork>
       <Executor>
-        <CompanyName></CompanyName>
+        <CompanyName/>
         <EDRPOU>00000000</EDRPOU>
         <License>
           <LicenseSeries>АА</LicenseSeries>
@@ -86,44 +86,9 @@
         <M/>
       </MeasurementUnit>
       <PointInfo>
-        <Point>
-          <UIDP>-1</UIDP>
-          <PN>1</PN>
-          <DeterminationMethod>
-            <Survey/>
-          </DeterminationMethod>
-          <X>0.0</X>
-          <Y>0.0</Y>
-        </Point>
-        <Point>
-          <UIDP>-1</UIDP>
-          <PN>2</PN>
-          <DeterminationMethod>
-            <Survey/>
-          </DeterminationMethod>
-          <X>0.0</X>
-          <Y>0.0</Y>
-        </Point>
-        <Point>
-          <UIDP>-1</UIDP>
-          <PN>3</PN>
-          <DeterminationMethod>
-            <Survey/>
-          </DeterminationMethod>
-          <X>0.0</X>
-          <Y>0.0</Y>
-        </Point>
-      </PointInfo>
+        <Point><UIDP>1</UIDP><PN>1</PN><DeterminationMethod><GPS/></DeterminationMethod><X>0.005</X><Y>-0.008</Y><H>0.00</H><MX>0.05</MX><MY>0.05</MY><MH>0.05</MH><Description></Description></Point><Point><UIDP>2</UIDP><PN>2</PN><DeterminationMethod><GPS/></DeterminationMethod><X>0.005</X><Y>0.008</Y><H>0.00</H><MX>0.05</MX><MY>0.05</MY><MH>0.05</MH><Description></Description></Point><Point><UIDP>3</UIDP><PN>3</PN><DeterminationMethod><GPS/></DeterminationMethod><X>-0.005</X><Y>0.008</Y><H>0.00</H><MX>0.05</MX><MY>0.05</MY><MH>0.05</MH><Description></Description></Point><Point><UIDP>4</UIDP><PN>4</PN><DeterminationMethod><GPS/></DeterminationMethod><X>-0.005</X><Y>-0.008</Y><H>0.00</H><MX>0.05</MX><MY>0.05</MY><MH>0.05</MH><Description></Description></Point></PointInfo>
       <Polyline>
-        <PL>
-          <ULID>-1</ULID>
-          <Points>
-            <P>0</P>
-            <P>0</P>
-          </Points>
-          <Length>0.0</Length>
-        </PL>
-      </Polyline>
+        <PL><ULID>1</ULID><Points><P>1</P><P>2</P></Points><Length>0.02</Length></PL><PL><ULID>2</ULID><Points><P>2</P><P>3</P></Points><Length>0.01</Length></PL><PL><ULID>3</ULID><Points><P>3</P><P>4</P></Points><Length>0.02</Length></PL><PL><ULID>4</ULID><Points><P>4</P><P>1</P></Points><Length>0.01</Length></PL></Polyline>
       <ControlPoint>
         <P>0</P>
         <P>0</P>
@@ -131,7 +96,14 @@
     </MetricInfo>
     <CadastralZoneInfo>
       <CadastralZoneNumber>0000000000:00</CadastralZoneNumber>
-      <CadastralQuarters>
+      <Externals>
+                  <Boundary>
+                    <Lines>
+                      <Line><ULID>1</ULID></Line><Line><ULID>2</ULID></Line><Line><ULID>3</ULID></Line><Line><ULID>4</ULID></Line></Lines>
+                    <Closed>true</Closed>
+                  </Boundary>
+                </Externals>
+              <CadastralQuarters>
         <CadastralQuarterInfo>
           <CadastralQuarterNumber>000</CadastralQuarterNumber>
           <RegionalContacts>
@@ -146,7 +118,14 @@
               <MiddleName>По батькові</MiddleName>  
             </DKZRHead> 
           </RegionalContacts>
-          <Parcels>
+          <Externals>
+                  <Boundary>
+                    <Lines>
+                      <Line><ULID>1</ULID></Line><Line><ULID>2</ULID></Line><Line><ULID>3</ULID></Line><Line><ULID>4</ULID></Line></Lines>
+                    <Closed>true</Closed>
+                  </Boundary>
+                </Externals>
+              <Parcels>
             <ParcelInfo>
               <ParcelLocationInfo>
                 <Region>Регіон</Region>
@@ -160,10 +139,10 @@
                 <Use/>
               </CategoryPurposeInfo>
               <ParcelMetricInfo>
-                <ParcelID></ParcelID>
+                <ParcelID/>
                 <Area>
                   <MeasurementUnit>га</MeasurementUnit>
-                  <Size>0.0</Size>
+                  <Size>0.0000</Size>
                   <DeterminationMethod>
                     <ExhangeFileCoordinates/>
                   </DeterminationMethod>
@@ -171,18 +150,15 @@
                 <Externals>
                   <Boundary>
                     <Lines>
-                      <Line>
-                        <ULID>-1</ULID>
-                      </Line>
-                    </Lines>
+                      <Line><ULID>1</ULID></Line><Line><ULID>2</ULID></Line><Line><ULID>3</ULID></Line><Line><ULID>4</ULID></Line></Lines>
                     <Closed>true</Closed>
                   </Boundary>
                 </Externals>
               </ParcelMetricInfo>
               <Proprietors/>
               <TechnicalDocumentationInfo>
-                <DocumentationType></DocumentationType>
-                <DraftingDate>2024-01-01</DraftingDate>
+                <DocumentationType/>
+                <DraftingDate>2026-02-14</DraftingDate>
                 <DocumentList>001</DocumentList>
               </TechnicalDocumentationInfo>
             </ParcelInfo>

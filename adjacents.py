@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
-# adjacents.py
+
 
 import os
 from qgis.core import (
+    QgsWkbTypes,
     QgsVectorLayer,
     QgsField,
     QgsFeature,
@@ -13,9 +13,9 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
+from .data_models import ShapeInfo  # noqa
+from .common import ensure_object_layer_fields, log_msg, insert_element_in_order, log_calls, logFile
 
-from .common import log_msg, insert_element_in_order
-from .common import logFile
 
 class AdjacentUnits:
     """Клас для обробки даних про суміжників з XML-файлу."""
@@ -41,7 +41,8 @@ class AdjacentUnits:
     def _get_proprietor_name(self, adjacent_element):
         """Отримує ім'я власника з елемента AdjacentUnitInfo."""
         proprietor = ""
-        natural_person = adjacent_element.find(".//Proprietor/NaturalPerson/FullName")
+        natural_person = adjacent_element.find(
+            ".//Proprietor/NaturalPerson/FullName")
         legal_entity = adjacent_element.find(".//Proprietor/LegalEntity")
 
         if natural_person is not None:
@@ -51,7 +52,7 @@ class AdjacentUnits:
             proprietor = f"{last_name} {first_name} {middle_name}".strip()
         elif legal_entity is not None:
             proprietor = legal_entity.findtext("Name", "")
-        
+
         return proprietor
 
     def add_adjacents_layer(self):
@@ -59,48 +60,93 @@ class AdjacentUnits:
         parcel_info = self.root.find(".//ParcelInfo")
         adjacents_parent = parcel_info.find("AdjacentUnits")
         if adjacents_parent is None:
-            # Аналогічно, виходимо, якщо розділу немає
-            #log_msg(logFile, "Розділ 'AdjacentUnits' відсутній в XML. Шар 'Суміжники' не буде створено/оновлено.")
+
             return None
 
         layer_name = "Суміжники"
-        # Видаляємо старий шар, якщо він існує, щоб уникнути дублювання
-        layers_to_remove = [child.layerId() for child in self.group.children() if child.name() == layer_name]
+
+        layers_to_remove = [
+            child.layerId() for child in self.group.children() if child.name() == layer_name]
         if layers_to_remove:
             QgsProject.instance().removeMapLayers(layers_to_remove)
-            #log_msg(logFile, f"Старий шар '{layer_name}' знайдено для видалення перед створенням нового.")
 
+        self.layer = QgsVectorLayer(
+            f"LineString?crs={self.crs_epsg}", layer_name, "memory")
+        self.layer.loadNamedStyle(os.path.join(
+            self.plugin_dir, "templates", "adjacent.qml"))
 
-        self.layer = QgsVectorLayer(f"LineString?crs={self.crs_epsg}", layer_name, "memory")
-        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "adjacent.qml"))
-        # --- Початок змін: Встановлення прапорця тимчасового шару ---
-        # Повідомляємо QGIS, що цей шар не потрібно зберігати при закритті проекту.
         self.layer.setCustomProperty("skip_save_dialog", True)
-        # --- Кінець змін ---
+
         provider = self.layer.dataProvider()
 
-        fields = [
-            QgsField("CadastralNumber", QVariant.String),
-            QgsField("Proprietor", QVariant.String),
-        ]
-        provider.addAttributes(fields)
-        self.layer.updateFields()
+        ensure_object_layer_fields(self.layer)
+
+        existing_shapes_in_layer = set()
+        if self.xml_data:
+            for si in self.xml_data.shapes:
+                if si.layer_id == self.layer.id():
+
+                    shape_parts = si.object_shape.split('-')
+                    normalized_shape = "-".join(sorted(shape_parts))
+                    existing_shapes_in_layer.add(normalized_shape)
+
+        used_object_ids = set()
+        for adj_info in adjacents_parent.findall(".//AdjacentUnitInfo"):
+            obj_id_text = str(adj_info.get("object_id") or "").strip()
+            if obj_id_text.isdigit():
+                used_object_ids.add(int(obj_id_text))
+        next_object_id = 1
 
         for adjacent in adjacents_parent.findall(".//AdjacentUnitInfo"):
-            cadastral_number = adjacent.findtext(".//CadastralNumber")
-            proprietor = self._get_proprietor_name(adjacent)
-            boundary_element = adjacent.find(".//AdjacentBoundary/Lines")
-            if boundary_element is not None:
+            object_id_text = str(adjacent.get("object_id") or "").strip()
+            boundary_lines = adjacent.find(".//AdjacentBoundary/Lines")
+            if boundary_lines is not None:
                 try:
-                    boundary_coords = self.xml_ua_layers.lines_element2polyline(boundary_element)
+
+                    from .topology import GeometryProcessor
+                    processor = GeometryProcessor(self.root.getroottree())
+                    object_shape = processor._get_polyline_object_shape(
+                        boundary_lines)
+
+                    normalized_shape = "-".join(
+                        sorted(object_shape.split('-')))
+                    if normalized_shape in existing_shapes_in_layer:
+                        iface.messageBar().pushMessage("Попередження",
+                                                       f"Знайдено дублікат геометрії суміжника (shape: {object_shape}). Об'єкт не буде додано на карту.", level=Qgis.Warning, duration=10)
+                        log_msg(
+                            logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат суміжника з object_shape: {object_shape}")
+                        continue
+                    existing_shapes_in_layer.add(normalized_shape)
+
+                    if not object_id_text.isdigit():
+                        while next_object_id in used_object_ids:
+                            next_object_id += 1
+                        object_id_text = str(next_object_id)
+                        used_object_ids.add(next_object_id)
+                        next_object_id += 1
+                        adjacent.set("object_id", object_id_text)
+
+                    boundary_coords = self.xml_ua_layers.lines_element2polyline(
+                        boundary_lines)
                     if boundary_coords and len(boundary_coords) >= 2:
-                        line_string = QgsLineString([QgsPointXY(p.y(), p.x()) for p in boundary_coords])
+                        line_string = QgsLineString(
+                            [QgsPointXY(p.y(), p.x()) for p in boundary_coords])
                         feature = QgsFeature(self.layer.fields())
                         feature.setGeometry(QgsGeometry(line_string))
-                        feature.setAttributes([cadastral_number, proprietor])
+                        object_id = int(object_id_text) if object_id_text.isdigit() else None
+                        feature.setAttributes([object_id, object_shape])
+
+                        if self.xml_data and object_id_text:
+                            shape_info = ShapeInfo(
+                                layer_id=self.layer.id(),
+                                object_id=object_id_text,
+                                object_shape=object_shape)
+                            self.xml_data.shapes.append(shape_info)
+
                         provider.addFeature(feature)
+
                 except ValueError as e:
-                    # #log_msg(logFile, f"Помилка при обробці суміжника {cadastral_number}: {e}")
+
                     continue
 
         QgsProject.instance().addMapLayer(self.layer, False)
@@ -109,7 +155,7 @@ class AdjacentUnits:
         self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
-            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+            self.layer.setCustomProperty(
+                "xml_data_object_id", id(self.xml_data))
 
         return self.layer

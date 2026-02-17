@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# restrictions.py
+
 
 import os
 from qgis.core import (
@@ -10,13 +9,15 @@ from qgis.core import (
     QgsPolygon,
     QgsLineString,
     QgsPointXY,
+    QgsWkbTypes,
     QgsProject
 )
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
-
-from .common import log_msg, insert_element_in_order
+from .data_models import ShapeInfo  # noqa
+from .common import ensure_object_layer_fields, log_msg, insert_element_in_order, log_calls
 from .common import logFile
+
 
 class Restrictions:
     """Клас для обробки даних про обмеження з XML-файлу."""
@@ -45,8 +46,9 @@ class Restrictions:
         """Формує полігон із заданого списку координат."""
         if not coordinates:
             return QgsPolygon()
-        # Координати в XML (X, Y) відповідають (Y, X) в QGIS
-        line_string = QgsLineString([QgsPointXY(p.y(), p.x()) for p in coordinates])
+
+        line_string = QgsLineString(
+            [QgsPointXY(p.y(), p.x()) for p in coordinates])
         polygon = QgsPolygon(line_string)
         return polygon
 
@@ -55,6 +57,13 @@ class Restrictions:
         provider = layer.dataProvider()
         layer.startEditing()
         layer.deleteFeatures(layer.allFeatureIds())
+        ensure_object_layer_fields(layer)
+
+        try:
+            from .topology import GeometryProcessor
+            processor = GeometryProcessor(self.root.getroottree())
+        except Exception:
+            processor = None
 
         restrictions_parent = self.root.find(".//ParcelInfo/Restrictions")
         if restrictions_parent is None:
@@ -64,28 +73,42 @@ class Restrictions:
         for restriction in restrictions_parent.findall(".//RestrictionInfo"):
             restriction_code = restriction.findtext(".//RestrictionCode")
             restriction_name = restriction.findtext(".//RestrictionName")
-            start_date = restriction.findtext(".//RestrictionTerm/Time/StartDate")
-            expiration_date = restriction.findtext(".//RestrictionTerm/Time/ExpirationDate")
+            start_date = restriction.findtext(
+                ".//RestrictionTerm/Time/StartDate")
+            expiration_date = restriction.findtext(
+                ".//RestrictionTerm/Time/ExpirationDate")
+
+            object_id_text = str(restriction.get("object_id") or "").strip()
+
+            object_id_text = str(restriction.get("object_id") or "").strip()
+            externals_element = restriction.find(".//Externals")
+            object_shape = ""
+            if processor and externals_element is not None:
+                try:
+                    object_shape = processor.get_object_shape_from_externals(externals_element)
+                except Exception:
+                    object_shape = ""
 
             externals_lines = restriction.find(".//Externals/Boundary/Lines")
-            external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
+            external_coords = self.lines_to_coords(
+                externals_lines) if externals_lines is not None else []
 
-            internal_coords_list = [self.lines_to_coords(b.find('Lines')) for b in restriction.findall(".//Internals/Boundary") if b.find('Lines') is not None]
+            internal_coords_list = [self.lines_to_coords(b.find('Lines')) for b in restriction.findall(
+                ".//Internals/Boundary") if b.find('Lines') is not None]
 
             polygon = self._coord_to_polygon(external_coords)
             if not polygon.isEmpty():
                 for internal_coords in internal_coords_list:
                     if internal_coords:
-                        # --- Початок змін: Створення QgsLineString безпосередньо ---
-                        # Створюємо QgsLineString напряму, щоб уникнути проблем з володінням пам'яттю
-                        # тимчасового QgsPolygon, що викликало крах QGIS.
-                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+
+                        interior_ring = QgsLineString(
+                            [QgsPointXY(p.y(), p.x()) for p in internal_coords])
                         polygon.addInteriorRing(interior_ring)
-                        # --- Кінець змін ---
 
             feature = QgsFeature(layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([restriction_code, restriction_name, start_date, expiration_date])
+            object_id = int(object_id_text) if object_id_text.isdigit() else None
+            feature.setAttributes([object_id, object_shape])
             provider.addFeature(feature)
         layer.commitChanges()
 
@@ -94,78 +117,110 @@ class Restrictions:
         parcel_info = self.root.find(".//ParcelInfo")
         restrictions_parent = parcel_info.find("Restrictions")
         if restrictions_parent is None:
-            # Аналогічно, виходимо, якщо розділу немає
-            #log_msg(logFile, "Розділ 'Restrictions' відсутній. Шар 'Обмеження' не буде створено.")
+
             return None
 
         layer_name = "Обмеження"
-        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        self.layer = QgsVectorLayer(
+            f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
         self.layer.setCustomProperty("skip_save_dialog", True)
-        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "restriction.qml"))
+        self.layer.loadNamedStyle(os.path.join(
+            self.plugin_dir, "templates", "restriction.qml"))
         provider = self.layer.dataProvider()
 
-        # --- Початок змін: Додавання поля object_shape ---
-        fields = [
-            QgsField("RestrictionCode", QVariant.String),
-            QgsField("RestrictionName", QVariant.String),
-            QgsField("StartDate", QVariant.String),
-            QgsField("ExpirationDate", QVariant.String),
-            QgsField("object_shape", QVariant.String),
-        ]
-        provider.addAttributes(fields)
-        self.layer.updateFields()
+        ensure_object_layer_fields(self.layer)
+
+        existing_shapes_in_layer = set()
+        if self.xml_data:
+            for si in self.xml_data.shapes:
+                if si.layer_id == self.layer.id():
+                    existing_shapes_in_layer.add(si.object_shape)
+
+        used_object_ids = set()
+        for restriction_info in restrictions_parent.findall(".//RestrictionInfo"):
+            obj_id_text = str(restriction_info.get("object_id") or "").strip()
+            if obj_id_text.isdigit():
+                used_object_ids.add(int(obj_id_text))
+        next_object_id = 1
 
         for restriction in restrictions_parent.findall(".//RestrictionInfo"):
             restriction_code = restriction.findtext(".//RestrictionCode")
             restriction_name = restriction.findtext(".//RestrictionName")
-            start_date = restriction.findtext(".//RestrictionTerm/Time/StartDate")
-            expiration_date = restriction.findtext(".//RestrictionTerm/Time/ExpirationDate")
+            start_date = restriction.findtext(
+                ".//RestrictionTerm/Time/StartDate")
+            expiration_date = restriction.findtext(
+                ".//RestrictionTerm/Time/ExpirationDate")
 
-            # --- Початок змін: Генерація object_shape ---
+            object_id_text = str(restriction.get("object_id") or "").strip()
+            if not object_id_text.isdigit():
+                while next_object_id in used_object_ids:
+                    next_object_id += 1
+                object_id_text = str(next_object_id)
+                used_object_ids.add(next_object_id)
+                next_object_id += 1
+                restriction.set("object_id", object_id_text)
+
             try:
                 from .topology import GeometryProcessor
                 processor = GeometryProcessor(self.root.getroottree())
             except Exception as e:
-                log_msg(logFile, f"Не вдалося створити GeometryProcessor в Restrictions: {e}")
+                log_msg(
+                    logFile, f"Не вдалося створити GeometryProcessor в Restrictions: {e}")
                 processor = None
-            # --- Кінець змін ---
 
             externals_element = restriction.find(".//Externals")
             if externals_element is None:
-                #log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Для обмеження '{restriction_code}' відсутній обов'язковий розділ 'Externals'. Створено порожній об'єкт.")
+
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
-                external_coords = self.lines_to_coords(externals_lines, context='open') if externals_lines is not None else []
+                external_coords = self.lines_to_coords(
+                    externals_lines) if externals_lines is not None else []
 
-            internal_coords_list = [self.lines_to_coords(b.find('Lines'), context='open') for b in restriction.findall(".//Internals/Boundary") if b.find('Lines') is not None]
+            internal_coords_list = [self.lines_to_coords(b.find('Lines')) for b in restriction.findall(
+                ".//Internals/Boundary") if b.find('Lines') is not None]
 
-            # --- Початок змін: Генерація та збереження object_shape ---
             object_shape = ""
             if processor and externals_element is not None:
-                exterior_shape = processor._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
+                exterior_shape = processor._get_polyline_object_shape(
+                    externals_element.find("Boundary/Lines"))
                 interior_shapes = []
                 internals_container = externals_element.find("Internals")
                 if internals_container is not None:
-                    interior_shapes = [processor._get_polyline_object_shape(internal.find("Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                    interior_shapes = [processor._get_polyline_object_shape(internal.find(
+                        "Boundary/Lines")) for internal in internals_container.findall("Boundary")]
                 object_shape = "|".join([exterior_shape] + interior_shapes)
-                # log_msg(logFile, f"Додано Обмеження '{object_shape}'")
-            # --- Кінець змін ---
+
+                if object_shape in existing_shapes_in_layer:
+                    iface.messageBar().pushMessage("Попередження",
+                                                   f"Знайдено дублікат геометрії обмеження (shape: {object_shape}). Об'єкт не буде додано на карту.", level=Qgis.Warning, duration=10)
+                    log_msg(
+                        logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат обмеження з object_shape: {object_shape}")
+                    continue
+                existing_shapes_in_layer.add(object_shape)
 
             polygon = self._coord_to_polygon(external_coords)
             if not polygon.isEmpty():
                 for internal_coords in internal_coords_list:
                     if internal_coords:
-                        # --- Початок змін: Створення QgsLineString безпосередньо ---
-                        # Створюємо QgsLineString напряму, щоб уникнути проблем з володінням пам'яттю
-                        # тимчасового QgsPolygon, що викликало крах QGIS.
-                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+
+                        interior_ring = QgsLineString(
+                            [QgsPointXY(p.y(), p.x()) for p in internal_coords])
                         polygon.addInteriorRing(interior_ring)
-                        # --- Кінець змін ---
 
             feature = QgsFeature(self.layer.fields())
             feature.setGeometry(QgsGeometry(polygon))
-            feature.setAttributes([restriction_code, restriction_name, start_date, expiration_date, object_shape])
+            object_id = int(object_id_text) if object_id_text.isdigit() else None
+            feature.setAttributes([object_id, object_shape])
+
+            if self.xml_data and object_id_text:
+                shape_info = ShapeInfo(
+                    layer_id=self.layer.id(),
+                    object_id=object_id_text,
+                    object_shape=object_shape)
+                self.xml_data.shapes.append(shape_info)
+                log_msg(
+                    logFile, f"Додавання об'єкта до shapes: Обмеження, ID:{object_id_text}, shape='{object_shape}'")
             provider.addFeature(feature)
 
         QgsProject.instance().addMapLayer(self.layer, False)
@@ -174,7 +229,7 @@ class Restrictions:
         self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
-            # #log_msg(logFile, f"Встановлено custom property на шар '{self.layer.name()}' з ID xml_data: {id(self.xml_data)}")
+            self.layer.setCustomProperty(
+                "xml_data_object_id", id(self.xml_data))
 
         return self.layer

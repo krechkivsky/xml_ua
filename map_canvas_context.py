@@ -7,10 +7,12 @@ from qgis.utils import iface
 
 from .common import log_msg, logFile
 
+
 class MapCanvasContextMenu:
     """
     Клас для керування контекстним меню полотна карти.
     """
+
     def __init__(self, iface, plugin):
         self.iface = iface
         self.plugin = plugin
@@ -38,8 +40,7 @@ class MapCanvasContextMenu:
                 XML на основі конкретного шаблону. За замовчуванням `None`.
         """
         from .new_xml import NewXmlCreator
-        #log_msg(logFile, f"Подія: {action_key}")
-        
+
         if action_key == "add_lands_to_active":
             if self.plugin.dockwidget:
                 self.plugin.dockwidget.add_lands()
@@ -57,15 +58,18 @@ class MapCanvasContextMenu:
             creator.execute(template_path=template_path)
             return
 
-        method_map = {"lease": "add_lease", "sublease": "add_sublease", "restriction": "add_restriction"}
+        method_map = {"lease": "add_lease",
+                      "sublease": "add_sublease", "restriction": "add_restriction"}
         method_name = method_map.get(action_key)
         if self.plugin.dockwidget and method_name and hasattr(self.plugin.dockwidget, method_name):
             try:
                 getattr(self.plugin.dockwidget, method_name)()
             except Exception as e:
-                QMessageBox.critical(None, "xml_ua", f"Помилка при виконанні {method_name}: {e}")
+                QMessageBox.critical(
+                    None, "xml_ua", f"Помилка при виконанні {method_name}: {e}")
         else:
-            QMessageBox.information(None, "xml_ua", "Функція ще не реалізована у NewXmlCreator.")
+            QMessageBox.information(
+                None, "xml_ua", "Функція ще не реалізована у NewXmlCreator.")
 
     def _is_single_polygon_selected(self):
         """Перевіряє, чи вибрано один полігональний об'єкт на всіх шарах."""
@@ -86,19 +90,25 @@ class MapCanvasContextMenu:
         """Додає до меню пункти для створення нового XML з виділеного полігону."""
         if self._is_single_polygon_selected():
             menu.addSeparator()
-            action_new_from_selection = menu.addAction("Створити XML з полігона")
-            action_new_from_selection.triggered.connect(lambda: self._trigger_plugin_action("new_from_selection"))
+            action_new_from_selection = menu.addAction(
+                "Створити XML з полігона")
+            action_new_from_selection.triggered.connect(
+                lambda: self._trigger_plugin_action("new_from_selection"))
 
-            templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
+            templates_dir = os.path.join(
+                os.path.dirname(__file__), 'templates')
             if os.path.exists(templates_dir):
-                template_files = [f for f in os.listdir(templates_dir) if f.endswith('.xml') and f != 'template.xml']
+                template_files = [f for f in os.listdir(
+                    templates_dir) if f.endswith('.xml') and f != 'template.xml']
                 if template_files:
                     templates_menu = menu.addMenu("Створити XML з шаблону")
                     for template_file in sorted(template_files):
                         template_name = os.path.splitext(template_file)[0]
-                        template_path = os.path.join(templates_dir, template_file)
+                        template_path = os.path.join(
+                            templates_dir, template_file)
                         action = QAction(f"Створити з '{template_name}'", menu)
-                        action.triggered.connect(lambda _, t_path=template_path: self._trigger_plugin_action("new_from_selection", template_path=t_path))
+                        action.triggered.connect(lambda _, t_path=template_path: self._trigger_plugin_action(
+                            "new_from_selection", template_path=t_path))
                         templates_menu.addAction(action)
 
     def _add_geometry_components_menu(self, menu):
@@ -109,23 +119,25 @@ class MapCanvasContextMenu:
             menu.addSeparator()
             xml_ua_menu = menu.addMenu(menu_text)
 
-            # --- Початок змін: Рефакторинг з використанням структури даних ---
-            # Виносимо конфігурацію дій в окрему структуру для гнучкості та читабельності.
             actions_config = [
-                {"label": "Додати угіддя", "key": "add_lands_to_active", "separator_before": False},
+                {"label": "Додати угіддя", "key": "add_lands_to_active",
+                    "separator_before": False},
                 {"label": "Додати оренду", "key": "lease", "separator_before": True},
-                {"label": "Додати суборенду", "key": "sublease", "separator_before": False},
-                {"label": "Додати обмеження", "key": "restriction", "separator_before": True},
-                {"label": "Додати суміжника", "key": "adjacent", "separator_before": False},
+                {"label": "Додати суборенду", "key": "sublease",
+                    "separator_before": False},
+                {"label": "Додати обмеження", "key": "restriction",
+                    "separator_before": True},
+                {"label": "Додати суміжника", "key": "adjacent",
+                    "separator_before": False},
             ]
 
             for config in actions_config:
                 if config["separator_before"]:
                     xml_ua_menu.addSeparator()
                 action = QAction(config["label"], self.canvas)
-                action.triggered.connect(lambda _, key=config["key"]: self._trigger_plugin_action(key))
+                action.triggered.connect(
+                    lambda _, key=config["key"]: self._trigger_plugin_action(key))
                 xml_ua_menu.addAction(action)
-            # --- Кінець змін ---
 
     def on_context_menu(self, menu, event):
         """
@@ -139,11 +151,11 @@ class MapCanvasContextMenu:
             menu (QMenu): Існуюче контекстне меню, до якого додаються нові дії.
             event (QgsMapMouseEvent): Подія миші, що містить інформацію про клік.
         """
-        # Додаємо меню для створення нового XML-файлу
+
         self._add_creation_menu(menu)
 
-        # Додаємо меню для роботи з активним XML-файлом
         self._add_geometry_components_menu(menu)
+
 
 def setup_map_canvas_context(iface, plugin):
     """
