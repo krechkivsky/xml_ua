@@ -439,8 +439,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             set_progress(45)
 
 
+            xsd_tree = None
+            try:
+                xsd_tree = copy.deepcopy(tree_view.xml_tree)
+            except Exception:
+                try:
+                    root = tree_view.xml_tree.getroot() if tree_view.xml_tree is not None else None
+                    if root is not None:
+                        xsd_tree = etree.ElementTree(etree.fromstring(etree.tostring(root)))
+                except Exception:
+                    xsd_tree = tree_view.xml_tree
+
+            # Технічні object_id потрібні для нумерації/шарів, але не є частиною обмінного XML за XSD.
+            # Валідуємо "очищену" копію, щоб не ламати внутрішні зв'язки плагіна під час роботи.
+            self._remove_object_id_attributes_from_tree(xsd_tree)
+
             xsd_errors = tree_view.validate_against_xsd(
-                xsd_path, generate_report=True, reset_visuals=False
+                xsd_path, generate_report=True, reset_visuals=False, xml_tree=xsd_tree
             )
             set_progress(80)
             errors_list = xsd_errors + local_errors

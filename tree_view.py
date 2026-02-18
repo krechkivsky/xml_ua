@@ -2982,13 +2982,129 @@ class CustomTreeView(QTreeView):
             self.expand(parent.index())
             parent = parent.parent()
 
-    def validate_against_xsd(self, path_to_xsd, generate_report=False, reset_visuals=True):
+    def _translate_xsd_error_message(self, message: str, schema_path: str = "") -> str:
+        """
+        Перекладає типові повідомлення XSD-валідації (lxml) українською.
+
+        Це евристичний переклад: lxml повертає англомовні шаблонні фрази,
+        тож ми покращуємо UX, не змінюючи семантику помилки.
+        """
+        if not message:
+            return message
+
+        msg = str(message)
+
+        def _short_appinfo(text: str) -> str:
+            if text is None:
+                return ""
+            s = str(text).strip()
+            # У XSD часто використовується "⋮" та "↓" як маркери UI.
+            s = s.replace("⋮", "").replace("↓", "").strip()
+            # Приберемо зайві подвійні пробіли після заміни.
+            s = re.sub(r"\s{2,}", " ", s)
+            return s
+
+        def _appinfo_for_tag(tag_name: str) -> str:
+            """
+            Повертає український appinfo для елемента XSD за його ім'ям.
+            Спочатку пробує знайти за контекстним шляхом (schema_path), потім — глобально.
+            """
+            if not tag_name:
+                return ""
+
+            # 1) Точний контекст (якщо schema_path вже вказує на цей елемент)
+            if schema_path:
+                if schema_path.endswith(f"/{tag_name}") or schema_path == tag_name:
+                    label = self.xsd_appinfo.get(schema_path, "")
+                    if label:
+                        return _short_appinfo(label)
+
+                parent_path = schema_path.rsplit("/", 1)[0] if "/" in schema_path else ""
+                if parent_path:
+                    label = self.xsd_appinfo.get(f"{parent_path}/{tag_name}", "")
+                    if label:
+                        return _short_appinfo(label)
+
+            # 2) Глобальний пошук по xsd_appinfo (перший збіг)
+            try:
+                suffix = f"/{tag_name}"
+                for k, v in self.xsd_appinfo.items():
+                    if k == tag_name or str(k).endswith(suffix):
+                        if v:
+                            return _short_appinfo(v)
+            except Exception:
+                pass
+
+            return ""
+
+        replacements = {
+            "Element ": "Елемент ",
+            "attribute ": "атрибут ",
+            "The attribute ": "Атрибут ",
+            "is not allowed.": "не дозволено.",
+            "This element is not expected.": "Цей елемент не очікується.",
+            "Missing child element(s).": "Відсутній дочірній елемент(и).",
+            "Expected is": "Очікується",
+            "Expected one of": "Очікується один із",
+            "The value ": "Значення ",
+            "is not accepted by the pattern": "не відповідає шаблону",
+            "fails to satisfy the fixed value constraint": "не відповідає фіксованому значенню",
+            "is not a valid value": "є некоректним значенням",
+        }
+        for src, dst in replacements.items():
+            msg = msg.replace(src, dst)
+
+        # Підміна назв елементів на український appinfo
+        # 1) Element 'TagName'
+        def _replace_element_name(match):
+            tag_name = match.group(1)
+            label = _appinfo_for_tag(tag_name)
+            return f"Елемент '{label or tag_name}'"
+
+        try:
+            msg = re.sub(r"Елемент '([^']+)'", _replace_element_name, msg)
+        except Exception:
+            pass
+
+        # 2) Expected is ( A ) / Expected one of ( A, B )
+        def _replace_expected_list(match):
+            inner = match.group(1)
+            tokens = [t.strip() for t in re.split(r"[,\s]+", inner) if t.strip()]
+            # lxml може писати імена з комами, інколи з кількома пробілами
+            mapped = []
+            for tok in tokens:
+                # пропускаємо службові символи/дужки, якщо раптом потрапили
+                clean = tok.strip("()")
+                if not clean:
+                    continue
+                label = _appinfo_for_tag(clean)
+                mapped.append(label or clean)
+            return "(" + ", ".join(mapped) + ")"
+
+        try:
+            msg = re.sub(r"\(\s*([A-Za-z0-9_,\s]+?)\s*\)", _replace_expected_list, msg)
+        except Exception:
+            pass
+
+        try:
+            msg = re.sub(
+                r"The attribute '([^']+)' is not allowed\.",
+                r"Атрибут '\1' не дозволено.",
+                msg,
+            )
+        except Exception:
+            pass
+
+        return msg
+
+    def validate_against_xsd(self, path_to_xsd, generate_report=False, reset_visuals=True, xml_tree=None):
         """
         Перевіряє XML-дерево на відповідність XSD та підсвічує помилки.
         НЕ змінює XML-структуру/значення.
         """
         errors = []
-        if self.xml_tree is None:
+        active_tree = xml_tree if xml_tree is not None else self.xml_tree
+        if active_tree is None:
             return ["XML дерево не завантажено."]
         if not path_to_xsd or not os.path.exists(path_to_xsd):
             return [f"XSD схему не знайдено: {path_to_xsd}"]
@@ -3022,7 +3138,7 @@ class CustomTreeView(QTreeView):
             try:
                 schema_doc = etree.parse(path_to_xsd)
                 schema = etree.XMLSchema(schema_doc)
-                is_valid = schema.validate(self.xml_tree)
+                is_valid = schema.validate(active_tree)
             except Exception as e:
                 return [f"Помилка завантаження/перевірки XSD: {e}"]
 
@@ -3031,12 +3147,16 @@ class CustomTreeView(QTreeView):
 
             for err in schema.error_log:
                 err_path = getattr(err, "path", "") or ""
-                err_message = str(getattr(err, "message", str(err)))
+                raw_message = str(getattr(err, "message", str(err)))
                 item = self._find_item_by_xpath_path(err_path)
+
+                item_path = item.data(Qt.UserRole) if item else ""
+                schema_path = re.sub(r"\[\d+\]", "", item_path or "")
+
+                err_message = self._translate_xsd_error_message(raw_message, schema_path=schema_path)
                 self._mark_item_as_invalid(item, err_message)
 
                 if generate_report:
-                    item_path = item.data(Qt.UserRole) if item else ""
                     readable_path = self._generate_ukr_path(
                         re.sub(r"\[\d+\]", "", item_path or ""))
                     if not readable_path:

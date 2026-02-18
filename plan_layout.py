@@ -49,6 +49,8 @@ from .symbols import Symbols
 from .cases import to_genitive
 from .lands_explication import LandsExplicationTable
 from .restrictions_parts import RestrictionsPartsTable
+from .leases_parts import LeasesPartsTable
+from .subleases_parts import SubleasesPartsTable
 
 LOG = True
 
@@ -977,7 +979,18 @@ class PlanLayoutCreator:
         except Exception:
             pass
 
-    def _add_nodes_coordinates_table_page2(self, layout, x_mm: float, w_mm: float, title_y_mm: float, font: QFont, xml_root=None, restrictions_layer=None):
+    def _add_nodes_coordinates_table_page2(
+        self,
+        layout,
+        x_mm: float,
+        w_mm: float,
+        title_y_mm: float,
+        font: QFont,
+        xml_root=None,
+        restrictions_layer=None,
+        leases_layer=None,
+        subleases_layer=None,
+    ):
         """
         Додає таблицю координат на 2-й аркуш: заголовок + таблиця, обидва по центру відносно полів.
 
@@ -1145,8 +1158,17 @@ class PlanLayoutCreator:
 
 
                         try:
-                            r_gap = 5.0
-                            r_y = float(exp_y + etitle_h) + float(e_h) + r_gap
+                            def _has_features(layer) -> bool:
+                                if layer is None:
+                                    return False
+                                try:
+                                    for _ in layer.getFeatures():
+                                        return True
+                                except Exception:
+                                    return False
+                                return False
+
+                            y_cursor = float(exp_y + etitle_h) + float(e_h) + 5.0
 
                             rtitle = QgsLayoutItemLabel(layout)
                             rtitle.setText("Перелік частин ділянки з обмеженнями")
@@ -1159,7 +1181,7 @@ class PlanLayoutCreator:
                             rtitle.attemptResize(QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters))
                             rtitle.setHAlign(Qt.AlignHCenter)
                             rtitle.setVAlign(Qt.AlignVCenter)
-                            rtitle.attemptMove(QgsLayoutPoint(float(x_mm), r_y, QgsUnitTypes.LayoutMillimeters))
+                            rtitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
                             rtitle.setObjectName("Обмеження заголовок:p2")
                             rtitle.setId("Обмеження заголовок:p2")
 
@@ -1185,7 +1207,90 @@ class PlanLayoutCreator:
                                 r_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(rrows) * float(NODES_TABLE_ROW_H_MM) + 2.0
                                 rtbl.attemptResize(QgsLayoutSize(float(r_w), r_h, QgsUnitTypes.LayoutMillimeters))
                                 rx = float(x_mm) + max(0.0, (float(w_mm) - float(r_w)) / 2.0)
-                                rtbl.attemptMove(QgsLayoutPoint(rx, r_y + rtitle_h, QgsUnitTypes.LayoutMillimeters))
+                                rtbl.attemptMove(QgsLayoutPoint(rx, y_cursor + rtitle_h, QgsUnitTypes.LayoutMillimeters))
+                                y_cursor = float(y_cursor + rtitle_h + r_h)
+
+                            if _has_features(leases_layer):
+                                y_cursor += 5.0
+                                ltitle = QgsLayoutItemLabel(layout)
+                                ltitle.setText("Перелік частин ділянки переданих в оренду")
+                                try:
+                                    ltitle.setFont(QFont(font))
+                                except Exception:
+                                    pass
+                                layout.addLayoutItem(ltitle)
+                                ltitle_h = float(NODES_TABLE_TITLE_H_MM)
+                                ltitle.attemptResize(QgsLayoutSize(float(w_mm), ltitle_h, QgsUnitTypes.LayoutMillimeters))
+                                ltitle.setHAlign(Qt.AlignHCenter)
+                                ltitle.setVAlign(Qt.AlignVCenter)
+                                ltitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
+                                ltitle.setObjectName("Оренда заголовок:p2")
+                                ltitle.setId("Оренда заголовок:p2")
+
+                                lhtml, lrows, l_w = LeasesPartsTable.build_html(
+                                    xml_root=xml_root,
+                                    font=QFont(font),
+                                    body_row_h_mm=float(NODES_TABLE_ROW_H_MM),
+                                    header_row_h_mm=float(NODES_TABLE_HEADER_ROW_H_MM),
+                                )
+                                if lhtml and lrows:
+                                    ltbl = QgsLayoutItemLabel(layout)
+                                    ltbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                                    ltbl.setText(lhtml)
+                                    try:
+                                        ltbl.setFont(QFont(font))
+                                    except Exception:
+                                        pass
+                                    ltbl.setObjectName("Оренда:p2")
+                                    ltbl.setId("Оренда:p2")
+                                    layout.addLayoutItem(ltbl)
+
+                                    l_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(lrows) * float(NODES_TABLE_ROW_H_MM) + 2.0
+                                    ltbl.attemptResize(QgsLayoutSize(float(l_w), l_h, QgsUnitTypes.LayoutMillimeters))
+                                    lx = float(x_mm) + max(0.0, (float(w_mm) - float(l_w)) / 2.0)
+                                    ltbl.attemptMove(QgsLayoutPoint(lx, y_cursor + ltitle_h, QgsUnitTypes.LayoutMillimeters))
+                                    y_cursor = float(y_cursor + ltitle_h + l_h)
+
+                            if _has_features(subleases_layer):
+                                y_cursor += 5.0
+                                stitle = QgsLayoutItemLabel(layout)
+                                stitle.setText("Перелік частин ділянки переданих у суборенду")
+                                try:
+                                    stitle.setFont(QFont(font))
+                                except Exception:
+                                    pass
+                                layout.addLayoutItem(stitle)
+                                stitle_h = float(NODES_TABLE_TITLE_H_MM)
+                                stitle.attemptResize(QgsLayoutSize(float(w_mm), stitle_h, QgsUnitTypes.LayoutMillimeters))
+                                stitle.setHAlign(Qt.AlignHCenter)
+                                stitle.setVAlign(Qt.AlignVCenter)
+                                stitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
+                                stitle.setObjectName("Суборенда заголовок:p2")
+                                stitle.setId("Суборенда заголовок:p2")
+
+                                shtml, srows, s_w = SubleasesPartsTable.build_html(
+                                    xml_root=xml_root,
+                                    font=QFont(font),
+                                    body_row_h_mm=float(NODES_TABLE_ROW_H_MM),
+                                    header_row_h_mm=float(NODES_TABLE_HEADER_ROW_H_MM),
+                                )
+                                if shtml and srows:
+                                    stbl = QgsLayoutItemLabel(layout)
+                                    stbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                                    stbl.setText(shtml)
+                                    try:
+                                        stbl.setFont(QFont(font))
+                                    except Exception:
+                                        pass
+                                    stbl.setObjectName("Суборенда:p2")
+                                    stbl.setId("Суборенда:p2")
+                                    layout.addLayoutItem(stbl)
+
+                                    s_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(srows) * float(NODES_TABLE_ROW_H_MM) + 2.0
+                                    stbl.attemptResize(QgsLayoutSize(float(s_w), s_h, QgsUnitTypes.LayoutMillimeters))
+                                    sx = float(x_mm) + max(0.0, (float(w_mm) - float(s_w)) / 2.0)
+                                    stbl.attemptMove(QgsLayoutPoint(sx, y_cursor + stitle_h, QgsUnitTypes.LayoutMillimeters))
+                                    y_cursor = float(y_cursor + stitle_h + s_h)
                         except Exception as e:
                             log_calls(logFile, f"Page2 restrictions parts add failed: {e}")
                 except Exception as e:
@@ -1619,6 +1724,18 @@ class PlanLayoutCreator:
                         restrictions_layer = self._find_layer_exact(self.cadastral_plan_group, "Обмеження")
                 except Exception:
                     restrictions_layer = None
+                leases_layer = None
+                subleases_layer = None
+                try:
+                    if self.cadastral_plan_group:
+                        leases_layer = self._find_layer_exact(self.cadastral_plan_group, "Оренда")
+                except Exception:
+                    leases_layer = None
+                try:
+                    if self.cadastral_plan_group:
+                        subleases_layer = self._find_layer_exact(self.cadastral_plan_group, "Суборенда")
+                except Exception:
+                    subleases_layer = None
                 self._add_nodes_coordinates_table_page2(
                     layout,
                     x_mm=content_x,
@@ -1627,6 +1744,8 @@ class PlanLayoutCreator:
                     font=parcel_text_font or fnt,
                     xml_root=xml_root,
                     restrictions_layer=restrictions_layer,
+                    leases_layer=leases_layer,
+                    subleases_layer=subleases_layer,
                 )
         except Exception as e:
             log_calls(logFile, f"Page2 nodes table add failed: {e}")
