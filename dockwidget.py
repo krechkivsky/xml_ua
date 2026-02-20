@@ -1747,9 +1747,28 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
 
         node = self.iface.layerTreeView().currentNode()
-        is_parcel_layer_selected = isinstance(
-            node, QgsLayerTreeLayer) and node.name() == "Ділянка"
-        self.plugin.action_cadastral_plan.setEnabled(is_parcel_layer_selected)
+        is_parcel_layer_selected = False
+        try:
+            is_parcel_layer_selected = isinstance(node, QgsLayerTreeLayer) and node.name() == "Ділянка"
+        except Exception:
+            is_parcel_layer_selected = False
+
+        enable_docs_actions = False
+        if is_parcel_layer_selected:
+            try:
+                layer = node.layer() if node else None
+                xml_data_obj = self.find_xml_data_for_layer(layer)
+                enable_docs_actions = bool(
+                    xml_data_obj and self._is_layer_direct_child_of_xml_group(layer, xml_data_obj)
+                )
+            except Exception:
+                enable_docs_actions = False
+
+        self.plugin.action_cadastral_plan.setEnabled(enable_docs_actions)
+        try:
+            self.plugin.action_boundary_agreement.setEnabled(enable_docs_actions)
+        except Exception:
+            pass
 
         item = self.iface.layerTreeView().index2node(index)
 

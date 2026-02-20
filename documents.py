@@ -4,11 +4,15 @@ import re
 import os
 import datetime
 import webbrowser
+import subprocess
+import shutil
+import string
 from pathlib import Path
 from docxtpl import DocxTemplate
 from qgis.PyQt.QtWidgets import QMessageBox, QInputDialog, QDialog
 from lxml import etree
 from qgis.PyQt.QtCore import QUrl
+from qgis.PyQt.QtCore import QStandardPaths
 
 from .common import log_msg, logFile, config
 from .date_dialog import DateInputDialog
@@ -24,6 +28,8 @@ class DocumentGenerator:
         self.dockwidget = dockwidget
         self.iface = dockwidget.iface
         self.plugin_dir = dockwidget.plugin.plugin_dir
+        self._warned_word_missing = False
+        self._warned_bad_filename = False
 
     def generate_document(self, doc_type, template_name):
         """
@@ -45,9 +51,154 @@ class DocumentGenerator:
             self._generate_restoration_title2(template_name)
         elif doc_type == "restoration_note":
             self._generate_restoration_explanation(template_name)
+        elif doc_type == "text_template":
+            self._generate_text_template(template_name)
         else:
             QMessageBox.information(
                 self.dockwidget, "У розробці", "Даний функціонал у розробці.")
+
+    def _generate_text_template(self, template_name: str):
+        """
+        Генерує довільний текстовий документ із шаблону docx (templates/*.docx).
+
+        Підтримує шаблони з плейсхолдерами docxtpl: якщо плейсхолдерів нема — документ просто
+        збережеться (практично без змін) і відкриється.
+        """
+        current_xml = self.dockwidget.current_xml
+        tree = current_xml.tree
+
+        template_path = os.path.join(self.plugin_dir, "templates", template_name)
+        if not os.path.exists(template_path):
+            QMessageBox.critical(
+                self.dockwidget, "Помилка", f"Файл шаблону не знайдено: {template_path}"
+            )
+            return
+
+        context = self._get_base_context(tree)
+
+        try:
+            doc = DocxTemplate(template_path)
+            doc.render(context)
+        except Exception as e:
+            QMessageBox.critical(
+                self.dockwidget,
+                "Помилка",
+                f"Не вдалося підготувати документ з шаблону:\n\n{template_name}\n\n{e}",
+            )
+            return
+
+        xml_dir = self._resolve_output_dir(current_xml)
+        xml_name_source = getattr(current_xml, "original_path", "") or getattr(current_xml, "path", "") or ""
+        output_filename = self._make_output_docx_filename(
+            xml_path=xml_name_source,
+            template_name=template_name,
+        )
+        output_path = os.path.normpath(os.path.join(xml_dir, output_filename))
+        self._save_and_open_doc(doc, output_path)
+
+    def _resolve_output_dir(self, current_xml) -> str:
+        candidates = []
+        try:
+            candidates.append(getattr(current_xml, "original_path", "") or "")
+        except Exception:
+            pass
+        try:
+            candidates.append(getattr(current_xml, "path", "") or "")
+        except Exception:
+            pass
+
+        for p in candidates:
+            try:
+                if not p:
+                    continue
+                d = os.path.dirname(os.path.abspath(str(p)))
+                if d and os.path.isdir(d):
+                    return d
+            except Exception:
+                continue
+
+        try:
+            docs_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+        except Exception:
+            docs_dir = ""
+        if not docs_dir:
+            docs_dir = os.path.expanduser("~")
+
+        out_dir = os.path.join(docs_dir, "xml_ua")
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+        except Exception:
+            return docs_dir if docs_dir and os.path.isdir(docs_dir) else os.getcwd()
+        return out_dir
+
+    def _make_output_docx_filename(self, xml_path: str, template_name: str) -> str:
+        """
+        Формує назву вихідного документа строго як:
+        <назва_XML_без_розширення>_<назва_шаблону_без_розширення>.docx
+        """
+        xml_stem = os.path.splitext(os.path.basename(str(xml_path or "")))[0]
+        tmpl_stem = os.path.splitext(os.path.basename(str(template_name or "")))[0]
+        return f"{xml_stem}_{tmpl_stem}.docx"
+
+    def _find_winword_path(self) -> str:
+        """
+        Повертає шлях до WINWORD.EXE або порожній рядок, якщо MS Word не знайдено.
+        """
+        try:
+            import winreg  # type: ignore
+
+            reg_paths = [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\WINWORD.EXE",
+                r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\WINWORD.EXE",
+            ]
+            for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+                for key_path in reg_paths:
+                    try:
+                        with winreg.OpenKey(hive, key_path) as k:
+                            val, _ = winreg.QueryValueEx(k, "")
+                            if val and os.path.exists(val):
+                                return str(val)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+        try:
+            p = shutil.which("winword") or shutil.which("winword.exe")
+            if p and os.path.exists(p):
+                return str(p)
+        except Exception:
+            pass
+
+        return ""
+
+    def _open_in_word_or_warn(self, file_path: str) -> bool:
+        """
+        Прагне відкрити документ в MS Word. Якщо Word не встановлено — показує попередження
+        (1 раз за сесію) і повертає False.
+        """
+        winword = self._find_winword_path()
+        if not winword:
+            if not self._warned_word_missing:
+                self._warned_word_missing = True
+                QMessageBox.warning(
+                    self.dockwidget,
+                    "MS Word не знайдено",
+                    "Не знайдено Microsoft Word (WINWORD.EXE).\n\n"
+                    "Встановіть MS Word, щоб відкривати та редагувати шаблони docx.",
+                )
+            return False
+
+        try:
+            p = os.path.normpath(os.path.abspath(str(file_path)))
+        except Exception:
+            p = str(file_path)
+
+        try:
+            subprocess.Popen([winword, "/n", p], close_fds=True)
+            return True
+        except Exception:
+            return False
 
     def _generate_restoration_title1(self, template_name):
         """
@@ -89,10 +240,13 @@ class DocumentGenerator:
         doc = DocxTemplate(template_path)
         doc.render(context)
 
-        xml_dir = os.path.dirname(current_xml.path)
-        base_name = os.path.splitext(os.path.basename(current_xml.path))[0]
-        output_filename = f"{base_name}_{os.path.splitext(template_name)[0]}.docx"
-        output_path = os.path.join(xml_dir, output_filename)
+        xml_dir = self._resolve_output_dir(current_xml)
+        xml_name_source = getattr(current_xml, "original_path", "") or getattr(current_xml, "path", "") or ""
+        output_filename = self._make_output_docx_filename(
+            xml_path=xml_name_source,
+            template_name=template_name,
+        )
+        output_path = os.path.normpath(os.path.join(xml_dir, output_filename))
 
         self._save_and_open_doc(doc, output_path)
 
@@ -146,10 +300,13 @@ class DocumentGenerator:
         doc = DocxTemplate(template_path)
         doc.render(context)
 
-        xml_dir = os.path.dirname(current_xml.path)
-        base_name = os.path.splitext(os.path.basename(current_xml.path))[0]
-        output_filename = f"{base_name}_{os.path.splitext(template_name)[0]}.docx"
-        output_path = os.path.join(xml_dir, output_filename)
+        xml_dir = self._resolve_output_dir(current_xml)
+        xml_name_source = getattr(current_xml, "original_path", "") or getattr(current_xml, "path", "") or ""
+        output_filename = self._make_output_docx_filename(
+            xml_path=xml_name_source,
+            template_name=template_name,
+        )
+        output_path = os.path.normpath(os.path.join(xml_dir, output_filename))
 
         self._save_and_open_doc(doc, output_path)
 
@@ -367,10 +524,13 @@ class DocumentGenerator:
 
         doc = DocxTemplate(template_path)
         doc.render(context)
-        xml_dir = os.path.dirname(current_xml.path)
-        base_name = os.path.splitext(os.path.basename(current_xml.path))[0]
-        output_filename = f"{base_name}_{os.path.splitext(template_name)[0]}.docx"
-        output_path = os.path.join(xml_dir, output_filename)
+        xml_dir = self._resolve_output_dir(current_xml)
+        xml_name_source = getattr(current_xml, "original_path", "") or getattr(current_xml, "path", "") or ""
+        output_filename = self._make_output_docx_filename(
+            xml_path=xml_name_source,
+            template_name=template_name,
+        )
+        output_path = os.path.normpath(os.path.join(xml_dir, output_filename))
         self._save_and_open_doc(doc, output_path)
 
     def _get_base_context(self, tree):
@@ -452,14 +612,64 @@ class DocumentGenerator:
     def _save_and_open_doc(self, doc, output_path):
         """Зберігає та відкриває документ, обробляючи помилки доступу."""
 
+        try:
+            output_path = os.path.normpath(os.path.abspath(str(output_path)))
+        except Exception:
+            output_path = str(output_path)
+
+        try:
+            file_name = os.path.basename(output_path)
+            # Вимога користувача: перевірка довжин (255 для імені файлу, 260 для повного шляху).
+            if len(file_name) > 255:
+                QMessageBox.critical(
+                    self.dockwidget,
+                    "Неможливо зберегти документ",
+                    "Занадто довге ім'я вихідного файлу.\n\n"
+                    f"Ім'я файлу ({len(file_name)} символів):\n{file_name}\n\n"
+                    "Обмеження: 255 символів.\n\n"
+                    "Скоротіть назву XML/шаблону або перейменуйте файли.",
+                )
+                return
+
+            if len(output_path) > 260:
+                QMessageBox.critical(
+                    self.dockwidget,
+                    "Неможливо зберегти документ",
+                    "Занадто довгий повний шлях до вихідного файлу.\n\n"
+                    f"Шлях ({len(output_path)} символів):\n{output_path}\n\n"
+                    "Обмеження: 260 символів.\n\n"
+                    "Скоротіть назви або перемістіть XML у папку з коротшим шляхом.",
+                )
+                return
+        except Exception:
+            pass
+
         saved_successfully = False
         while not saved_successfully:
             try:
                 doc.save(output_path)
                 saved_successfully = True
 
-                from qgis.PyQt.QtGui import QDesktopServices
-                QDesktopServices.openUrl(QUrl.fromLocalFile(output_path))
+                try:
+                    if not os.path.isfile(output_path):
+                        QMessageBox.critical(
+                            self.dockwidget,
+                            "Помилка збереження",
+                            f"Файл не знайдено після збереження:\n\n{output_path}\n\n"
+                            "Перевірте шлях та права доступу.",
+                        )
+                        return
+                except Exception:
+                    pass
+
+                opened_in_word = self._open_in_word_or_warn(output_path)
+                if not opened_in_word:
+                    try:
+                        from qgis.PyQt.QtGui import QDesktopServices
+
+                        QDesktopServices.openUrl(QUrl.fromLocalFile(output_path))
+                    except Exception:
+                        pass
 
             except PermissionError:
                 reply = QMessageBox.warning(
@@ -475,6 +685,20 @@ class DocumentGenerator:
                     log_msg(
                         logFile, "Збереження документа скасовано користувачем через помилку доступу.")
                     return  # Вихід з функції, якщо користувач натиснув "Скасувати"
+            except OSError as e:
+                # Типова причина: некоректні символи у назві вихідного файлу (':' з кадастрового номера тощо).
+                if not self._warned_bad_filename:
+                    self._warned_bad_filename = True
+                    QMessageBox.critical(
+                        self.dockwidget,
+                        "Помилка збереження",
+                        "Не вдалося зберегти документ.\n\n"
+                        f"Шлях:\n{output_path}\n\n"
+                        f"Помилка ОС: {e}\n\n"
+                        "Перевірте назву XML або шаблону: у Windows заборонені символи <>:\"/\\|?* "
+                        "та не допускаються кінцеві пробіли/крапки.",
+                    )
+                return
 
     def _get_or_create_additional_info(self, parent_element, info_type, prefix, prompt_title="Введення даних", prompt_text="Бажаєте додати інформацію?", has_date=True, has_sn=False):
         """

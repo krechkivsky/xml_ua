@@ -82,20 +82,19 @@ class CadastralZoneInfo:
             if parcel_metric_info is None:
 
                 external_coords = []
-                internal_coords = []
+                internal_coords_list = []
                 externals_lines = None
-                internals_lines = None
+                internals_lines_list = []
             else:
 
-                externals_lines = parcel_metric_info.find(
-                    ".//Externals/Boundary/Lines")
-                external_coords = self.lines_to_coords(
-                    externals_lines) if externals_lines is not None else []
+                externals_lines_list = parcel_metric_info.findall(".//Externals/Boundary/Lines")
+                externals_lines = externals_lines_list[0] if externals_lines_list else None
+                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
 
-                internals_lines = parcel_metric_info.find(
-                    ".//Internals/Boundary/Lines")
-                internal_coords = self.lines_to_coords(
-                    internals_lines) if internals_lines is not None else []
+                internals_lines_list = parcel_metric_info.findall(".//Internals/Boundary/Lines")
+                internal_coords_list = [
+                    self.lines_to_coords(lines_el) for lines_el in internals_lines_list if lines_el is not None
+                ]
 
                 zone_externals = zone_element.find(
                     "Externals")  # Шукаємо існуючий
@@ -116,19 +115,18 @@ class CadastralZoneInfo:
                 parcel_externals = parcel_metric_info.find("Externals")
                 if parcel_externals is not None:
 
-                    old_boundary = zone_externals.find("Boundary")
-                    if old_boundary is not None:
-                        zone_externals.remove(old_boundary)
-                    zone_externals.append(etree.fromstring(
-                        etree.tostring(parcel_externals.find("Boundary"))))
+                    # Copy all boundaries (+ optional Internals) from ParcelMetricInfo/Externals
+                    for child in list(zone_externals):
+                        zone_externals.remove(child)
+                    for child in parcel_externals:
+                        zone_externals.append(etree.fromstring(etree.tostring(child)))
 
             polygon = self._coord_to_polygon(external_coords)
-            if internal_coords:
-
-                interior_ring = QgsLineString(
-                    [QgsPointXY(p.y(), p.x()) for p in internal_coords])
-
-                if not polygon.isEmpty():
+            if internal_coords_list and not polygon.isEmpty():
+                for internal_coords in internal_coords_list:
+                    if not internal_coords:
+                        continue
+                    interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
                     polygon.addInteriorRing(interior_ring)
 
             feature = QgsFeature(self.layer.fields())
@@ -138,8 +136,13 @@ class CadastralZoneInfo:
             if processor:
                 try:
                     exterior_shape = processor._get_polyline_object_shape(externals_lines) if externals_lines is not None else ""
-                    interior_shape = processor._get_polyline_object_shape(internals_lines) if internals_lines is not None else ""
-                    object_shape = "|".join([s for s in (exterior_shape, interior_shape) if s])
+                    interior_shapes = []
+                    for lines_el in internals_lines_list:
+                        try:
+                            interior_shapes.append(processor._get_polyline_object_shape(lines_el))
+                        except Exception:
+                            continue
+                    object_shape = "|".join([s for s in ([exterior_shape] + interior_shapes) if s])
                 except Exception:
                     object_shape = ""
 

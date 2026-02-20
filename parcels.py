@@ -76,30 +76,34 @@ class CadastralParcel:
                 external_coords = self.lines_to_coords(
                     externals_lines) if externals_lines is not None else []
 
-            internals_lines = parcel_metric_info.find(
-                ".//Internals/Boundary/Lines")
-            internal_coords = self.lines_to_coords(
-                internals_lines) if internals_lines is not None else []
+            internals_lines_list = parcel_metric_info.findall(".//Internals/Boundary/Lines")
+            internal_coords_list = [
+                self.lines_to_coords(lines_el) for lines_el in internals_lines_list if lines_el is not None
+            ]
 
             object_shape = ""
             if processor and externals_element is not None:
                 exterior_shape = processor._get_polyline_object_shape(
                     externals_lines)
                 interior_shapes = []
-                if internals_lines is not None:
-                    internals_container = parcel_metric_info.find(
-                        ".//Internals")
-                    if internals_container is not None:
-                        interior_shapes = [processor._get_polyline_object_shape(internal.find(
-                            "Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                internals_container = parcel_metric_info.find(".//Internals")
+                if internals_container is not None:
+                    interior_shapes = [
+                        processor._get_polyline_object_shape(internal.find("Boundary/Lines"))
+                        for internal in internals_container.findall("Boundary")
+                        if internal.find("Boundary/Lines") is not None
+                    ]
 
                 all_rings = [exterior_shape] + interior_shapes
                 object_shape = "|".join(filter(None, all_rings))
 
             polygon = self._coord_to_polygon(external_coords)
-            if internal_coords:
-                polygon.addInteriorRing(self._coord_to_polygon(
-                    internal_coords).exteriorRing())
+            if internal_coords_list and not polygon.isEmpty():
+                for internal_coords in internal_coords_list:
+                    if not internal_coords:
+                        continue
+                    interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                    polygon.addInteriorRing(interior_ring)
 
             feature = QgsFeature(self.layer.fields())
             feature.setGeometry(QgsGeometry(polygon))

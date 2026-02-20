@@ -6,8 +6,8 @@
 name=xml_ua
 qgisMinimumVersion=3.34.15
 description=Processing ukrainian cadastral files.
-version=0.4.3
-date=2026-02-18
+version=0.4.4
+date=2026-02-20
 author=krechkivsky.dev@gmail.com
 email=krechkivsky.dev@gmail.com
 

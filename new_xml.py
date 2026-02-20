@@ -90,15 +90,22 @@ class NewXmlCreator:
         geometry = selected_feature.geometry()
         geometry_type = geometry.wkbType()
 
-        points_list = []
-        internals_points_list = []
+        # Rings:
+        # - Externals: one or more exterior rings (Boundary elements)
+        # - Internals: zero or more interior rings (holes) stored under Externals/Internals
+        external_rings = []
+        internal_rings = []
         if geometry_type == QgsWkbTypes.Polygon:
-            points_list.append(geometry.asPolygon()[0])
+            polygon = geometry.asPolygon()
+            if polygon:
+                external_rings.append(polygon[0])
+                internal_rings.extend(polygon[1:])
         elif geometry_type == QgsWkbTypes.MultiPolygon:
             for polygon in geometry.asMultiPolygon():
-                points_list.append(polygon[0])
-                for internal_ring in polygon[1:]:
-                    internals_points_list.append(internal_ring)
+                if not polygon:
+                    continue
+                external_rings.append(polygon[0])
+                internal_rings.extend(polygon[1:])
 
         if not os.path.exists(template_file):
             QMessageBox.critical(
@@ -150,8 +157,8 @@ class NewXmlCreator:
                 point_info.remove(point)
 
         uidp_counter = 1
-        all_points_to_add = points_list + internals_points_list
-        for points in all_points_to_add:
+        rings = [("external", r) for r in external_rings] + [("internal", r) for r in internal_rings]
+        for _, points in rings:
             points_without_last = points[:-1] if len(
                 points) > 1 and points[0] == points[-1] else points
             for point in points_without_last:
@@ -181,10 +188,12 @@ class NewXmlCreator:
 
         ulid_counter = 1
         point_offset = 0
-        for points in all_points_to_add:
+        ring_ulid_ranges = []  # [(kind, start_ulid, count_lines), ...] in the same order as `rings`
+        for kind, points in rings:
             points_without_last = points[:-1] if len(
                 points) > 1 and points[0] == points[-1] else points
             num_points = len(points_without_last)
+            start_ulid_for_ring = ulid_counter
             for i in range(num_points):
                 start_point_idx = i
                 end_point_idx = (i + 1) % num_points
@@ -204,6 +213,7 @@ class NewXmlCreator:
                 etree.SubElement(pl_element, "Length").text = f"{length:.2f}"
                 ulid_counter += 1
             point_offset += num_points
+            ring_ulid_ranges.append((kind, start_ulid_for_ring, num_points))
 
         def find_or_create_path(root, path_parts):
             current = root
@@ -214,34 +224,17 @@ class NewXmlCreator:
                 current = found
             return current
 
-        def add_boundary_lines(points_list, parent_element, is_internal=False):
-            boundary_parent = parent_element
-            if is_internal:
-                internals_element = find_or_create_path(
-                    parent_element, ["Internals"])
-                boundary_parent = internals_element
+        def _clear_children(parent, tag):
+            for child in list(parent.findall(tag)):
+                parent.remove(child)
 
-            boundary_element = find_or_create_path(
-                boundary_parent, ["Boundary"])
-            lines_element = find_or_create_path(boundary_element, ["Lines"])
-
-            for line in lines_element.findall("Line"):
-                lines_element.remove(line)
-
-            nonlocal ulid_counter
-            for _ in points_list:
-                points_without_last = _[
-                    :-1] if len(_) > 1 and _[0] == _[-1] else _
-                for i in range(len(points_without_last)):
-                    line_element = etree.SubElement(lines_element, "Line")
-
-                    etree.SubElement(line_element, "ULID").text = str(
-                        ulid_counter - len(points_without_last) + i)
-
-            closed_element = boundary_element.find("Closed")
-            if closed_element is None:
-                closed_element = etree.SubElement(boundary_element, "Closed")
-            closed_element.text = "true"
+        def _add_boundary_by_ulids(boundary_parent, start_ulid, count_lines):
+            boundary_element = etree.SubElement(boundary_parent, "Boundary")
+            lines_element = etree.SubElement(boundary_element, "Lines")
+            for ulid in range(start_ulid, start_ulid + count_lines):
+                line_element = etree.SubElement(lines_element, "Line")
+                etree.SubElement(line_element, "ULID").text = str(ulid)
+            etree.SubElement(boundary_element, "Closed").text = "true"
 
         parcel_metric_info_path = [
             "InfoPart", "CadastralZoneInfo", "CadastralQuarters",
@@ -258,10 +251,20 @@ class NewXmlCreator:
             parcel_metric_info_element.insert(
                 0, parcel_id_element)  # Вставляємо на першу позицію
 
-        add_boundary_lines(points_list, externals_element)
-        if internals_points_list:
-            add_boundary_lines(internals_points_list,
-                               externals_element, is_internal=True)
+        # Replace boundaries in Externals and (optional) Internals
+        _clear_children(externals_element, "Boundary")
+        _clear_children(externals_element, "Internals")
+
+        external_ranges = [(s, c) for k, s, c in ring_ulid_ranges if k == "external" and c > 0]
+        internal_ranges = [(s, c) for k, s, c in ring_ulid_ranges if k == "internal" and c > 0]
+
+        for start_ulid, count_lines in external_ranges:
+            _add_boundary_by_ulids(externals_element, start_ulid, count_lines)
+
+        if internal_ranges:
+            internals_element = etree.SubElement(externals_element, "Internals")
+            for start_ulid, count_lines in internal_ranges:
+                _add_boundary_by_ulids(internals_element, start_ulid, count_lines)
 
         parcel_externals_node = parcel_metric_info_element.find("Externals")
         if parcel_externals_node is not None:

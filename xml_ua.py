@@ -57,8 +57,11 @@ from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtCore import QTranslator
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QFileInfo
+from qgis.PyQt.QtCore import QUrl
 
 from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QDesktopServices
 
 from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QMenu
@@ -68,6 +71,7 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtWidgets import QStyle
 from qgis.PyQt.QtWidgets import QInputDialog
 from qgis.PyQt.QtWidgets import QFileDialog
+from qgis.PyQt.QtWidgets import QFileIconProvider
 from lxml import etree
 
 from qgis.core import QgsWkbTypes
@@ -103,6 +107,7 @@ from .documents import DocumentGenerator
 from .layer_tree_menu_provider import XmlUaLayerTreeMenuProvider
 from .topology import GeometryProcessor
 from .plan_layout import PlanLayoutCreator, compute_map_scale, MAP_SIDE_MM
+from .boundary_agreement import BoundaryAgreementCreator
 
 LOG = True
 
@@ -478,6 +483,13 @@ class xml_ua:
         """Відключає сигнали, видаляє елементи інтерфейсу та очищує ресурси при вивантаженні плагіна."""
 
         self.disconnect_map_canvas_context()
+
+        if hasattr(self, "action_help") and self.action_help:
+            try:
+                self.action_help.deleteLater()
+            except Exception:
+                pass
+            self.action_help = None
 
         existing_dockwidgets = self.iface.mainWindow().findChildren(xml_uaDockWidget)
 
@@ -931,6 +943,16 @@ class xml_ua:
         icon_path = ':/plugins/xml_ua/icon.png'
         self.tools_menu = QMenu(self.iface.mainWindow())
 
+        if not hasattr(self, "action_help") or self.action_help is None:
+            self.action_help = QAction("Довідка", self.iface.mainWindow())
+            help_icon = QIcon(QgsApplication.iconPath("mActionHelpContents.svg"))
+            self.action_help.setIcon(help_icon)
+            self.action_help.setToolTip("Відкрити онлайн-документацію плагіна")
+            connector.connect(self.action_help, "triggered", self.on_open_help)
+
+        self.tools_menu.addAction(self.action_help)
+        self.tools_menu.addSeparator()
+
         self.action_new_tool = QAction("Новий XML", self.iface.mainWindow())
 
         new_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_FileIcon)
@@ -980,37 +1002,26 @@ class xml_ua:
         self.action_sort_by_xsd_tool.setEnabled(False)
 
         self.action_create_document = QAction(
-            "Документ", self.iface.mainWindow())
+            "Документація", self.iface.mainWindow())
         doc_icon = QgsApplication.iconPath("mActionNewReport.svg")
         self.action_create_document.setIcon(QIcon(doc_icon))
         self.action_create_document.setEnabled(False)  # Початково неактивне
 
         self.doc_menu = QMenu(self.iface.mainWindow())
 
-        restoration_menu = self.doc_menu.addMenu("Відновлення меж")
-        action_rest_title1 = restoration_menu.addAction("Титульна сторінка 1")
-        action_rest_title2 = restoration_menu.addAction("Титульна сторінка 2")
-        action_rest_explanation = restoration_menu.addAction(
-            "Пояснююча записка")
+        self.text_doc_menu = self.doc_menu.addMenu("Текстовий документ")
+        self.text_doc_menu.setIcon(new_icon)
+        try:
+            self.text_doc_menu.aboutToShow.connect(self._populate_text_documents_menu)
+        except Exception:
+            pass
 
-        action_rest_title1.triggered.connect(lambda: self.on_create_document(
-            "restoration_title1", "TD_VM_01_Titul1.docx"))
-        action_rest_title2.triggered.connect(lambda: self.on_create_document(
-            "restoration_title2", "TD_VM_02_Titul2.docx"))
-        action_rest_explanation.triggered.connect(lambda: self.on_create_document(
-            "restoration_note", "TD_VM_03_Explanation.docx"))
-
-        self.doc_menu.addMenu("Об'єднання").setEnabled(False)
-        self.doc_menu.addMenu("Поділ").setEnabled(False)
-        self.doc_menu.addMenu("Відведення").setEnabled(False)
-        self.doc_menu.addMenu("Зміна цільового").setEnabled(False)
         self.doc_menu.addSeparator()
         self.action_cadastral_plan = self.doc_menu.addAction(
             "Кадастровий план")
         self.action_cadastral_plan.setEnabled(False)
-        self.doc_menu.addAction("Каталог координат").setEnabled(False)
-        self.doc_menu.addAction("Відомість обчислення площі").setEnabled(False)
-        self.doc_menu.addAction("Акт погодження меж").setEnabled(False)
+        self.action_boundary_agreement = self.doc_menu.addAction("Акт погодження меж")
+        self.action_boundary_agreement.setEnabled(False)
 
         self.action_create_document.setMenu(self.doc_menu)
         self.action_clear_data.setEnabled(False)
@@ -1037,6 +1048,10 @@ class xml_ua:
 
         self.action_cadastral_plan.triggered.connect(
             self.on_cadastral_plan_clicked)
+        try:
+            self.action_boundary_agreement.triggered.connect(self.on_boundary_agreement_clicked)
+        except Exception:
+            pass
 
         connector.connect(self.action_new_tool, "triggered", self.on_new_tool)
         connector.connect(self.action_open_tool,
@@ -1060,6 +1075,10 @@ class xml_ua:
         self.toolbar.addWidget(self.tools_button)
 
         connector.connect(self.tools_button, "clicked", self.show_dockwidget)
+
+    def on_open_help(self):
+        """Відкриває онлайн-документацію плагіна у браузері за замовчуванням."""
+        QDesktopServices.openUrl(QUrl("https://krechkivsky.github.io/xml_ua_docs/"))
 
     def on_cadastral_plan_clicked(self):
         """Handler for 'Кадастровий план' menu action."""
@@ -1243,7 +1262,14 @@ class xml_ua:
             original_layer = None
             for layer in project.mapLayers().values():
 
-                if layer.name() == layer_name and root.findLayer(layer.id()).parent().name() == group_name:
+                try:
+                    node = root.findLayer(layer.id()) if layer else None
+                    parent = node.parent() if node else None
+                except Exception:
+                    node = None
+                    parent = None
+
+                if layer and layer.name() == layer_name and parent and parent.name() == group_name:
                     original_layer = layer
                     break
 
@@ -1280,7 +1306,14 @@ class xml_ua:
             original_layer = None
             for layer in project.mapLayers().values():
 
-                if layer.name() == special_layer_name and root.findLayer(layer.id()).parent().name() == group_name:
+                try:
+                    node = root.findLayer(layer.id()) if layer else None
+                    parent = node.parent() if node else None
+                except Exception:
+                    node = None
+                    parent = None
+
+                if layer and layer.name() == special_layer_name and parent and parent.name() == group_name:
                     original_layer = layer
                     break
             if not original_layer:
@@ -1380,6 +1413,17 @@ class xml_ua:
 
         plan_creator = PlanLayoutCreator(self.iface, parent_group, QgsProject.instance(), plugin=self)
         layout = plan_creator.create_layout(scale_value=scale_value, show_ruler=is_calculated_scale)
+
+    def on_boundary_agreement_clicked(self):
+        """Handler for 'Акт погодження меж' menu action."""
+        try:
+            BoundaryAgreementCreator(self).run()
+        except Exception as e:
+            QMessageBox.warning(
+                self.iface.mainWindow(),
+                "Помилка",
+                f"Не вдалося сформувати акт погодження меж.\n{e}",
+            )
     
     def create_parcel_nodes_layer(self, cadastral_plan_group: QgsLayerTreeGroup):
         """
@@ -1496,7 +1540,14 @@ class xml_ua:
         adj_style_file = "adjacent_plan.qml"
 
         for layer in project.mapLayers().values():
-            if layer.name() == adj_layer_name and root.findLayer(layer.id()).parent().name() == group_name:
+            try:
+                node = root.findLayer(layer.id()) if layer else None
+                parent = node.parent() if node else None
+            except Exception:
+                node = None
+                parent = None
+
+            if layer and layer.name() == adj_layer_name and parent and parent.name() == group_name:
                 original_layer = layer
                 break
 
@@ -1659,6 +1710,71 @@ class xml_ua:
 
         doc_generator = DocumentGenerator(self.dockwidget)
         doc_generator.generate_document(doc_type, template_name)
+
+    @staticmethod
+    def _doc_type_for_template_name(template_name: str) -> str:
+        """
+        Повертає doc_type для DocumentGenerator на основі імені шаблону.
+
+        Потрібно, щоб "вбудовані" шаблони (які раніше викликали спеціальні генератори)
+        і далі заповнювали всі свої змінні, навіть якщо користувач запускає їх через
+        меню "Текстовий документ".
+        """
+        name = str(template_name or "").strip()
+        mapping = {
+            "TD_VM_01_Titul1.docx": "restoration_title1",
+            "TD_VM_02_Titul2.docx": "restoration_title2",
+            "TD_VM_03_Explanation.docx": "restoration_note",
+        }
+        return mapping.get(name, "text_template")
+
+    def _populate_text_documents_menu(self):
+        """
+        Динамічно формує підменю 'Текстовий документ' зі списку *.docx у templates/.
+        """
+        try:
+            menu = getattr(self, "text_doc_menu", None)
+            if menu is None:
+                return
+            menu.clear()
+
+            templates_dir = os.path.join(self.plugin_dir, "templates")
+            if not os.path.isdir(templates_dir):
+                menu.addAction("Папку templates не знайдено").setEnabled(False)
+                return
+
+            files = []
+            try:
+                for name in os.listdir(templates_dir):
+                    if not str(name).lower().endswith(".docx"):
+                        continue
+                    # Пропускаємо тимчасові файли MS Office
+                    if str(name).startswith("~$"):
+                        continue
+                    files.append(str(name))
+            except Exception:
+                files = []
+
+            files.sort(key=lambda s: s.lower())
+
+            if not files:
+                menu.addAction("Немає шаблонів *.docx у templates/").setEnabled(False)
+                return
+
+            icon_provider = QFileIconProvider()
+            for fname in files:
+                full_path = os.path.join(templates_dir, fname)
+                title = os.path.splitext(fname)[0]
+                act = QAction(title, self.iface.mainWindow())
+                try:
+                    act.setIcon(icon_provider.icon(QFileInfo(full_path)))
+                except Exception:
+                    pass
+                doc_type = self._doc_type_for_template_name(fname)
+                act.triggered.connect(lambda _, dt=doc_type, n=fname: self.on_create_document(dt, n))
+                menu.addAction(act)
+        except Exception:
+            return
 
     def on_layers_added(self, layers):
         """

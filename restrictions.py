@@ -2,6 +2,7 @@
 
 import os
 from qgis.core import (
+    Qgis,
     QgsVectorLayer,
     QgsField,
     QgsFeature,
@@ -12,6 +13,7 @@ from qgis.core import (
     QgsWkbTypes,
     QgsProject
 )
+from qgis.utils import iface
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
 from .data_models import ShapeInfo  # noqa
