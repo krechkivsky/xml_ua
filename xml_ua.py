@@ -62,6 +62,7 @@ from qgis.PyQt.QtCore import QUrl
 
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtGui import QDesktopServices
+from qgis.PyQt.QtGui import QKeySequence
 
 from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QMenu
@@ -485,6 +486,10 @@ class xml_ua:
         self.disconnect_map_canvas_context()
 
         if hasattr(self, "action_help") and self.action_help:
+            try:
+                self.iface.unregisterMainWindowAction(self.action_help)
+            except Exception:
+                pass
             try:
                 self.action_help.deleteLater()
             except Exception:
@@ -948,6 +953,11 @@ class xml_ua:
             help_icon = QIcon(QgsApplication.iconPath("mActionHelpContents.svg"))
             self.action_help.setIcon(help_icon)
             self.action_help.setToolTip("Відкрити онлайн-документацію плагіна")
+            try:
+                self.iface.registerMainWindowAction(self.action_help, "F1")
+            except Exception:
+                self.action_help.setShortcut(QKeySequence("F1"))
+                self.action_help.setShortcutContext(Qt.WindowShortcut)
             connector.connect(self.action_help, "triggered", self.on_open_help)
 
         self.tools_menu.addAction(self.action_help)

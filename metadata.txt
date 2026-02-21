@@ -1,47 +1,24 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.# Mandatory items:
-
 [general]
 name=xml_ua
 qgisMinimumVersion=3.34.15
-description=Processing ukrainian cadastral files.
-version=0.4.4
-date=2026-02-20
-author=krechkivsky.dev@gmail.com
+description=Інструменти для роботи з українськими кадастровими XML-файлами.
+version=0.4.5
+date=2026-02-21
+author=Krechkivsky
 email=krechkivsky.dev@gmail.com
-
-about=Provide a brief description of the plugin and its purpose.
-
+about=Створення, обробка, перевірка синтаксису та топології українських кадастрових XML, створення землевпорядної документації.
 tracker=https://github.com/krechkivsky/xml_ua/issues
-repository=https://github.com/krechkivsky/xml_ua/releases
-# End of mandatory metadata
+repository=https://github.com/krechkivsky/xml_ua
+changelog=v0.4.5: Оптимізація метаданих для офіційного репозитарію.
+    v0.4.4: Додано довідку, пакетний файл бібліотек, макет Акта погодження меж та новий принцип генерації Word-документів.
+    v0.4.3: Додано таблиці Оренда та Суборенда до макету кадастрового плану.
 
 # Recommended items:
-
 hasProcessingProvider=no
-# Uncomment the following line and add your changelog:
-# changelog=
-
-# Tags are comma separated with spaces allowed
-tags=python
-
+tags=ukraine, land, cadastre, xml, land management
 homepage=https://krechkivsky.github.io/xml_ua_docs/
 category=Vector
-icon=icon.png
-# experimental flag
+icon=images/icon.png
 experimental=True
-
-# deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
-
-# Since QGIS 3.8, a comma separated list of plugins to be installed
-# (or upgraded) can be specified.
-# Check the documentation for more information.
-# plugin_dependencies=
-
-Category of the plugin: Raster, Vector, Database or Web
-# category=
-
-# If the plugin can run on QGIS Server.
 server=False

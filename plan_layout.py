@@ -1170,21 +1170,6 @@ class PlanLayoutCreator:
 
                             y_cursor = float(exp_y + etitle_h) + float(e_h) + 5.0
 
-                            rtitle = QgsLayoutItemLabel(layout)
-                            rtitle.setText("Перелік частин ділянки з обмеженнями")
-                            try:
-                                rtitle.setFont(QFont(font))
-                            except Exception:
-                                pass
-                            layout.addLayoutItem(rtitle)
-                            rtitle_h = float(NODES_TABLE_TITLE_H_MM)
-                            rtitle.attemptResize(QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters))
-                            rtitle.setHAlign(Qt.AlignHCenter)
-                            rtitle.setVAlign(Qt.AlignVCenter)
-                            rtitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
-                            rtitle.setObjectName("Обмеження заголовок:p2")
-                            rtitle.setId("Обмеження заголовок:p2")
-
                             rhtml, rrows, r_w = RestrictionsPartsTable.build_html(
                                 xml_root=xml_root,
                                 restrictions_layer=restrictions_layer,
@@ -1193,6 +1178,21 @@ class PlanLayoutCreator:
                                 header_row_h_mm=float(NODES_TABLE_HEADER_ROW_H_MM),
                             )
                             if rhtml and rrows:
+                                rtitle = QgsLayoutItemLabel(layout)
+                                rtitle.setText("Перелік частин ділянки з обмеженнями")
+                                try:
+                                    rtitle.setFont(QFont(font))
+                                except Exception:
+                                    pass
+                                layout.addLayoutItem(rtitle)
+                                rtitle_h = float(NODES_TABLE_TITLE_H_MM)
+                                rtitle.attemptResize(QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters))
+                                rtitle.setHAlign(Qt.AlignHCenter)
+                                rtitle.setVAlign(Qt.AlignVCenter)
+                                rtitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
+                                rtitle.setObjectName("Обмеження заголовок:p2")
+                                rtitle.setId("Обмеження заголовок:p2")
+
                                 rtbl = QgsLayoutItemLabel(layout)
                                 rtbl.setMode(QgsLayoutItemLabel.ModeHtml)
                                 rtbl.setText(rhtml)
