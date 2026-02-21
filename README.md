@@ -18,8 +18,7 @@ Designed to simplify XML creation for both beginners and GIS professionals.
 
 1. Download the repository  
 2. Load the plugin in QGIS  
-3. Install required Python modules (Windows/QGIS 3.34.15, Ukrainian guide): `docs/INSTALL_PYTHON_MODULES.md`
-4. Follow the online documentation https://krechkivsky.github.io/xml_ua_docs/
+3. Follow the online documentation https://krechkivsky.github.io/xml_ua_docs/
 
 ---
 

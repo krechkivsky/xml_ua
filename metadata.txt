@@ -1,24 +1,18 @@
 [general]
 name=xml_ua
 qgisMinimumVersion=3.34.15
-description=Інструменти для роботи з українськими кадастровими XML-файлами.
-version=0.4.5
+description=Processing ukrainian cadastral files (XML).
+version=0.4.6
 date=2026-02-21
-author=Krechkivsky
+author=krechkivsky.dev@gmail.com
 email=krechkivsky.dev@gmail.com
-about=Створення, обробка, перевірка синтаксису та топології українських кадастрових XML, створення землевпорядної документації.
+about=Creation, processing, checking the syntax and topology of Ukrainian cadastral xml files, as well as generating land management documentation from them.
 tracker=https://github.com/krechkivsky/xml_ua/issues
 repository=https://github.com/krechkivsky/xml_ua
-changelog=v0.4.5: Оптимізація метаданих для офіційного репозитарію.
-    v0.4.4: Додано довідку, пакетний файл бібліотек, макет Акта погодження меж та новий принцип генерації Word-документів.
-    v0.4.3: Додано таблиці Оренда та Суборенда до макету кадастрового плану.
-
-# Recommended items:
-hasProcessingProvider=no
-tags=ukraine, land, cadastre, xml, land management
+tags=ukraine, land, cadastre, xml
 homepage=https://krechkivsky.github.io/xml_ua_docs/
 category=Vector
-icon=images/icon.png
+icon=icon.png
 experimental=True
 deprecated=False
 server=False
