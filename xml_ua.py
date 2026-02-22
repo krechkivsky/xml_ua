@@ -63,6 +63,7 @@ from qgis.PyQt.QtCore import QUrl
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtGui import QKeySequence
+from qgis.PyQt.QtGui import QImage, QPixmap
 
 from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QMenu
@@ -904,12 +905,36 @@ class xml_ua:
             self.iface, self)
 
         if self.layer_tree_menu_provider:
-            self.iface.unregisterLayerTreeViewMenuProvider(
-                self.layer_tree_menu_provider)
+            try:
+                if hasattr(self.iface, "unregisterLayerTreeViewMenuProvider"):
+                    self.iface.unregisterLayerTreeViewMenuProvider(
+                        self.layer_tree_menu_provider)
+                elif hasattr(self.iface, "removeLayerTreeViewMenuProvider"):
+                    self.iface.removeLayerTreeViewMenuProvider(
+                        self.layer_tree_menu_provider)
+                elif hasattr(self.iface, "layerTreeView"):
+                    view = self.iface.layerTreeView()
+                    if view and hasattr(view, "setMenuProvider"):
+                        view.setMenuProvider(None)
+            except Exception as e:
+                log_calls(
+                    logFile, f"Помилка при від'єднанні menu provider для Layer Tree: {e}")
         self.layer_tree_menu_provider = XmlUaLayerTreeMenuProvider(
             self.dockwidget)
-        self.iface.registerLayerTreeViewMenuProvider(
-            self.layer_tree_menu_provider)
+        try:
+            if hasattr(self.iface, "registerLayerTreeViewMenuProvider"):
+                self.iface.registerLayerTreeViewMenuProvider(
+                    self.layer_tree_menu_provider)
+            elif hasattr(self.iface, "addLayerTreeViewMenuProvider"):
+                self.iface.addLayerTreeViewMenuProvider(
+                    self.layer_tree_menu_provider)
+            elif hasattr(self.iface, "layerTreeView"):
+                view = self.iface.layerTreeView()
+                if view and hasattr(view, "setMenuProvider"):
+                    view.setMenuProvider(self.layer_tree_menu_provider)
+        except Exception as e:
+            log_calls(
+                logFile, f"Помилка при підключенні menu provider для Layer Tree: {e}")
 
     def connect_picket_layer_signals(self):
         """
@@ -945,7 +970,26 @@ class xml_ua:
             self.toolbar = self.iface.addToolBar(u'xml_ua')  # Переносимо сюди
             self.toolbar.setObjectName(u'xml_ua')  # І сюди
 
-        icon_path = ':/plugins/xml_ua/icon.png'
+        icon_path = os.path.join(self.plugin_dir, "images", "icon.png")
+        if not os.path.exists(icon_path):
+            icon_path = ':/plugins/xml_ua/icon.png'
+
+        try:
+            for act in list(self.toolbar.actions()):
+                w = self.toolbar.widgetForAction(act)
+                if w and getattr(w, "objectName", lambda: "")() == "xml_ua_tools_button":
+                    self.toolbar.removeAction(act)
+                    try:
+                        w.deleteLater()
+                    except Exception:
+                        pass
+                    try:
+                        act.deleteLater()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
         self.tools_menu = QMenu(self.iface.mainWindow())
 
         if not hasattr(self, "action_help") or self.action_help is None:
@@ -1050,7 +1094,14 @@ class xml_ua:
         self.tools_menu.addAction(self.action_signal_log)
 
         self.tools_button = QToolButton()
-        self.tools_button.setIcon(QIcon(icon_path))
+        try:
+            image = QImage()
+            if image.load(icon_path):
+                self.tools_button.setIcon(QIcon(QPixmap.fromImage(image)))
+            else:
+                self.tools_button.setIcon(QIcon(icon_path))
+        except Exception:
+            self.tools_button.setIcon(QIcon(icon_path))
         self.tools_button.setMenu(self.tools_menu)
         self.tools_button.setPopupMode(QToolButton.MenuButtonPopup)
 

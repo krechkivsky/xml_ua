@@ -1,6 +1,7 @@
 from qgis.gui import QgsLayerTreeViewMenuProvider
 from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer, QgsProject
 from qgis.PyQt.QtWidgets import QAction, QMenu
+from qgis.utils import iface as qgis_iface
 
 from .common import log_msg, logFile
 
@@ -15,10 +16,41 @@ class XmlUaLayerTreeMenuProvider(QgsLayerTreeViewMenuProvider):
         super().__init__()
         self.dockwidget = dockwidget
 
-    def createContextMenu(self, menu: QMenu, clicked_node: 'QgsLayerTreeAbstractNode'):
+    def createContextMenu(self, *args, **kwargs):
         """
         Creates custom context menu actions for the clicked node in the layer tree.
         """
+
+        menu = None
+        clicked_node = None
+
+        if len(args) >= 2:
+            menu, clicked_node = args[0], args[1]
+        elif len(args) == 1:
+            clicked_node = args[0]
+
+        menu = kwargs.get("menu", menu)
+        clicked_node = kwargs.get("clicked_node", kwargs.get("clickedNode", clicked_node))
+
+        if not isinstance(menu, QMenu):
+            menu = QMenu()
+
+        if clicked_node is None:
+            try:
+                view = qgis_iface.layerTreeView() if qgis_iface else None
+                if view:
+                    if hasattr(view, "currentNode"):
+                        clicked_node = view.currentNode()
+                    elif hasattr(view, "layerTreeModel") and hasattr(view, "currentIndex"):
+                        model = view.layerTreeModel()
+                        index = view.currentIndex()
+                        if model and index and hasattr(model, "index2node"):
+                            clicked_node = model.index2node(index)
+            except Exception:
+                clicked_node = None
+
+        if clicked_node is None:
+            return menu
 
         deletable_layers_as_section = set(
             self.dockwidget.LAYER_NAME_TO_XML_CONTAINER_PATH.keys())
@@ -41,3 +73,5 @@ class XmlUaLayerTreeMenuProvider(QgsLayerTreeViewMenuProvider):
             elif layer and layer.name() in protected_layers:
 
                 pass
+
+        return menu

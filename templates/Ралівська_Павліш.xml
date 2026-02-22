@@ -1,0 +1,179 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<UkrainianCadastralExchangeFile>
+  <AdditionalPart>
+    <ServiceInfo>
+      <FileID>
+        <FileDate>2014-01-30</FileDate>
+        <FileGUID>782af16e-7132-4ebf-b01e-68de27690e66</FileGUID>
+      </FileID>
+      <FormatVersion>0.7</FormatVersion>
+      <ReceiverName>Управління Держгеокадастру у Самбірському районі Львівської області</ReceiverName>
+      <ReceiverIdentifier>39874205</ReceiverIdentifier>
+      <Software>Digitals</Software>
+      <SoftwareVersion>2020.06.30</SoftwareVersion>
+    </ServiceInfo>
+    <InfoLandWork>
+      <Executor>
+        <CompanyName>Самбiрський районний вiддiл Львівської регіональної філії Центру ДЗК</CompanyName>
+        <EDRPOU>26453064</EDRPOU>
+        <License>
+          <LicenseSeries>АВ</LicenseSeries>
+          <LicenseNumber>540236</LicenseNumber>
+          <LicenseIssuedDate>2010-06-18</LicenseIssuedDate>
+        </License>
+        <Chief>
+          <ChiefName>
+            <LastName>Ватаманюк</LastName>
+            <FirstName>Олег</FirstName>
+            <MiddleName>Валентинович</MiddleName>
+          </ChiefName>
+          <ChiefPosition>Начальник Самбірського районного виробничого відділу Львівської рф Центру ДЗК</ChiefPosition>
+        </Chief>
+        <Executor>
+          <ExecutorName>
+            <LastName>Ватаманюк</LastName>
+            <FirstName>Олег</FirstName>
+            <MiddleName>Валентинович</MiddleName>
+          </ExecutorName>
+          <ExecutorPosition>інженер-землевпорядник</ExecutorPosition>
+          <ContactInfo>
+            <Phone>6-70-94</Phone>
+          </ContactInfo>
+        </Executor>
+        <Address>
+          <Country>804</Country>
+          <Region>Львівська</Region>
+          <District>Самбірський</District>
+          <Settlement>м.Самбір</Settlement>
+          <Street>Шевченка</Street>
+          <Building>41</Building>
+        </Address>
+      </Executor>
+    </InfoLandWork>
+  </AdditionalPart>
+  <InfoPart>
+    <MetricInfo>
+      <CoordinateSystem><SC63><X/>
+        </SC63>
+      </CoordinateSystem>
+      <HeightSystem><Baltic77/>
+      </HeightSystem>
+      <MeasurementUnit><M/>
+      </MeasurementUnit>
+      <PointInfo>
+        </PointInfo>
+      <Polyline>
+        </Polyline>
+      <ControlPoint>
+        <P>1</P>
+        <P>3</P>
+      </ControlPoint>
+    </MetricInfo>
+    <CadastralZoneInfo>
+      <CadastralZoneNumber>4624288600:02</CadastralZoneNumber>
+      <Externals/><CadastralQuarters>
+        <CadastralQuarterInfo>
+          <CadastralQuarterNumber>008</CadastralQuarterNumber>
+          <RegionalContacts>
+            <LocalAuthorityHead>
+              <LastName>Антоняк</LastName>
+              <FirstName>Михайло</FirstName>
+              <MiddleName>Миронович</MiddleName>
+            </LocalAuthorityHead>
+            <DKZRHead>
+              <LastName>Баран</LastName>
+              <FirstName>Ігор</FirstName>
+              <MiddleName>Володимирович</MiddleName>
+            </DKZRHead>
+          </RegionalContacts>
+          <Externals/><Parcels>
+            <ParcelInfo>
+              <ParcelLocationInfo>
+                <Region>Львівська область</Region>
+                <Settlement>с. Хлопчиці</Settlement>
+                <District>Самбірський район</District>
+                <ParcelLocation>
+                  <Urban/>
+                </ParcelLocation>
+              </ParcelLocationInfo>
+              <CategoryPurposeInfo>
+                <Category>100</Category>
+                <Purpose>01.03</Purpose>
+                <Use>Для ведення особистого селянського господарства</Use>
+              </CategoryPurposeInfo>
+              <OwnershipInfo>
+                <Code/>
+              </OwnershipInfo>
+              <ParcelMetricInfo>
+                <ParcelID>0000</ParcelID>
+                <Area>
+                  <MeasurementUnit>га</MeasurementUnit>
+                  <Size>0.0968</Size>
+                  <DeterminationMethod>
+                    <ExhangeFileCoordinates/>
+                  </DeterminationMethod>
+                </Area>
+                <Error>0.0011</Error>
+                <Externals>
+                  </Externals>
+              </ParcelMetricInfo>
+              <Proprietors>
+                <ProprietorInfo>
+                  <Authentication>
+                    <NaturalPerson>
+                      <FullName>
+                        <LastName>Павліш</LastName>
+                        <FirstName>Іван</FirstName>
+                        <MiddleName>Іванович</MiddleName>
+                      </FullName>
+                      <TaxNumber>2209809511</TaxNumber>
+                      <Passport>
+                        <DocumentType>Паспорт громадянина України</DocumentType>
+                        <PassportNumber>250696</PassportNumber>
+                        <PassportIssuedDate>1996-08-29</PassportIssuedDate>
+                        <IssuanceAuthority>Самбірським МРВ УМВС України у Львівській області</IssuanceAuthority>
+                        <PassportSeries>КА</PassportSeries>
+                      </Passport>
+                      <Citizenship>804</Citizenship>
+                      <Address>
+                        <Country>804</Country>
+                        <Region>Львівська область</Region>
+                        <District>Самбірський район</District>
+                        <Settlement>с. Хлопчиці</Settlement>
+                      </Address>
+                    </NaturalPerson>
+                  </Authentication>
+                  <ProprietorCode>21</ProprietorCode>
+                  <PropertyAcquisitionJustification>
+                    <Document>001</Document>
+                    <DocumentDate>1995-03-23</DocumentDate>
+                    <DocumentNumber>4 сесія 22 скликання № 34</DocumentNumber>
+                    <ApprovalAuthority>Новосілко-Гостиннівська сільська рада</ApprovalAuthority>
+                  </PropertyAcquisitionJustification>
+                </ProprietorInfo>
+              </Proprietors>
+              <TechnicalDocumentationInfo>
+                <DocumentationType>006</DocumentationType>
+                <DraftingDate>2019-07-14</DraftingDate>
+                <DocumentList>001</DocumentList>
+                <DocumentList>002</DocumentList>
+                <DocumentList>007</DocumentList>
+                <DocumentList>008</DocumentList>
+                <DocumentList>011</DocumentList>
+                <DocumentList>013</DocumentList>
+                <DocumentList>014</DocumentList>
+                <DocumentList>022</DocumentList>
+                <DocumentList>034</DocumentList>
+                <DocumentList>036</DocumentList>
+                <DocumentList>038</DocumentList>
+                <DocumentList>040</DocumentList>
+                <DocumentList>041</DocumentList>
+                <DocumentList>042</DocumentList>
+              </TechnicalDocumentationInfo>
+              </ParcelInfo>
+          </Parcels>
+        </CadastralQuarterInfo>
+      </CadastralQuarters>
+    </CadastralZoneInfo>
+  </InfoPart>
+</UkrainianCadastralExchangeFile>
