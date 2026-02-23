@@ -3,40 +3,20 @@
 import os
 import xml.etree.ElementTree as ET
 
-from qgis.core import QgsLayerTreeGroup
-
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 
 from qgis.core import QgsProject
-from qgis.core import QgsLineString
-from qgis.core import QgsGeometry
-from qgis.core import QgsPolygon
-from qgis.core import QgsMultiPolygon
 from qgis.core import QgsLayerTreeLayer
-from qgis.core import QgsVectorLayer
-from qgis.core import QgsField
-from qgis.core import QgsFeature
 from qgis.core import QgsPointXY
-from qgis.core import QgsEditorWidgetSetup
-
-from qgis.gui import QgisInterface
-
-from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QInputDialog
 
 from lxml import etree as ET
 
 from .common import logFile
 from .common import log_msg
-from .common import category_map
-from .common import purpose_map
-from .common import code_map
-from .common import parcel_field2path_dict
 from .data_models import xml_data
-from .topology import GeometryProcessor
-from .common import area_determination_map
 from .points import Points
 from .control_point import ControlPoint
 from .lines import PLs

@@ -1,9 +1,7 @@
 from qgis.gui import QgsLayerTreeViewMenuProvider
-from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer, QgsProject
+from qgis.core import QgsLayerTreeLayer
 from qgis.PyQt.QtWidgets import QAction, QMenu
 from qgis.utils import iface as qgis_iface
-
-from .common import log_msg, logFile
 
 
 class XmlUaLayerTreeMenuProvider(QgsLayerTreeViewMenuProvider):

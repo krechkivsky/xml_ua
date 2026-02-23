@@ -2,8 +2,6 @@
 
 import re
 
-from .common import log_msg, logFile
-
 
 def validate_element(element, path):
     """
@@ -53,6 +51,6 @@ def compute_parcel_area(tree):
 
         return 0.0  # Повертаємо заглушку
 
-    except Exception as e:
+    except Exception:
 
         return 0.0

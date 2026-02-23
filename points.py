@@ -13,8 +13,6 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
 
-from .common import log_msg, logFile
-
 
 class Points:
     """Клас для обробки точок (вузлів) з XML-файлу."""

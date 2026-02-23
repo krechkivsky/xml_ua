@@ -11,12 +11,10 @@ from qgis.core import (
     QgsPointXY,
     QgsProject
 )
-from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
 from lxml import etree
 
-from .common import logFile
-from .common import ensure_object_layer_fields, log_msg
+from .common import ensure_object_layer_fields
 
 
 class CadastralZoneInfo:

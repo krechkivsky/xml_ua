@@ -26,11 +26,8 @@
 
 from .data_models import xml_data, ShapeInfo
 import os
-import inspect
 import copy
 import shutil
-import uuid
-import math
 import re
 from datetime import datetime
 
@@ -38,10 +35,7 @@ from lxml import etree
 
 from qgis.PyQt import uic
 
-from qgis.PyQt.QtGui import QIcon
-
 from qgis.PyQt.QtCore import QModelIndex
-from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtCore import QTimer
@@ -54,53 +48,38 @@ from qgis.core import QgsLayerTreeLayer
 from qgis.core import QgsProject
 from qgis.core import QgsVectorLayer
 from qgis.core import QgsFeature
-from qgis.core import QgsField
 from qgis.core import QgsPointXY
 from qgis.core import QgsWkbTypes
 from qgis.core import QgsGeometry
 from qgis.core import QgsTask, QgsApplication
-from qgis.core import QgsLayerTreeModel
-
-from qgis.gui import QgsLayerTreeView
 
 
 from qgis.PyQt.QtWidgets import QDockWidget
-from qgis.PyQt.QtWidgets import QWidget
 from qgis.PyQt.QtWidgets import QVBoxLayout
 from qgis.PyQt.QtWidgets import QHBoxLayout
-from qgis.PyQt.QtWidgets import QMenu
-from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtWidgets import QLayout
-from qgis.PyQt.QtWidgets import QToolButton
 from qgis.PyQt.QtWidgets import QStyle
-from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtWidgets import QFileDialog
-from qgis.PyQt.QtWidgets import QTableView
 from qgis.PyQt.QtWidgets import QInputDialog
 from qgis.PyQt.QtWidgets import QProgressBar
 from qgis.PyQt.QtWidgets import QApplication
-
-from qgis.PyQt.QtWidgets import QTabWidget, QStyleOption, QWidget, QStyle, QPushButton, QTabBar
-from qgis.PyQt.QtGui import QPainter, QIcon, QPalette
-from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.PyQt.QtWidgets import QPushButton, QTabBar
 
 from .tree_view import CustomTreeView
-from .delegates import DispatcherDelegate, DocumentCodeDelegate
 
 
 from .layers import xmlUaLayers
 
 from .common import logFile
-from .common import log_calls, log_calls
+from .common import log_calls
 from .common import ensure_object_layer_fields
 from .common import next_object_id_in_container
 from .topology import GeometryProcessor
-from .common import geometry_to_string
 from .common import size
 from .common import xsd_path
 from .common import connector
-from .topology import GeometryProcessor
 
 LOG = True
 
@@ -2692,7 +2671,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         lands_parcel_element = parcel_info_element.find("LandsParcel")
         if lands_parcel_element is None:
             log_calls(logFile, "Розділ 'LandsParcel' відсутній. Створюємо новий.")
-            from .common import insert_element_in_order
             lands_parcel_element = etree.SubElement(
                 parcel_info_element, "LandsParcel")
 
@@ -3033,7 +3011,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             QMessageBox.critical(self, "Критична помилка топології", str(e))
             return
 
-        except Exception as e:
+        except Exception:
             return
 
         self.current_xml.tree_view.rebuild_tree_view()
@@ -3857,5 +3835,3 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.iface.mapCanvas().refresh()
         log_calls(
             logFile, f"Шари для групи '{group_name}' успішно перемальовано, карта оновлена.")
-
-

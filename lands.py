@@ -15,10 +15,8 @@ from qgis.core import (
     QgsLayerTreeLayer
 )
 from qgis.utils import iface
-from qgis.PyQt.QtCore import QVariant
-from qgis.PyQt.QtWidgets import QMessageBox
 from .data_models import ShapeInfo  # noqa
-from .common import ensure_object_layer_fields, log_msg, insert_element_in_order, log_calls
+from .common import ensure_object_layer_fields, log_msg, insert_element_in_order
 from .common import logFile
 
 

@@ -12,10 +12,8 @@ from qgis.core import (
     QgsWkbTypes,
     QgsProject
 )
-from qgis.PyQt.QtCore import QVariant
-from qgis.PyQt.QtWidgets import QMessageBox
 from .data_models import ShapeInfo  # noqa
-from .common import logFile, insert_element_in_order, log_calls
+from .common import logFile
 from .common import ensure_object_layer_fields, log_msg
 
 

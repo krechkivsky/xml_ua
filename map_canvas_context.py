@@ -1,11 +1,8 @@
 import os
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
 
 from qgis.core import QgsProject, QgsWkbTypes
 from qgis.utils import iface
-
-from .common import log_msg, logFile
 
 
 class MapCanvasContextMenu:

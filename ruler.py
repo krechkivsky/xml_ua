@@ -85,4 +85,3 @@ class Ruler:
             )
             tick.setSymbol(tick_symbol)
             self.layout.addLayoutItem(tick)
-

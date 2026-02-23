@@ -3,11 +3,8 @@
 import re
 import os
 import datetime
-import webbrowser
 import subprocess
 import shutil
-import string
-from pathlib import Path
 from docxtpl import DocxTemplate
 from qgis.PyQt.QtWidgets import QMessageBox, QInputDialog, QDialog
 from lxml import etree

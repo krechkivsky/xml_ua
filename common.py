@@ -6,22 +6,18 @@ import inspect
 import configparser
 from datetime import datetime
 
-from qgis.core import QgsPointXY
 from qgis.core import QgsGeometry
 from qgis.core import QgsWkbTypes
 
 from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtCore import QVariant
-from qgis.PyQt.QtXml import QDomDocument
 
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtWidgets import QDockWidget
 
 from types import ModuleType, FunctionType
 from gc import get_referents
-
-from xmlschema import XMLSchema
 
 from qgis.core import QgsField
 
@@ -62,6 +58,7 @@ xml_file_name = ""
 
 BLACKLIST = type, ModuleType, FunctionType
 PARCEL_MARGIN_FACTOR = 1.10
+
 
 def ensure_object_layer_fields(layer):
     """
@@ -143,6 +140,7 @@ def next_object_id_in_container(parent, child_tag: str) -> str:
     while next_id in used_ids:
         next_id += 1
     return str(next_id)
+
 
 def size(obj):
     """sum size of object & members."""

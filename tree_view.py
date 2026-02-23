@@ -5,8 +5,6 @@
 import configparser
 import re
 
-import csv
-import copy
 import os
 import uuid
 from lxml import etree
@@ -19,13 +17,11 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtWidgets import QStyle
 from qgis.PyQt.QtWidgets import QTreeView
 from qgis.PyQt.QtWidgets import QAbstractItemView
-from qgis.PyQt.QtWidgets import QStyledItemDelegate
 from qgis.PyQt.QtGui import QStandardItem
-from qgis.PyQt.QtGui import QIcon, QBrush, QColor
+from qgis.PyQt.QtGui import QBrush, QColor
 from qgis.PyQt.QtGui import QStandardItemModel
 from qgis.PyQt.QtCore import QDate, QModelIndex
 from qgis.PyQt.QtCore import Qt
-from qgis.core import Qgis
 from qgis.PyQt.QtCore import pyqtSignal
 
 from .common import logFile

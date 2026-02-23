@@ -26,33 +26,24 @@
 
 import os
 import os.path
-import math
-from re import U
 import shutil
-import glob
-import copy
 
 from qgis.core import Qgis
 from qgis.core import QgsGeometry
 from qgis.core import QgsFeature
 from qgis.core import QgsWkbTypes
-from qgis.core import QgsMapLayer
 from qgis.core import QgsProject
 from qgis.core import QgsVectorLayer
-from qgis.core import QgsVectorLayerEditUtils
 
 
 from qgis.core import QgsField
 from qgis.core import QgsPointXY
 from qgis.core import QgsFields
 from qgis.core import QgsLayerTreeGroup
-from qgis.core import QgsRasterLayer
 from qgis.core import QgsLayerTreeLayer
-from qgis.gui import QgsLayerTreeViewMenuProvider
 from qgis.core import QgsApplication
 
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtCore import QTranslator
@@ -72,37 +63,18 @@ from qgis.PyQt.QtWidgets import QToolButton
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtWidgets import QStyle
 from qgis.PyQt.QtWidgets import QInputDialog
-from qgis.PyQt.QtWidgets import QFileDialog
 from qgis.PyQt.QtWidgets import QFileIconProvider
-from lxml import etree
-
-from qgis.core import QgsWkbTypes
 
 from qgis.utils import iface
 
-
-from .resources import *
+from . import resources  # noqa: F401
 
 
 from .dockwidget import xml_uaDockWidget
 
-from .points import Points
-from .lines import PLs
-from .zone import CadastralZoneInfo
-from .quarters import CadastralQuarters
-from .parcels import CadastralParcel
-from .lands import LandsParcels
-from .leases import Leases
-from .subleases import Subleases
-from .restrictions import Restrictions
-from .adjacents import AdjacentUnits
-
-from .common import size
 from .common import logFile, log_calls
 from .common import log_msg
 from .common import connector
-from .common import xml_template
-from .common import geometry_to_string
 from .common import PARCEL_MARGIN_FACTOR
 from .new_xml import NewXmlCreator
 from .documents import DocumentGenerator
@@ -113,8 +85,6 @@ from .boundary_agreement import BoundaryAgreementCreator
 
 LOG = True
 
-
-from qgis.PyQt.QtWidgets import QInputDialog
 
 def choose_scale_with_dialog(iface, scale_calc):
     """
@@ -158,9 +128,6 @@ def choose_scale_with_dialog(iface, scale_calc):
 
     idx = options.index(choice)
     return values[idx], (idx == 0)
-
-
-
 
 
 class xml_ua:
@@ -523,7 +490,7 @@ class xml_ua:
             try:
                 self.iface.mainWindow().removeToolBar(self.toolbar)
 
-            except Exception as e:
+            except Exception:
 
                 pass
             self.toolbar = None
@@ -1974,5 +1941,3 @@ class xml_ua:
                     )
 
         return "\n".join(result) + "\n"
-
-

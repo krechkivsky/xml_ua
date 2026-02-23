@@ -4,9 +4,8 @@
 Custom delegates for editing data in tree/table views.
 """
 import re
-import os
 from lxml import etree
-from .common import config, config_docs, logFile, log_msg, xsd_path
+from .common import config, config_docs
 from qgis.PyQt.QtWidgets import (QStyledItemDelegate, QComboBox, QDialog,
                                  QInputDialog, QMessageBox, QApplication)
 from qgis.PyQt.QtCore import Qt, pyqtSignal

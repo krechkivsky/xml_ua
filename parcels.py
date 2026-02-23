@@ -12,11 +12,8 @@ from qgis.core import (
     QgsWkbTypes,
     QgsProject
 )
-from qgis.PyQt.QtCore import QVariant
-from qgis.PyQt.QtWidgets import QMessageBox
-from lxml import etree
 from .data_models import ShapeInfo  # noqa
-from .common import ensure_object_layer_fields, logFile, log_msg, log_calls
+from .common import ensure_object_layer_fields, logFile, log_msg
 
 
 class CadastralParcel:

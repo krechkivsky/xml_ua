@@ -112,4 +112,3 @@ class ControlPoint:
 
         self.redraw_layer()
         return self.layer
-

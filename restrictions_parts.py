@@ -228,4 +228,3 @@ class RestrictionsPartsTable:
         </div>
         """
         return html, len(items), table_w_mm
-

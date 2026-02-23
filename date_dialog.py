@@ -9,9 +9,6 @@ from qgis.PyQt.QtWidgets import QPushButton
 from qgis.PyQt.QtWidgets import QVBoxLayout
 from qgis.PyQt.QtWidgets import QHBoxLayout
 
-from .common import logFile
-from .common import log_msg
-from .common import log_msg
 from .common import connector
 
 

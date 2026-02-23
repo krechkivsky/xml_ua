@@ -10,7 +10,7 @@ from lxml import etree
 from qgis.core import QgsWkbTypes, QgsProject, QgsFeature
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 
-from .common import logFile, log_msg, size, geometry_to_string, xml_template
+from .common import logFile, log_msg, xml_template
 
 
 class NewXmlCreator:
