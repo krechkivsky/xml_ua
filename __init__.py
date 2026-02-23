@@ -23,7 +23,7 @@
  This script initializes the plugin, making it known to QGIS.
 """
 
-__version__ = "0.4.7"
+__version__ = "0.4.8"
 
 
 def classFactory(iface):  # pylint: disable=invalid-name

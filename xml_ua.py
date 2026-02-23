@@ -970,9 +970,9 @@ class xml_ua:
             self.toolbar = self.iface.addToolBar(u'xml_ua')  # Переносимо сюди
             self.toolbar.setObjectName(u'xml_ua')  # І сюди
 
-        icon_path = os.path.join(self.plugin_dir, "images", "icon.png")
+        icon_path = os.path.join(self.plugin_dir, "images", "icon.svg")
         if not os.path.exists(icon_path):
-            icon_path = ':/plugins/xml_ua/icon.png'
+            icon_path = ':/plugins/xml_ua/icon.svg'
 
         try:
             for act in list(self.toolbar.actions()):
