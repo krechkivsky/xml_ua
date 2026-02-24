@@ -1,18 +1,25 @@
 [general]
 name=xml_ua
 qgisMinimumVersion=3.34.15
-description=Processing ukrainian cadastral files (XML).
-version=0.4.9
-date=2026-02-23
+description=Processing Ukrainian cadastral XML files (Geodesy).
+version=0.9.0
+date=2026-02-24
 author=krechkivsky.dev@gmail.com
 email=krechkivsky.dev@gmail.com
-about=Creation, processing, checking the syntax and topology of Ukrainian cadastral xml files, as well as generating land management documentation from them.
+about=A comprehensive tool for Ukrainian land surveyors. 
+    ---
+    Key features:
+    * Creation and processing of cadastral XML files.
+    * Syntax and topology validation.
+    * Generation of land management documentation.
+    ---
+    Full documentation is available at the homepage link.
 tracker=https://github.com/krechkivsky/xml_ua/issues
 repository=https://github.com/krechkivsky/xml_ua
 tags=ukraine, land, cadastre, xml
 homepage=https://krechkivsky.github.io/xml_ua_docs/
 category=Vector
 icon=images/icon.svg
-experimental=True
+experimental=False
 deprecated=False
 server=False
