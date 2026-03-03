@@ -60,6 +60,134 @@ BLACKLIST = type, ModuleType, FunctionType
 PARCEL_MARGIN_FACTOR = 1.10
 
 
+def parse_float(value, default=None):
+    """
+    Безпечний парсер float для значень з XML.
+
+    Підтримує десятковий розділювач комою (наприклад "0,0030") і прибирає пробіли/нерозривні пробіли.
+    """
+    if value is None:
+        return default
+    s = str(value).strip()
+    if not s:
+        return default
+
+    s = s.replace("\u00a0", " ").replace(" ", "")
+
+    # Визначаємо десятковий розділювач, якщо присутні і ',' і '.'
+    if "," in s and "." in s:
+        if s.rfind(",") > s.rfind("."):
+            # 1.234,56 -> 1234.56
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            # 1,234.56 -> 1234.56
+            s = s.replace(",", "")
+    elif "," in s and "." not in s:
+        s = s.replace(",", ".")
+
+    try:
+        return float(s)
+    except ValueError:
+        return default
+
+
+def _normalize_number_text_with_comma(value: str) -> str | None:
+    """
+    Нормалізує десяткову кому в числовому тексті (виключно для числових полів XML).
+
+    Повертає:
+    - новий рядок, якщо потрібна заміна
+    - None, якщо заміна не потрібна або значення не схоже на число
+    """
+    if value is None:
+        return None
+
+    original = str(value)
+    s = original.strip()
+    if not s or "," not in s:
+        return None
+
+    s = s.replace("\u00a0", " ").replace(" ", "")
+
+    # Дозволяємо тільки "числові" символи (щоб не чіпати довільний текст з комами)
+    allowed = set("0123456789-+.,")
+    if any(ch not in allowed for ch in s):
+        return None
+
+    if "," in s and "." in s:
+        if s.rfind(",") > s.rfind("."):
+            # 1.234,56 -> 1234.56
+            normalized = s.replace(".", "").replace(",", ".")
+        else:
+            # 1,234.56 -> 1234.56
+            normalized = s.replace(",", "")
+    else:
+        # 123,45 -> 123.45
+        normalized = s.replace(",", ".")
+
+    if normalized == s:
+        return None
+
+    # Перевірка що це дійсно float
+    try:
+        float(normalized)
+    except ValueError:
+        return None
+
+    return normalized
+
+
+def normalize_decimal_commas_in_tree(xml_tree, xpaths=None):
+    """
+    Виправляє десяткову кому на крапку у відомих числових полях XML-дерева.
+
+    Повертає список змін: [{"tag": "...", "old": "...", "new": "..."}].
+    """
+    if xml_tree is None:
+        return []
+    try:
+        root = xml_tree.getroot()
+    except Exception:
+        return []
+    if root is None:
+        return []
+
+    if not xpaths:
+        xpaths = [
+            ".//Area/Size",
+            ".//Polyline/PL/Length",
+            ".//PointInfo/Point/X",
+            ".//PointInfo/Point/Y",
+            ".//PointInfo/Point/H",
+            ".//PointInfo/Point/MX",
+            ".//PointInfo/Point/MY",
+            ".//PointInfo/Point/MH",
+        ]
+
+    changes = []
+    for xp in xpaths:
+        try:
+            elems = root.xpath(xp)
+        except Exception:
+            continue
+        for el in elems:
+            try:
+                old = el.text
+            except Exception:
+                continue
+            if old is None:
+                continue
+            new = _normalize_number_text_with_comma(old)
+            if new is None:
+                continue
+            try:
+                el.text = new
+            except Exception:
+                continue
+            changes.append({"tag": getattr(el, "tag", ""), "old": str(old), "new": str(new)})
+
+    return changes
+
 def ensure_object_layer_fields(layer):
     """
     Ensure a vector layer has the technical fields used by the plugin:

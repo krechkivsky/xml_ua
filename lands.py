@@ -16,7 +16,7 @@ from qgis.core import (
 )
 from qgis.utils import iface
 from .data_models import ShapeInfo  # noqa
-from .common import ensure_object_layer_fields, log_msg, insert_element_in_order
+from .common import ensure_object_layer_fields, log_msg, insert_element_in_order, parse_float
 from .common import logFile
 
 
@@ -92,8 +92,7 @@ class LandsParcels:
                 continue
 
             size_element = metric_info.find("./Area/Size")
-            size = float(
-                size_element.text) if size_element is not None and size_element.text else None
+            size = parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = metric_info.find("Externals")
 
@@ -177,8 +176,7 @@ class LandsParcels:
             land_parcel_info = lands_parcel.getparent()
             object_id_text = str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
             size_element = lands_parcel.find("./Area/Size")
-            size = float(
-                size_element.text) if size_element is not None and size_element.text else None
+            size = parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = lands_parcel.find(".//Externals")
             if externals_element is None:

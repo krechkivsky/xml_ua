@@ -852,6 +852,19 @@ class xml_ua:
 
         self.create_toolbar_and_menu()
 
+        # Ensure custom SK-63 CRS definitions (templates/crs63cpt_wkt2.ini) are available in QGIS.
+        try:
+            from .crs_tools import import_sk63_cpt_custom_crs_once
+
+            ok_count, bad_count = import_sk63_cpt_custom_crs_once(self.plugin_dir)
+            if (ok_count + bad_count) > 0 and hasattr(self.iface, "messageBar"):
+                msg = f"Custom CRS imported: {ok_count}"
+                if bad_count:
+                    msg += f", failed: {bad_count}"
+                self.iface.messageBar().pushMessage("XML-UA", msg, level=Qgis.Info, duration=5)
+        except Exception:
+            pass
+
         try:
             QgsProject.instance().layersAdded.disconnect(self.on_layers_added)
         except TypeError:

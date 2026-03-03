@@ -513,19 +513,78 @@ class PlanLayoutCreator:
 
 
 
-        sc63_zone = self._xml_get_sc63_zone()
-        if LOG: log_msg(logFile, f"sc63_zone {sc63_zone}")
-
         transform = None
-        if sc63_zone:
-            epsg = SC63_TO_USC2000_EPSG.get(sc63_zone)
-            if epsg:
-                crs_dst = QgsCoordinateReferenceSystem(epsg)
+
+        project_crs = None
+        project_authid = ""
+        try:
+            project_crs = QgsProject.instance().crs()
+            project_authid = str(project_crs.authid() or "")
+        except Exception:
+            project_crs = None
+            project_authid = ""
+
+        # Add USK2000 (EPSG:6381..6387) columns only when project CRS is NOT USK2000.
+        project_is_usk2000 = False
+        try:
+            from .crs_tools import is_usk2000_epsg
+
+            project_is_usk2000 = bool(is_usk2000_epsg(project_authid))
+        except Exception:
+            project_is_usk2000 = False
+
+        if (not project_is_usk2000) and project_crs:
+            try:
                 crs_src = nodes_layer.crs()
-                if crs_src.isValid() and crs_dst.isValid():
-                    transform = QgsCoordinateTransform(
-                        crs_src, crs_dst, QgsProject.instance()
-                    )
+                if not (crs_src and crs_src.isValid()):
+                    crs_src = project_crs
+
+                src_desc = ""
+                try:
+                    src_desc = str(crs_src.description() or "")
+                except Exception:
+                    src_desc = ""
+
+                epsg_dst = None
+
+                # Official SK-63 regional CRS (EPSG:7825..7831) -> USK2000 (EPSG:6381..6387)
+                try:
+                    s = project_authid.strip().upper()
+                    if s.startswith("EPSG:"):
+                        code = int(s.split(":", 1)[1])
+                        if 7825 <= code <= 7831:
+                            epsg_dst = 6381 + (code - 7825)
+                except Exception:
+                    epsg_dst = None
+
+                # Custom SK-63 CRS imported from templates/crs63cpt_wkt2.ini (e.g. SK63_C1, SK63_P2, SK63_T4).
+                if epsg_dst is None:
+                    try:
+                        m = re.search(r"\bSK\s*[-_]?63\s*[_ ]*[CPT]\s*([1-7])\b", src_desc, flags=re.IGNORECASE)
+                        if m:
+                            zone = int(m.group(1))
+                            epsg_dst = 6381 + (zone - 1)
+                    except Exception:
+                        pass
+
+                # Fallback: infer zone from easting (~1.25M..7.25M false eastings).
+                if epsg_dst is None:
+                    try:
+                        ext = nodes_layer.extent()
+                        c = ext.center() if ext else None
+                        if c is not None:
+                            zone = int(float(c.x()) // 1_000_000.0)
+                            if 1 <= zone <= 7:
+                                epsg_dst = 6381 + (zone - 1)
+                    except Exception:
+                        pass
+
+                if epsg_dst:
+                    crs_dst = QgsCoordinateReferenceSystem(f"EPSG:{int(epsg_dst)}")
+                    if crs_src and crs_src.isValid() and crs_dst.isValid():
+                        transform = QgsCoordinateTransform(crs_src, crs_dst, QgsProject.instance())
+            except Exception:
+                transform = None
 
 
 

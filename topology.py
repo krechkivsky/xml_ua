@@ -749,16 +749,12 @@ class GeometryProcessor:
 
         for i, point_elem in enumerate(all_points, 1):
             new_uidp = str(i)
-            new_pn = str(i)
             old_uidp = point_elem.findtext('UIDP')
 
             if old_uidp and old_uidp != new_uidp:
                 old_uidp_to_new[old_uidp] = new_uidp
 
             point_elem.find('UIDP').text = new_uidp
-            pn_elem = point_elem.find('PN')
-            if pn_elem is not None:
-                pn_elem.text = new_pn
 
         old_ulid_to_new = {}
         all_lines = self.root.findall('.//Polyline/PL')

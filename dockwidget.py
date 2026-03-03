@@ -658,6 +658,121 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         self.load_data(xml_path, tree=None)  # type: ignore
 
+        was_decimal_normalized = False
+        was_areas_fixed = False
+        area_changed_on_open = False
+        try:
+            from decimal import Decimal
+            import importlib
+            from . import area_checks as _area_checks
+
+            _area_checks = importlib.reload(_area_checks)
+
+            result = _area_checks.run_area_checks_and_fix_tree(
+                xml_tree=self.current_xml.tree,
+                parcel_area_computer=self._compute_parcel_area_ha_from_tree,
+            )
+
+            was_decimal_normalized = result.comma_hits_count > 0
+            was_areas_fixed = result.parcel_area_fixed or result.lands_fixed > 0
+            area_changed_on_open = was_areas_fixed or was_decimal_normalized
+
+            if area_changed_on_open:
+                self.current_xml.changed = True
+                self.current_xml.was_ever_changed = True
+                try:
+                    self.load_data(xml_path, tree=self.current_xml.tree)
+                except Exception:
+                    pass
+
+            report_path = ""
+            if result.any_issue:
+                try:
+                    report_text = _area_checks.build_area_err_report(xml_path=xml_path, result=result)
+                    report_path = _area_checks.write_area_err_report(xml_path=xml_path, report_text=report_text)
+                    log_calls(logFile, f"Створено звіт area_err: {report_path}")
+                except Exception as e:
+                    log_calls(logFile, f"Помилка створення звіту area_err: {e}")
+                    report_path = ""
+                    self.iface.messageBar().pushMessage(
+                        "XML-UA",
+                        f"Не вдалося створити звіт по площах: {e}",
+                        level=Qgis.Warning,
+                        duration=12,
+                    )
+
+            def _ensure_backup_exists():
+                try:
+                    if self.current_xml.backup_path and not os.path.exists(self.current_xml.backup_path):
+                        shutil.copy2(self.current_xml.path, self.current_xml.backup_path)
+                        log_calls(logFile, f"Створено резервну копію перед збереженням: {self.current_xml.backup_path}")
+                except Exception as e:
+                    log_calls(logFile, f"Не вдалося створити резервну копію перед збереженням: {e}")
+
+            def _show_area_err_dialog():
+                if not result.any_issue:
+                    return
+
+                backup_hint = ""
+                if self.current_xml.backup_path:
+                    backup_hint = f"\n\nАрхівна копія (резервна) буде збережена як: {os.path.basename(self.current_xml.backup_path)}"
+
+                report_hint = f"\n\nЗвіт: {os.path.basename(report_path)}" if report_path else ""
+
+                bullets = []
+                if result.comma_hits_count:
+                    bullets.append(f"1) Десяткова кома у числових полях: {result.comma_hits_count} (виправлено в дереві).")
+                if result.parcel_area_fixed:
+                    bullets.append("2) Площа ділянки в XML не відповідала геометрії (виправлено в дереві).")
+                if result.lands_fixed:
+                    bullets.append(f"3) Площі угідь не відповідали геометрії (виправлено: {result.lands_fixed}/{result.lands_checked}).")
+                if result.balance_diff_q4_ha is not None and result.balance_diff_q4_ha != Decimal("0.0000"):
+                    bullets.append("4) Юридичний баланс площ не сходиться (деталі у звіті).")
+
+                body = (
+                    "Під час відкриття XML виявлено проблеми у числових значеннях/площах:\n\n"
+                    + "\n".join(bullets)
+                    + backup_hint
+                    + report_hint
+                )
+
+                if result.changes_made:
+                    reply = QMessageBox.question(
+                        self.iface.mainWindow(),
+                        "Помилки площ / формату чисел",
+                        body + "\n\nЗберегти виправлення у файл зараз?",
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.Yes,
+                    )
+                    if reply == QMessageBox.Yes:
+                        _ensure_backup_exists()
+                        self.save_specific_xml(self.current_xml)
+                    else:
+                        self.iface.messageBar().pushMessage(
+                            "XML-UA",
+                            "Виправлення застосовано у відкритому дереві. Збережіть файл для фіксації змін.",
+                            level=Qgis.Warning,
+                            duration=12,
+                        )
+                else:
+                    QMessageBox.information(
+                        self.iface.mainWindow(),
+                        "Перевірка площ",
+                        body,
+                    )
+
+            _show_area_err_dialog()
+
+            if report_path:
+                self.iface.messageBar().pushMessage(
+                    "XML-UA",
+                    f"Звіт по площах: {os.path.basename(report_path)}",
+                    level=Qgis.Info,
+                    duration=10,
+                )
+        except Exception as e:
+            log_calls(logFile, f"Помилка перевірки площ/ком при відкритті XML: {e}")
+
         removed_object_ids = self._remove_object_id_attributes_from_tree(
             self.current_xml.tree
         )
@@ -697,18 +812,40 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         was_renumbered = False
         try:
             from .topology import GeometryProcessor
+            from .numbering_report import (
+                snapshot_geometry_numbering,
+                build_geometry_numbering_report,
+                write_numbering_report,
+            )
+
+            before_numbering = snapshot_geometry_numbering(self.current_xml.tree)
             processor = GeometryProcessor(self.current_xml.tree)
             was_renumbered = processor.cleanup_and_renumber_geometry()
             if was_renumbered:
                 log_calls(
                     logFile, "Порушення послідовності нумерації геометрії було виправлено.")
                 self.mark_as_changed()
-                QMessageBox.information(
-                    self,
-                    "Автоматичне виправлення",
-                    "Порушення послідовної нумерації вузлів та/або ліній було виправлено.\n\n"
-                    "Будь ласка, збережіть файл, щоб застосувати зміни."
-                )
+
+                try:
+                    after_numbering = snapshot_geometry_numbering(self.current_xml.tree)
+                    report_text = build_geometry_numbering_report(
+                        xml_path=xml_path,
+                        before=before_numbering,
+                        after=after_numbering,
+                    )
+                    report_path = write_numbering_report(
+                        xml_path=xml_path,
+                        report_text=report_text,
+                    )
+                    log_calls(
+                        logFile,
+                        f"Створено звіт про нумерацію вузлів/ліній: {report_path}"
+                    )
+                except Exception as e:
+                    log_calls(
+                        logFile,
+                        f"Помилка створення звіту про нумерацію: {e}"
+                    )
         except Exception as e:
             log_calls(
                 logFile, f"Помилка під час перевірки та перенумерації геометрії: {e}")
@@ -717,6 +854,123 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 "Помилка перенумерації",
                 f"Під час автоматичного виправлення нумерації геометрії сталася помилка:\n\n{e}"
             )
+
+        try:
+            points = self.current_xml.tree.findall(".//PointInfo/Point")
+            pn_values = []
+            empty_pn = 0
+            for p in points:
+                pn_text = p.findtext("PN")
+                if pn_text is None or not str(pn_text).strip():
+                    empty_pn += 1
+                else:
+                    pn_values.append(str(pn_text).strip())
+
+            counts = {}
+            for pn in pn_values:
+                counts[pn] = counts.get(pn, 0) + 1
+            duplicate_pn = [pn for pn, c in counts.items() if c > 1]
+
+            if empty_pn > 0 or duplicate_pn:
+                self.iface.messageBar().pushMessage(
+                    "XML-UA",
+                    f"PN: порожніх={empty_pn}, неунікальних={len(duplicate_pn)} (це не критично).",
+                    level=Qgis.Warning,
+                    duration=10,
+                )
+        except Exception as e:
+            log_calls(logFile, f"Помилка перевірки PN при відкритті XML: {e}")
+
+        try:
+            from .proximity_checks import (
+                run_proximity_checks,
+                build_proximity_report,
+                write_proximity_report,
+            )
+
+            message_bar = self.iface.messageBar()
+            progress_message = message_bar.createMessage(
+                "XML-UA",
+                "Перевірка близьких і створних точок..."
+            )
+            progress_bar = QProgressBar()
+            progress_bar.setRange(0, 100)
+            progress_bar.setValue(0)
+            progress_bar.setMaximumWidth(220)
+            progress_message.layout().addWidget(progress_bar)
+            message_bar.pushWidget(progress_message, Qgis.Info)
+
+            simulated_progress = {"value": 0}
+            simulated_timer = QTimer(self)
+
+            def tick_progress():
+                if simulated_progress["value"] < 95:
+                    simulated_progress["value"] += 1
+                    progress_bar.setValue(simulated_progress["value"])
+
+            simulated_timer.timeout.connect(tick_progress)
+            simulated_timer.start(120)
+
+            def set_progress(value: int):
+                clamped = max(0, min(100, int(value)))
+                if clamped > simulated_progress["value"]:
+                    simulated_progress["value"] = clamped
+                progress_bar.setValue(simulated_progress["value"])
+                QApplication.processEvents()
+
+            result = run_proximity_checks(
+                xml_tree=self.current_xml.tree,
+                threshold_m=0.3,
+                progress=set_progress,
+            )
+
+            set_progress(100)
+            simulated_timer.stop()
+            message_bar.popWidget(progress_message)
+
+            try:
+                report_text = build_proximity_report(xml_path=xml_path, result=result)
+                report_path = write_proximity_report(xml_path=xml_path, report_text=report_text)
+                log_calls(logFile, f"Створено звіт proximity: {report_path}")
+            except Exception as e:
+                log_calls(logFile, f"Помилка створення звіту proximity: {e}")
+                report_path = ""
+
+            close_cnt = len(result.close_hits)
+            collinear_cnt = len(result.near_line_hits)
+            log_calls(
+                logFile,
+                f"Перевірка близьких/створних точок завершена за {result.elapsed_sec:.2f}с: "
+                f"близьких={close_cnt}, створних={collinear_cnt} (поріг {result.threshold_m}м)."
+            )
+
+            if close_cnt or collinear_cnt:
+                close_preview = ", ".join(h.uidp for h in result.close_hits[:20])
+                collinear_preview = ", ".join(h.uidp for h in result.near_line_hits[:20])
+                details = []
+                if close_cnt:
+                    details.append(
+                        f"близькі={close_cnt}" + (f" (UIDP: {close_preview}{' …' if close_cnt > 20 else ''})" if close_preview else "")
+                    )
+                if collinear_cnt:
+                    details.append(
+                        f"створні={collinear_cnt}" + (f" (UIDP: {collinear_preview}{' …' if collinear_cnt > 20 else ''})" if collinear_preview else "")
+                    )
+                self.iface.messageBar().pushMessage(
+                    "XML-UA",
+                    "Проблемні точки: " + "; ".join(details) + (f". Звіт: {os.path.basename(report_path)}" if report_path else ""),
+                    level=Qgis.Warning,
+                    duration=10,
+                )
+            else:
+                self.iface.messageBar().pushMessage(
+                    "XML-UA",
+                    "Перевірка близьких/створних точок: проблем не знайдено." + (f" Звіт: {os.path.basename(report_path)}" if report_path else ""),
+                    level=Qgis.Success,
+                    duration=5,
+                )
+        except Exception as e:
+            log_calls(logFile, f"Помилка перевірки близьких/створних точок при відкритті XML: {e}")
 
         self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin,
                                       xml_data=self.current_xml, context="open")  # Pass self.plugin
@@ -737,18 +991,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.current_xml.was_ever_changed = True
 
         self.update_tab_save_button_state(
-            index, is_enabled=(was_object_ids_cleaned or was_reordered or was_renumbered))
+            index, is_enabled=(was_object_ids_cleaned or was_reordered or was_renumbered or was_decimal_normalized or was_areas_fixed))
         self.opened_xmls.append(self.current_xml)
-
-        area_changed_on_open = self.sync_parcel_area_size(
-            self.current_xml,
-            trigger="відкриття XML",
-            notify=True
-        )
 
         self.update_all_actions_state(is_file_open=True)  # type: ignore
         self.update_changed_actions_state(
-            is_changed=(was_object_ids_cleaned or was_reordered or was_renumbered or area_changed_on_open))
+            is_changed=(was_object_ids_cleaned or was_reordered or was_renumbered or was_decimal_normalized or was_areas_fixed or area_changed_on_open))
 
         tree_view.setColumnWidth(0, 300)
 
@@ -774,7 +1022,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             else:
                 for size_elem in area_elements:
                     try:
-                        xml_area_ha = float(size_elem.text)
+                        from .common import parse_float
+                        xml_area_ha = parse_float(size_elem.text, default=None)
+                        if xml_area_ha is None:
+                            show_dialog = True
+                            break
                         if round(xml_area_ha, 4) != round(area_ha, 4):
                             show_dialog = True
                             break
@@ -3043,7 +3295,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             length_element = pl_element.find("Length")
             if ulid and length_element is not None and length_element.text:
                 try:
-                    lengths[ulid] = float(length_element.text)
+                    from .common import parse_float
+                    lengths[ulid] = parse_float(length_element.text, default=0.0)
                 except (ValueError, TypeError):
                     pass
         return lengths
@@ -3055,7 +3308,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             length_element = pl_element.find("Length")
             if length_element is not None and length_element.text:
                 try:
-                    total_length += float(length_element.text)
+                    from .common import parse_float
+                    total_length += parse_float(length_element.text, default=0.0)
                 except (ValueError, TypeError):
                     pass
         return total_length
@@ -3065,7 +3319,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         area_element = tree.find(".//ParcelMetricInfo/Area/Size")
         if area_element is not None and area_element.text:
             try:
-                return float(area_element.text)
+                from .common import parse_float
+                return parse_float(area_element.text, default=0.0)
             except (ValueError, TypeError):
                 pass
         return 0.0
@@ -3743,8 +3998,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             land_parcel_info = lands_parcel.getparent()
             object_id_text = str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
             size_element = lands_parcel.find("./Area/Size")
-            size = float(
-                size_element.text) if size_element is not None and size_element.text else None
+            from .common import parse_float
+            size = parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = lands_parcel.find("Externals")
             externals_lines = externals_element.find(
