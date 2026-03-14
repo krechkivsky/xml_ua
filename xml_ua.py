@@ -29,8 +29,6 @@ import os.path
 import shutil
 import sys
 import importlib.util
-import subprocess
-from pathlib import Path
 
 from qgis.core import Qgis
 from qgis.core import QgsGeometry
@@ -867,96 +865,69 @@ class xml_ua:
                 missing.append(pip_name)
         return missing
 
-    def _deps_docs_url(self):
-        return "https://github.com/krechkivsky/xml_ua/blob/main/INSTALL_DEPS.md"
-
-    def _find_osgeo4w_env_bat(self):
-        candidates = []
-        env_root = os.environ.get("OSGEO4W_ROOT")
-        if env_root:
-            candidates.append(os.path.join(env_root, "bin", "o4w_env.bat"))
-            candidates.append(os.path.join(env_root, "o4w_env.bat"))
-
-        exe_path = sys.executable
-        if exe_path:
-            try:
-                exe = Path(exe_path).resolve()
-            except Exception:
-                exe = Path(exe_path)
-            for parent in [exe.parent, *exe.parents]:
-                candidates.append(str(Path(parent) / "o4w_env.bat"))
-                candidates.append(str(Path(parent) / "bin" / "o4w_env.bat"))
-
-        for root in (r"C:\OSGeo4W64", r"C:\OSGeo4W"):
-            candidates.append(os.path.join(root, "bin", "o4w_env.bat"))
-
-        for path in candidates:
-            if path and os.path.isfile(path):
-                return path
-        return None
-
-    def _open_osgeo4w_install_window(self, env_bat_path, missing):
-        if not env_bat_path:
-            return False
-        pkg_list = " ".join(missing)
-        cmd = f"\"{env_bat_path}\" && python -m pip install --upgrade {pkg_list}"
-        creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-        try:
-            subprocess.Popen(["cmd.exe", "/k", cmd], creationflags=creationflags)
-            return True
-        except Exception:
-            return False
-
     def _maybe_prompt_missing_dependencies(self):
         missing = self._missing_optional_dependencies()
         if not missing:
             return
 
-        python_exe = sys.executable or 'python'
-        if ' ' in python_exe and not python_exe.startswith('\"'):
-            python_exe = f'\"{python_exe}\"'
-        cmd_lines = [f"{python_exe} -m pip install --upgrade {pkg}" for pkg in missing]
-        commands = '\n'.join(cmd_lines)
-        osgeo_env_bat = self._find_osgeo4w_env_bat()
+        cmd_lines = [
+            "pip install --upgrade xmlschema",
+            "pip install --upgrade docxtpl",
+            "pip install --upgrade pymorphy2",
+            "pip install --upgrade pymorphy2-dicts-uk",
+        ]
+        commands = "\r\n".join(cmd_lines) + "\r\n"
 
-        msg = QMessageBox(self.iface.mainWindow())
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("XML-UA: Відсутні бібліотеки")
-        msg.setText("Для коректної роботи XML-UA потрібні додаткові бібліотеки.")
-        msg.setInformativeText(
-            "Встановіть їх у вбудоване Python QGIS:\n"
-            + commands
-            + "\n\nПісля встановлення перезапустіть QGIS."
-        )
-        copy_btn = msg.addButton("Скопіювати команди", QMessageBox.ActionRole)
-        install_btn = None
-        if osgeo_env_bat:
-            install_btn = msg.addButton("Встановити через OSGeo4W", QMessageBox.ActionRole)
-        docs_btn = msg.addButton("Відкрити інструкцію", QMessageBox.ActionRole)
-        msg.addButton("Закрити", QMessageBox.AcceptRole)
-        msg.exec()
-        clicked = msg.clickedButton()
-        if clicked == copy_btn:
+        confirmed_installed = False
+        while True:
+            msg = QMessageBox(self.iface.mainWindow())
+            msg.setIcon(QMessageBox.Warning)
+            msg.setWindowTitle("xml-ua: Відсутні бібліотеки для генерування землевпорядної документації")
+            msg.setText(
+                "Для генерування землевпорядної документації потрібно інсталювати додаткові бібліотеки.\n"
+                "Відкрийте папку, куди був встановлений QGIS 3.34.15, як правило, це:\n"
+                "C:\\Program Files\\QGIS 3.34.15\n"
+                "Відкрийте вікно терміналу QGIS, виконавши OSGeo4W.bat, який знаходиться у папці QGIS. \n"
+                "У чорному вікні терміналу QGIS введіть команди:\n\n"
+                f"{commands}\n\n"
+                "Або скопіюйте їх кнопкою і вставте в термінал QGIS.\n"
+                "Дочекайтесь інсталяції бібліотек.\n"
+                "Після встановлення бібліотек увімкніть плагін на вкладці встановлених плагінів."
+            )
+            checkbox = None
             try:
-                from qgis.PyQt.QtWidgets import QApplication
-                QApplication.clipboard().setText(commands)
+                from qgis.PyQt.QtWidgets import QCheckBox
+                checkbox = QCheckBox("Я встановив(ла) бібліотеки")
+                checkbox.setChecked(confirmed_installed)
+                msg.setCheckBox(checkbox)
             except Exception:
-                pass
-        elif install_btn and clicked == install_btn:
-            ok = self._open_osgeo4w_install_window(osgeo_env_bat, missing)
-            if not ok:
+                checkbox = None
+            copy_btn = msg.addButton("Скопіювати команди", QMessageBox.ActionRole)
+            close_btn = msg.addButton("Закрити", QMessageBox.AcceptRole)
+            if checkbox is not None:
+                def _update_close_state():
+                    enabled = checkbox.isChecked()
+                    close_btn.setEnabled(enabled)
+                    msg.setEscapeButton(close_btn if enabled else copy_btn)
+                _update_close_state()
+                checkbox.stateChanged.connect(lambda _state: _update_close_state())
+            else:
+                close_btn.setEnabled(True)
+            msg.setDefaultButton(copy_btn)
+            if checkbox is None:
+                msg.setEscapeButton(copy_btn if not confirmed_installed else close_btn)
+            copy_btn.setFocus()
+            msg.exec()
+            if checkbox is not None:
+                confirmed_installed = checkbox.isChecked()
+            if msg.clickedButton() == copy_btn:
                 try:
                     from qgis.PyQt.QtWidgets import QApplication
                     QApplication.clipboard().setText(commands)
                 except Exception:
                     pass
-                QMessageBox.warning(
-                    self.iface.mainWindow(),
-                    "XML-UA: Помилка",
-                    "Не вдалося відкрити OSGeo4W Shell. Команди скопійовано в буфер обміну.",
-                )
-        elif clicked == docs_btn:
-            QDesktopServices.openUrl(QUrl(self._deps_docs_url()))
+                continue
+            break
 
     def initGui(self):
         """Створює меню та панель інструментів після запуску QGIS."""
