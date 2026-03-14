@@ -27,6 +27,8 @@
 import os
 import os.path
 import shutil
+import sys
+import importlib.util
 
 from qgis.core import Qgis
 from qgis.core import QgsGeometry
@@ -847,6 +849,52 @@ class xml_ua:
             self.iface.messageBar().pushMessage("Інфо",
                                                 "Відкрийте XML-файл, щоб побачити його структуру.", level=Qgis.Info, duration=4)
 
+    def _missing_optional_dependencies(self):
+        deps = [
+            ("xmlschema", "xmlschema"),
+            ("docxtpl", "docxtpl"),
+            ("pymorphy2", "pymorphy2"),
+            ("pymorphy2_dicts_uk", "pymorphy2-dicts-uk"),
+        ]
+        missing = []
+        for module_name, pip_name in deps:
+            try:
+                if importlib.util.find_spec(module_name) is None:
+                    missing.append(pip_name)
+            except Exception:
+                missing.append(pip_name)
+        return missing
+
+    def _maybe_prompt_missing_dependencies(self):
+        missing = self._missing_optional_dependencies()
+        if not missing:
+            return
+
+        python_exe = sys.executable or 'python'
+        if ' ' in python_exe and not python_exe.startswith('\"'):
+            python_exe = f'\"{python_exe}\"'
+        cmd_lines = [f"{python_exe} -m pip install --upgrade {pkg}" for pkg in missing]
+        commands = '\n'.join(cmd_lines)
+
+        msg = QMessageBox(self.iface.mainWindow())
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle('XML-UA: ???????? ??????????')
+        msg.setText('??? ??????????? ?????? XML-UA ???????? ????????? ??????????.')
+        msg.setInformativeText(
+            '?????????? ?? ? ?????????? Python QGIS:\n'
+            + commands
+            + '\n\n????? ???????????? ????????????? QGIS.'
+        )
+        copy_btn = msg.addButton('?????????? ???????', QMessageBox.ActionRole)
+        msg.addButton('???????', QMessageBox.AcceptRole)
+        msg.exec()
+        if msg.clickedButton() == copy_btn:
+            try:
+                from qgis.PyQt.QtWidgets import QApplication
+                QApplication.clipboard().setText(commands)
+            except Exception:
+                pass
+
     def initGui(self):
         """Створює меню та панель інструментів після запуску QGIS."""
 
@@ -875,6 +923,7 @@ class xml_ua:
         self.disconnect_map_canvas_context()  # Спочатку від'єднуємо старе, якщо є
         self.map_canvas_context_handler = setup_map_canvas_context(
             self.iface, self)
+        self._maybe_prompt_missing_dependencies()
 
     def reload_map_canvas_context(self):
         """Перезавантажує обробник контекстного меню полотна карти."""
