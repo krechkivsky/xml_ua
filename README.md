@@ -22,6 +22,13 @@ Designed to simplify XML creation for both beginners and GIS professionals.
 
 ---
 
+## Dependencies
+
+If some optional libraries are missing, see the step-by-step guide:
+- INSTALL_DEPS.md
+
+---
+
 ## Contact / Maintainer
 
 - Email: krechkivsky.dev@gmail.com  
