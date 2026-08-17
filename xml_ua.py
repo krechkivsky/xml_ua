@@ -1077,7 +1077,7 @@ class xml_ua:
 
         self.action_open_tool = QAction("Відкрити", self.iface.mainWindow())
 
-        open_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_DirOpenIcon)
+        open_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
         self.action_open_tool.setIcon(open_icon)
 
         self.action_save_tool = QAction("Зберегти", self.iface.mainWindow())
