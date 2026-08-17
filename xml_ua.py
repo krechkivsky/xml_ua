@@ -1082,7 +1082,7 @@ class xml_ua:
 
         self.action_save_tool = QAction("Зберегти", self.iface.mainWindow())
 
-        save_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_DialogSaveButton)
+        save_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton)
         self.action_save_tool.setIcon(save_icon)
 
         self.action_save_as_template_tool = QAction(
