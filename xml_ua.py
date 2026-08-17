@@ -1096,21 +1096,21 @@ class xml_ua:
 
         self.action_check_tool = QAction("Перевірити", self.iface.mainWindow())
 
-        check_icon = self.iface.mainWindow().style(
-        ).standardIcon(QStyle.SP_DialogApplyButton)
+        check_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+
         self.action_check_tool.setIcon(check_icon)
         self.action_sort_by_xsd_tool = QAction("Впорядкувати за XSD", self.iface.mainWindow())
-        sort_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_ArrowDown)
+        sort_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown)
         self.action_sort_by_xsd_tool.setIcon(sort_icon)
         self.action_clear_data = QAction("Закрити", self.iface.mainWindow())
 
         close_icon = self.iface.mainWindow().style(
-        ).standardIcon(QStyle.SP_DialogCloseButton)
+        ).standardIcon(QStyle.StandardPixmap.StandardPixmap.SP_DialogCloseButton)
         self.action_clear_data.setIcon(close_icon)
 
         self.action_restore_backup = QAction(
             "Відновити з резервної копії...", self.iface.mainWindow())
-        restore_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_BrowserReload)
+        restore_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.StandardPixmap.SP_BrowserReload)
         self.action_restore_backup.setToolTip(
             "Відновити активний файл з його резервної копії, створеної при відкритті")
         self.action_restore_backup.setIcon(restore_icon)

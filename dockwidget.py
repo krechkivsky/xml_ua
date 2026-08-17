@@ -229,7 +229,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         connector.connect(QgsProject.instance(),
                           "layerWillBeRemoved", self.on_layer_will_be_removed)
 
-        self.save_icon = self.style().standardIcon(QStyle.SP_DialogSaveButton)
+        self.save_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton)
 
         self.tab_save_buttons = {}
 
@@ -1575,7 +1575,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 """)
                 self.tab_save_buttons[i] = save_button  # Зберігаємо посилання
 
-                close_icon = self.style().standardIcon(QStyle.SP_DockWidgetCloseButton)
+                close_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DockWidgetCloseButton)
                 close_button = QPushButton(close_icon, "")
                 close_button.setFlat(True)
                 close_button.setCursor(Qt.ArrowCursor)

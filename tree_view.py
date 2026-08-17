@@ -428,7 +428,7 @@ class CustomTreeView(QTreeView):
             menu.addAction(save_as_template_action)
 
             close_action = QAction(self.style().standardIcon(
-                QStyle.SP_DialogCloseButton), "Закрити", self)
+                QStyle.StandardPixmap.SP_DialogCloseButton), "Закрити", self)
             close_action.triggered.connect(
                 lambda: self.parent.process_action_close_xml(self.parent.current_xml))
             menu.addAction(close_action)
