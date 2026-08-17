@@ -1072,7 +1072,7 @@ class xml_ua:
 
         self.action_new_tool = QAction("Новий XML", self.iface.mainWindow())
 
-        new_icon = self.iface.mainWindow().style().standardIcon(QStyle.SP_FileIcon)
+        new_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
         self.action_new_tool.setIcon(new_icon)
 
         self.action_open_tool = QAction("Відкрити", self.iface.mainWindow())
