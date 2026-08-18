@@ -678,7 +678,7 @@ class xml_ua:
             self._apply_signal_log_setting(
                 self.signal_log_enabled, persist=False, notify=False)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
-            self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
+            self.iface.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.hide()  # Явно приховуємо після створення
 
     def on_save_tool(self):
@@ -834,7 +834,7 @@ class xml_ua:
             self._apply_signal_log_setting(
                 self.signal_log_enabled, persist=False, notify=False)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
-            self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
+            self.iface.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.hide()  # Завжди приховуємо після створення
 
         if self.dockwidget.opened_xmls:
