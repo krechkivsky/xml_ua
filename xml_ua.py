@@ -1110,7 +1110,7 @@ class xml_ua:
 
         self.action_restore_backup = QAction(
             "Відновити з резервної копії...", self.iface.mainWindow())
-        restore_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.StandardPixmap.SP_BrowserReload)
+        restore_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
         self.action_restore_backup.setToolTip(
             "Відновити активний файл з його резервної копії, створеної при відкритті")
         self.action_restore_backup.setIcon(restore_icon)
