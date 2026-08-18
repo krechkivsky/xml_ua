@@ -902,8 +902,8 @@ class xml_ua:
                 msg.setCheckBox(checkbox)
             except Exception:
                 checkbox = None
-            copy_btn = msg.addButton("Скопіювати команди", QMessageBox.ActionRole)
-            close_btn = msg.addButton("Закрити", QMessageBox.AcceptRole)
+            copy_btn = msg.addButton("Скопіювати команди", QMessageBox.ButtonRole.ActionRole)
+            close_btn = msg.addButton("Закрити", QMessageBox.ButtonRole.AcceptRole)
             if checkbox is not None:
                 def _update_close_state():
                     enabled = checkbox.isChecked()
