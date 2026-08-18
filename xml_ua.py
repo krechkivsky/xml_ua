@@ -881,7 +881,7 @@ class xml_ua:
         confirmed_installed = False
         while True:
             msg = QMessageBox(self.iface.mainWindow())
-            msg.setIcon(QMessageBox.Warning)
+            msg.setIcon(QMessageBox.Icon.Warning)
             msg.setWindowTitle("xml-ua: Відсутні бібліотеки для генерування землевпорядної документації")
             msg.setText(
                 "Для генерування землевпорядної документації потрібно інсталювати додаткові бібліотеки.\n"
