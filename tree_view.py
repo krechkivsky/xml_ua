@@ -95,7 +95,7 @@ class CustomTreeView(QTreeView):
                           self.on_tree_model_data_changed)
         self.group_name = ""
 
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setSelectionMode(QAbstractItemView.NoSelection)
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
