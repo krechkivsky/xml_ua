@@ -1551,7 +1551,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         for i in range(self.tabWidget.count()):
 
-            if tab_bar.tabButton(i, QTabBar.RightSide) is None:
+            if tab_bar.tabButton(i, QTabBar.ButtonPosition.RightSide) is None:
 
                 buttons_widget = QWidget()
                 buttons_layout = QHBoxLayout(buttons_widget)
