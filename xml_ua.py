@@ -1105,7 +1105,7 @@ class xml_ua:
         self.action_clear_data = QAction("Закрити", self.iface.mainWindow())
 
         close_icon = self.iface.mainWindow().style(
-        ).standardIcon(QStyle.StandardPixmap.StandardPixmap.SP_DialogCloseButton)
+        ).standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton)
         self.action_clear_data.setIcon(close_icon)
 
         self.action_restore_backup = QAction(
