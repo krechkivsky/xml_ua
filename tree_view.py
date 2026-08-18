@@ -98,7 +98,7 @@ class CustomTreeView(QTreeView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(
             self.show_tree_view_context_menu)
 
