@@ -1166,8 +1166,8 @@ class xml_ua:
         except Exception:
             self.tools_button.setIcon(QIcon(icon_path))
         self.tools_button.setMenu(self.tools_menu)
-        self.tools_button.setPopupMode(QToolButton.MenuButtonPopup)
-
+        # self.tools_button.setPopupMode(QToolButton.MenuButtonPopup)
+        self.tools_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.dockwidget = None
 
         self.action_cadastral_plan.triggered.connect(
