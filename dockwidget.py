@@ -1176,7 +1176,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         super().resizeEvent(event)
         self.update_window_title(self.full_xml_file_name)
 
-    def update_window_title(self, file_name):
+    def update_window_title(self, file_name=""):
         """
         Оновлює заголовок віджета, враховуючи доступну ширину та 
         обрізаючи назву файлу, якщо потрібно.
@@ -2053,11 +2053,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return None
 
         tab_name = self.tabWidget.tabText(index)
+        tab_tooltip = self.tabWidget.tabToolTip(index)
 
-        for xml_data in self.opened_xmls:
-            if xml_data.group_name == tab_name:
-                return xml_data
-        return None
+        if hasattr(self, "opened_xmls") and self.opened_xmls:
+            # 1. Пошук за group_name
+            for xml_data in self.opened_xmls:
+                if xml_data and getattr(xml_data, "group_name", None) == tab_name:
+                    return xml_data
+
+            # 2. Пошук за path або original_path з tooltip
+            if tab_tooltip:
+                for xml_data in self.opened_xmls:
+                    if xml_data and (getattr(xml_data, "path", None) == tab_tooltip or getattr(xml_data, "original_path", None) == tab_tooltip):
+                        return xml_data
+
+            # 3. Fallback: якщо current_xml відповідає цій вкладці
+            if self.current_xml and (getattr(self.current_xml, "group_name", None) == tab_name or (tab_tooltip and getattr(self.current_xml, "path", None) == tab_tooltip)):
+                return self.current_xml
+
+            # 4. Fallback за індексом, якщо список синхронізований
+            if 0 <= index < len(self.opened_xmls):
+                return self.opened_xmls[index]
+
+        return self.current_xml if self.current_xml else None
 
     def validate_xml_structure(self, xml_path):
 
@@ -2186,33 +2204,53 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         Behavior:
             - Logs the group click event.
-            - Checks if the 'opened_xmls' attribute is initialized. If not, displays 
-              a warning message and logs an error.
-            - Searches for the clicked group in the QGIS layer tree. If not found, 
-              logs an error and exits.
-            - Searches for the corresponding XML data in the 'opened_xmls' list. If 
-              not found, logs a message and exits.
-            - If the dock widget is hidden, it is shown.
-            - Clears the dock widget's data and loads the XML data associated with 
-              the clicked group.
-            - Configures the appearance of the XML tree view in the dock widget.
-            - Updates the dock widget's title to reflect the current XML file path.
-
-        Raises:
-            None
+            - Searches for the corresponding XML data tab and activates it.
+            - Updates current_xml, actions state, and window title safely.
         """
+        if not group_name:
+            return
 
         logFile.flush()
 
+        matched_tab_index = -1
         for i in range(self.tabWidget.count()):
             if self.tabWidget.tabText(i) == group_name:
-
-                if self.tabWidget.currentIndex() != i:
-                    self.tabWidget.setCurrentIndex(i)
-                else:  # Якщо вкладка вже активна, просто оновлюємо дані
-                    self.current_xml = self.get_xml_data_for_tab_index(i)
-                    self.update_window_title(self.current_xml.path)
+                matched_tab_index = i
                 break
+
+        if matched_tab_index != -1:
+            if self.tabWidget.currentIndex() != matched_tab_index:
+                self.tabWidget.setCurrentIndex(matched_tab_index)
+            else:  # Якщо вкладка вже активна, просто оновлюємо дані
+                xml_data = self.get_xml_data_for_tab_index(matched_tab_index) or self.get_xml_data_for_group(group_name)
+                if xml_data:
+                    self.current_xml = xml_data
+                    self.update_all_actions_state(is_file_open=True)
+                    self.update_changed_actions_state(is_changed=xml_data.changed)
+                    xml_path = getattr(self.current_xml, "path", "") or ""
+                    self.update_window_title(xml_path)
+                elif self.current_xml:
+                    xml_path = getattr(self.current_xml, "path", "") or ""
+                    self.update_window_title(xml_path)
+                else:
+                    self.update_window_title("")
+        else:
+            # Якщо group_name не збігається напряму з tabText, спробуємо знайти через get_xml_data_for_group
+            xml_data = self.get_xml_data_for_group(group_name)
+            if xml_data:
+                for i in range(self.tabWidget.count()):
+                    tab_text = self.tabWidget.tabText(i)
+                    tab_tooltip = self.tabWidget.tabToolTip(i)
+                    if tab_text == xml_data.group_name or (xml_data.path and tab_tooltip == xml_data.path):
+                        if self.tabWidget.currentIndex() != i:
+                            self.tabWidget.setCurrentIndex(i)
+                        else:
+                            self.current_xml = xml_data
+                            self.update_all_actions_state(is_file_open=True)
+                            self.update_changed_actions_state(is_changed=xml_data.changed)
+                            xml_path = getattr(self.current_xml, "path", "") or ""
+                            self.update_window_title(xml_path)
+                        break
 
     def ensure_visible_for_xml_data(self, xml_data_obj):
         """
@@ -2422,11 +2460,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def get_xml_data_for_group(self, group_name):
         """Знаходить об'єкт xml_data за іменем групи."""
-        if not self.opened_xmls:
+        if not group_name or not getattr(self, "opened_xmls", None):
             return None
         for xml_data_obj in self.opened_xmls:
-            if xml_data_obj.group_name == group_name:
+            if xml_data_obj and getattr(xml_data_obj, "group_name", None) == group_name:
                 return xml_data_obj
+        # Також перевіримо чи group_name не є назвою файлу (basename)
+        for xml_data_obj in self.opened_xmls:
+            if xml_data_obj:
+                p = getattr(xml_data_obj, "path", "") or ""
+                orig = getattr(xml_data_obj, "original_path", "") or ""
+                if (p and os.path.basename(p) == group_name) or (orig and os.path.basename(orig) == group_name):
+                    return xml_data_obj
         return None
 
     def update_xml_from_geometry_change(self, layer, feature_id):
@@ -3740,17 +3785,25 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return None
 
         xml_data_object_id = layer.customProperty("xml_data_object_id")
-        if xml_data_object_id is not None:
+        if xml_data_object_id is not None and getattr(self, "opened_xmls", None):
             for xml_data in self.opened_xmls:
-
                 if id(xml_data) == int(xml_data_object_id):
-
                     return xml_data
 
-        else:
-            log_calls(
-                logFile, f"Шар '{layer.name()}' не має custom property 'xml_data_object_id'.")
+        # Fallback: пошук через дерево шарів за батьківською групою
+        try:
+            layer_node = QgsProject.instance().layerTreeRoot().findLayer(layer.id())
+            if layer_node:
+                parent_group = self.find_parent_group(layer_node)
+                if parent_group:
+                    group_data = self.get_xml_data_for_group(parent_group.name())
+                    if group_data:
+                        return group_data
+        except Exception:
+            pass
 
+        log_calls(
+            logFile, f"Шар '{layer.name()}' не має прив'язаного xml_data.")
         return None
 
     def recalculate_parcel_area(self, tree, xml_data_obj=None, trigger="", notify=False):
