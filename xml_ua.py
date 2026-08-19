@@ -30,7 +30,7 @@ import shutil
 import sys
 import importlib.util
 
-<<<<<<< Updated upstream
+
 from qgis.core import Qgis
 from qgis.core import QgsGeometry
 from qgis.core import QgsFeature
@@ -69,7 +69,7 @@ from qgis.PyQt.QtWidgets import QInputDialog
 from qgis.PyQt.QtWidgets import QFileIconProvider
 
 from qgis.utils import iface
-=======
+
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -111,7 +111,6 @@ from qgis.PyQt.QtWidgets import (
     QToolBar,
     QToolButton,
 )
->>>>>>> Stashed changes
 
 from . import resources  # noqa: F401
 
