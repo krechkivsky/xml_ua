@@ -2194,18 +2194,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def process_group_click(self, group_name):
         """
         Handles the event when a group in the QGIS layer tree is clicked.
-
-        This method synchronizes the dock widget with the selected group in the 
-        QGIS layer tree. It ensures that the corresponding XML data for the group 
-        is loaded and displayed in the dock widget.
-
-        Args:
-            group_name (str): The name of the group clicked in the QGIS layer tree.
-
-        Behavior:
-            - Logs the group click event.
-            - Searches for the corresponding XML data tab and activates it.
-            - Updates current_xml, actions state, and window title safely.
         """
         if not group_name:
             return
@@ -2226,7 +2214,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 if xml_data:
                     self.current_xml = xml_data
                     self.update_all_actions_state(is_file_open=True)
-                    self.update_changed_actions_state(is_changed=xml_data.changed)
+                    self.update_changed_actions_state(is_changed=getattr(xml_data, "changed", False))
                     xml_path = getattr(self.current_xml, "path", "") or ""
                     self.update_window_title(xml_path)
                 elif self.current_xml:
@@ -2235,24 +2223,26 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 else:
                     self.update_window_title("")
         else:
-            # Якщо group_name не збігається напряму з tabText, спробуємо знайти через get_xml_data_for_group
+            # Якщо group_name не збігається напряму з tabText, шукаємо через get_xml_data_for_group
             xml_data = self.get_xml_data_for_group(group_name)
             if xml_data:
+                xml_path = getattr(xml_data, "path", "") or ""
+                xml_group_name = getattr(xml_data, "group_name", "") or ""
+
                 for i in range(self.tabWidget.count()):
                     tab_text = self.tabWidget.tabText(i)
                     tab_tooltip = self.tabWidget.tabToolTip(i)
-                    if tab_text == xml_data.group_name or (xml_data.path and tab_tooltip == xml_data.path):
+                    
+                    # Безпечне порівняння без прямого виклику xml_data.path
+                    if tab_text == xml_group_name or (xml_path and tab_tooltip == xml_path):
                         if self.tabWidget.currentIndex() != i:
                             self.tabWidget.setCurrentIndex(i)
                         else:
                             self.current_xml = xml_data
                             self.update_all_actions_state(is_file_open=True)
-                            self.update_changed_actions_state(is_changed=xml_data.changed)
-                            xml_path = getattr(self.current_xml, "path", "") or ""
+                            self.update_changed_actions_state(is_changed=getattr(xml_data, "changed", False))
                             self.update_window_title(xml_path)
                         break
-
-    
 
     def ensure_visible_for_xml_data(self, xml_data_obj):
         """
