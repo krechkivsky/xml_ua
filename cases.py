@@ -10,17 +10,18 @@ if not hasattr(inspect, 'getargspec'):  # noqa
 
 
 try:
-    import pymorphy2
+    import pymorphy3 
 
-    morph = pymorphy2.MorphAnalyzer(lang='uk')
-    PYMORPHY2_AVAILABLE = True
+    morph = pymorphy3.MorphAnalyzer(lang='uk')
+    log_msg(logFile, f"morph = {morph}")
+    PYMORPHY3_AVAILABLE = True
 except ImportError:
-    PYMORPHY2_AVAILABLE = False
+    PYMORPHY3_AVAILABLE = False
 
     def log_pymorphy_error():
         from .common import log_msg, logFile
-        log_msg(logFile, "ПОМИЛКА: Бібліотека 'pymorphy2' або словники 'pymorphy2-dicts-uk' не встановлені. Функції відмінювання не працюватимуть.")
-        log_msg(logFile, "Виконайте 'pip install pymorphy2 pymorphy2-dicts-uk' у вашому середовищі Python для QGIS.")
+        log_msg(logFile, "ПОМИЛКА: Бібліотека 'pymorphy3' або словники 'pymorphy2-dicts-uk' не встановлені. Функції відмінювання не працюватимуть.")
+        log_msg(logFile, "Виконайте 'pip install pymorphy3 pymorphy3-dicts-uk' у вашому середовищі Python для QGIS.")
     log_pymorphy_error()
 
 
@@ -35,7 +36,7 @@ def bornPIB(full_name_str: str) -> str:
     Returns:
         str: Рядок з ПІБ у родовому відмінку.
     """
-    if not PYMORPHY2_AVAILABLE or not full_name_str:
+    if not PYMORPHY3_AVAILABLE or not full_name_str:
         return full_name_str
 
     parts = full_name_str.split()
@@ -75,7 +76,7 @@ def bornRada(rada_name_str: str) -> str:
     Returns:
         str: Рядок з назвою у родовому відмінку.
     """
-    if not PYMORPHY2_AVAILABLE or not rada_name_str:
+    if not PYMORPHY3_AVAILABLE or not rada_name_str:
         return rada_name_str
 
     parts = rada_name_str.split()
@@ -133,7 +134,7 @@ def to_genitive(phrase: str) -> str:
         return out
 
 
-    if not PYMORPHY2_AVAILABLE:
+    if not PYMORPHY3_AVAILABLE:
         return " ".join(_fix_iv(w) for w in phrase.split())
 
     words = phrase.split()

@@ -896,8 +896,8 @@ class xml_ua:
         deps = [
             ("xmlschema", "xmlschema"),
             ("docxtpl", "docxtpl"),
-            ("pymorphy2", "pymorphy2"),
-            ("pymorphy2_dicts_uk", "pymorphy2-dicts-uk"),
+            ("pymorphy3", "pymorphy3"),
+            ("pymorphy3_dicts_uk", "pymorphy3-dicts-uk"),
         ]
         missing = []
         for module_name, pip_name in deps:
@@ -916,8 +916,8 @@ class xml_ua:
         cmd_lines = [
             "pip install --upgrade xmlschema",
             "pip install --upgrade docxtpl",
-            "pip install --upgrade pymorphy2",
-            "pip install --upgrade pymorphy2-dicts-uk",
+            "pip install --upgrade pymorphy3",
+            "pip install --upgrade pymorphy3-dicts-uk",
         ]
         commands = "\r\n".join(cmd_lines) + "\r\n"
 
