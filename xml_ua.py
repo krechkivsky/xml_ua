@@ -1107,7 +1107,7 @@ class xml_ua:
                 self.iface.registerMainWindowAction(self.action_help, "F1")
             except Exception:
                 self.action_help.setShortcut(QKeySequence("F1"))
-                self.action_help.setShortcutContext(Qt.WindowShortcut)
+                self.action_help.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
             connector.connect(self.action_help, "triggered", self.on_open_help)
 
         self.tools_menu.addAction(self.action_help)
@@ -2004,9 +2004,9 @@ class xml_ua:
 
         reply = QMessageBox.question(self.iface.mainWindow(), "Підтвердження відновлення",
                                      f"Ви впевнені, що хочете відновити файл\n'{os.path.basename(original_path)}'\nз його резервної копії? Усі незбережені зміни буде втрачено.",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
 
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
 
             return
 

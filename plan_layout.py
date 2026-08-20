@@ -1088,8 +1088,8 @@ class PlanLayoutCreator:
             head.attemptResize(QgsLayoutSize(hw, head_h, QgsUnitTypes.LayoutMillimeters))
         except Exception:
             head.attemptResize(QgsLayoutSize(float(w_mm), head_h, QgsUnitTypes.LayoutMillimeters))
-            head.setHAlign(Qt.AlignHCenter)
-            head.setVAlign(Qt.AlignVCenter)
+            head.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+            head.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         head.attemptMove(QgsLayoutPoint(head_x, top_y, QgsUnitTypes.LayoutMillimeters))
         head.setObjectName("Заголовок таблиці координат:p2")
         head.setId("Заголовок таблиці координат:p2")
@@ -1144,8 +1144,8 @@ class PlanLayoutCreator:
                 layout.addLayoutItem(bhead)
                 bhead_h = float(NODES_TABLE_TITLE_H_MM)
                 bhead.attemptResize(QgsLayoutSize(float(w_mm), bhead_h, QgsUnitTypes.LayoutMillimeters))
-                bhead.setHAlign(Qt.AlignHCenter)
-                bhead.setVAlign(Qt.AlignVCenter)
+                bhead.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+                bhead.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                 bhead.attemptMove(QgsLayoutPoint(float(x_mm), next_y, QgsUnitTypes.LayoutMillimeters))
                 bhead.setObjectName("Опис меж заголовок:p2")
                 bhead.setId("Опис меж заголовок:p2")
@@ -1184,8 +1184,8 @@ class PlanLayoutCreator:
                     layout.addLayoutItem(etitle)
                     etitle_h = float(NODES_TABLE_TITLE_H_MM)
                     etitle.attemptResize(QgsLayoutSize(float(w_mm), etitle_h, QgsUnitTypes.LayoutMillimeters))
-                    etitle.setHAlign(Qt.AlignHCenter)
-                    etitle.setVAlign(Qt.AlignVCenter)
+                    etitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+                    etitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                     etitle.attemptMove(QgsLayoutPoint(float(x_mm), exp_y, QgsUnitTypes.LayoutMillimeters))
                     etitle.setObjectName("Експлікація угідь заголовок:p2")
                     etitle.setId("Експлікація угідь заголовок:p2")
@@ -1246,8 +1246,8 @@ class PlanLayoutCreator:
                                 layout.addLayoutItem(rtitle)
                                 rtitle_h = float(NODES_TABLE_TITLE_H_MM)
                                 rtitle.attemptResize(QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters))
-                                rtitle.setHAlign(Qt.AlignHCenter)
-                                rtitle.setVAlign(Qt.AlignVCenter)
+                                rtitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+                                rtitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                                 rtitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
                                 rtitle.setObjectName("Обмеження заголовок:p2")
                                 rtitle.setId("Обмеження заголовок:p2")
@@ -1280,8 +1280,8 @@ class PlanLayoutCreator:
                                 layout.addLayoutItem(ltitle)
                                 ltitle_h = float(NODES_TABLE_TITLE_H_MM)
                                 ltitle.attemptResize(QgsLayoutSize(float(w_mm), ltitle_h, QgsUnitTypes.LayoutMillimeters))
-                                ltitle.setHAlign(Qt.AlignHCenter)
-                                ltitle.setVAlign(Qt.AlignVCenter)
+                                ltitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+                                ltitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                                 ltitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
                                 ltitle.setObjectName("Оренда заголовок:p2")
                                 ltitle.setId("Оренда заголовок:p2")
@@ -1321,8 +1321,8 @@ class PlanLayoutCreator:
                                 layout.addLayoutItem(stitle)
                                 stitle_h = float(NODES_TABLE_TITLE_H_MM)
                                 stitle.attemptResize(QgsLayoutSize(float(w_mm), stitle_h, QgsUnitTypes.LayoutMillimeters))
-                                stitle.setHAlign(Qt.AlignHCenter)
-                                stitle.setVAlign(Qt.AlignVCenter)
+                                stitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+                                stitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                                 stitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
                                 stitle.setObjectName("Суборенда заголовок:p2")
                                 stitle.setId("Суборенда заголовок:p2")
@@ -1539,8 +1539,8 @@ class PlanLayoutCreator:
         layout.addLayoutItem(title)  # IMPORTANT before attemptResize
 
         title.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
-        title.setHAlign(Qt.AlignHCenter)
-        title.setVAlign(Qt.AlignVCenter)
+        title.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+        title.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         title.attemptMove(
             QgsLayoutPoint(
                 content_x,
@@ -1570,8 +1570,8 @@ class PlanLayoutCreator:
         sig_h = TITLE_H_MM
         sig_y = PAGE_H_MM - MARGIN_BOTTOM_MM - sig_h
         sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
-        sig.setHAlign(Qt.AlignLeft)
-        sig.setVAlign(Qt.AlignVCenter)
+        sig.setHAlign(Qt.AlignmentFlag.AlignLeft)
+        sig.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutMillimeters))
 
 
@@ -1589,8 +1589,8 @@ class PlanLayoutCreator:
         layout.addLayoutItem(scale_label)
 
         scale_label.attemptResize(QgsLayoutSize(MAP_SIDE_MM, SCALE_H_MM, QgsUnitTypes.LayoutMillimeters))
-        scale_label.setHAlign(Qt.AlignHCenter)
-        scale_label.setVAlign(Qt.AlignVCenter)
+        scale_label.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+        scale_label.setVAlign(Qt.AlignmentFlag.AlignVCenter)
 
         scale_label.attemptMove(
             QgsLayoutPoint(
@@ -1695,9 +1695,9 @@ class PlanLayoutCreator:
                     pass
                 layout.addLayoutItem(paragraph)
                 paragraph.attemptResize(QgsLayoutSize(content_w, available_h, QgsUnitTypes.LayoutMillimeters))
-                paragraph.setHAlign(Qt.AlignLeft)
+                paragraph.setHAlign(Qt.AlignmentFlag.AlignLeft)
 
-                paragraph.setVAlign(Qt.AlignVCenter)
+                paragraph.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                 paragraph.attemptMove(QgsLayoutPoint(content_x, symbols_bottom_y, QgsUnitTypes.LayoutMillimeters))
         except Exception as e:
             log_calls(logFile, f"Parcel text block add failed: {e}")
@@ -1836,8 +1836,8 @@ class PlanLayoutCreator:
             t.setFont(fnt)
             layout.addLayoutItem(t)
             t.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
-            t.setHAlign(Qt.AlignHCenter)
-            t.setVAlign(Qt.AlignVCenter)
+            t.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+            t.setVAlign(Qt.AlignmentFlag.AlignVCenter)
             t.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutMillimeters))
             t.setObjectName(f"Title:p{page_idx}")
             t.setId(f"Title:p{page_idx}")
@@ -1852,8 +1852,8 @@ class PlanLayoutCreator:
             except Exception:
                 pass
             s.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
-            s.setHAlign(Qt.AlignLeft)
-            s.setVAlign(Qt.AlignVCenter)
+            s.setHAlign(Qt.AlignmentFlag.AlignLeft)
+            s.setVAlign(Qt.AlignmentFlag.AlignVCenter)
             s.attemptMove(QgsLayoutPoint(content_x, sig_y + y_off, QgsUnitTypes.LayoutMillimeters))
             s.setObjectName(f"Signature:p{page_idx}")
             s.setId(f"Signature:p{page_idx}")

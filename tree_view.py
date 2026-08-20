@@ -832,9 +832,9 @@ class CustomTreeView(QTreeView):
 
             reply = QMessageBox.question(self, 'Перегенерація GUID',
                                          f"Згенерувати новий унікальний ідентифікатор файлу?\n\nНовий GUID: {new_guid}",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
 
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
 
                 item.setText(new_guid)
                 return True

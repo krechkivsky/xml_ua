@@ -1,5 +1,3 @@
-
-
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtCore import QDate
 
@@ -26,7 +24,7 @@ class DateInputDialog(QDialog):
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDate(default_date or QDate.currentDate())
         self.date_edit.setFixedSize(100, 20)  # Розмір віджета дати
-        date_layout.addWidget(self.date_edit, alignment=Qt.AlignCenter)
+        date_layout.addWidget(self.date_edit, alignment=Qt.AlignmentFlag.AlignCenter)
         main_layout.addLayout(date_layout)
 
         button_layout = QHBoxLayout()
@@ -34,7 +32,7 @@ class DateInputDialog(QDialog):
         self.ok_button.setFixedSize(100, 20)  # Розмір кнопки
 
         connector.connect(self.ok_button, "clicked", self.accept)
-        button_layout.addWidget(self.ok_button, alignment=Qt.AlignCenter)
+        button_layout.addWidget(self.ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
         main_layout.addLayout(button_layout)
 
         self.setMinimumWidth(150)

@@ -284,8 +284,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         title.setFont(fnt)
         layout.addLayoutItem(title)
         title.attemptResize(QgsLayoutSize(content_w, float(TITLE_H_MM), QgsUnitTypes.LayoutMillimeters))
-        title.setHAlign(Qt.AlignHCenter)
-        title.setVAlign(Qt.AlignVCenter)
+        title.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+        title.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         title.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutMillimeters))
 
         # Neighbor letters (same as cadastral plan)
@@ -323,8 +323,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         layout.addLayoutItem(info)
         info_h = float(NODES_TABLE_TITLE_H_MM) * 3.0
         info.attemptResize(QgsLayoutSize(content_w, info_h, QgsUnitTypes.LayoutMillimeters))
-        info.setHAlign(Qt.AlignLeft)
-        info.setVAlign(Qt.AlignVCenter)
+        info.setHAlign(Qt.AlignmentFlag.AlignLeft)
+        info.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         info.attemptMove(QgsLayoutPoint(content_x, y_cursor, QgsUnitTypes.LayoutMillimeters))
         y_cursor = float(y_cursor + info_h + 2.0)
 
@@ -386,8 +386,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         except Exception:
             pass
         sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
-        sig.setHAlign(Qt.AlignLeft)
-        sig.setVAlign(Qt.AlignVCenter)
+        sig.setHAlign(Qt.AlignmentFlag.AlignLeft)
+        sig.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutMillimeters))
 
         return layout

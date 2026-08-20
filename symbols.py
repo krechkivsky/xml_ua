@@ -303,7 +303,7 @@ class Symbols:
         self.layout.addLayoutItem(lbl)
         lbl.attemptResize(QgsLayoutSize(w_mm, h_mm, QgsUnitTypes.LayoutMillimeters))
         lbl.setHAlign(align)
-        lbl.setVAlign(Qt.AlignVCenter)
+        lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutMillimeters))
         return lbl
 
@@ -410,8 +410,8 @@ class Symbols:
         lbl_w = 4.0
         lbl_h = 3.0
         lbl.attemptResize(QgsLayoutSize(lbl_w, lbl_h, QgsUnitTypes.LayoutMillimeters))
-        lbl.setHAlign(Qt.AlignLeft)
-        lbl.setVAlign(Qt.AlignVCenter)
+        lbl.setHAlign(Qt.AlignmentFlag.AlignLeft)
+        lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         lbl_x = cx + aw / 2.0 + 0.5
         lbl_y = (arrow_y + ah / 2.0) - (lbl_h / 2.0)
         lbl.attemptMove(QgsLayoutPoint(lbl_x, lbl_y, QgsUnitTypes.LayoutMillimeters))
@@ -480,8 +480,8 @@ class Symbols:
             pass
         self.layout.addLayoutItem(lbl)
         lbl.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutMillimeters))
-        lbl.setHAlign(Qt.AlignHCenter)
-        lbl.setVAlign(Qt.AlignVCenter)
+        lbl.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+        lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
         return circle, lbl
 
@@ -514,7 +514,7 @@ class Symbols:
             self.layout.addLayoutItem(lbl)
             lbl.attemptResize(QgsLayoutSize(w, h, QgsUnitTypes.LayoutMillimeters))
             lbl.setHAlign(halign)
-            lbl.setVAlign(Qt.AlignVCenter)
+            lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
             lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
             return lbl
 
@@ -523,18 +523,18 @@ class Symbols:
         label_h = 2.0
 
 
-        _label("1", mini_x + pad, mini_y + pad, label_w, label_h, Qt.AlignLeft)
-        _label("2", mini_x + mini_w - label_w - pad, mini_y + pad, label_w, label_h, Qt.AlignRight)
-        _label("3", mini_x + mini_w - label_w - pad, mini_y + mini_h - label_h - pad, label_w, label_h, Qt.AlignRight)
-        _label("4", mini_x + pad, mini_y + mini_h - label_h - pad, label_w, label_h, Qt.AlignLeft)
+        _label("1", mini_x + pad, mini_y + pad, label_w, label_h, Qt.AlignmentFlag.AlignLeft)
+        _label("2", mini_x + mini_w - label_w - pad, mini_y + pad, label_w, label_h, Qt.AlignmentFlag.AlignRight)
+        _label("3", mini_x + mini_w - label_w - pad, mini_y + mini_h - label_h - pad, label_w, label_h, Qt.AlignmentFlag.AlignRight)
+        _label("4", mini_x + pad, mini_y + mini_h - label_h - pad, label_w, label_h, Qt.AlignmentFlag.AlignLeft)
 
 
         len_w = 6.5
         len_h = 2.0
-        _label("10.00", mini_x + (mini_w - len_w) / 2.0, mini_y - len_h - 0.2, len_w, len_h, Qt.AlignHCenter)
-        _label("8.00", mini_x + mini_w + 0.2, mini_y + (mini_h - len_h) / 2.0, len_w, len_h, Qt.AlignLeft)
-        _label("10.00", mini_x + (mini_w - len_w) / 2.0, mini_y + mini_h + 0.2, len_w, len_h, Qt.AlignHCenter)
-        _label("8.00", mini_x - len_w - 0.2, mini_y + (mini_h - len_h) / 2.0, len_w, len_h, Qt.AlignRight)
+        _label("10.00", mini_x + (mini_w - len_w) / 2.0, mini_y - len_h - 0.2, len_w, len_h, Qt.AlignmentFlag.AlignHCenter)
+        _label("8.00", mini_x + mini_w + 0.2, mini_y + (mini_h - len_h) / 2.0, len_w, len_h, Qt.AlignmentFlag.AlignLeft)
+        _label("10.00", mini_x + (mini_w - len_w) / 2.0, mini_y + mini_h + 0.2, len_w, len_h, Qt.AlignmentFlag.AlignHCenter)
+        _label("8.00", mini_x - len_w - 0.2, mini_y + (mini_h - len_h) / 2.0, len_w, len_h, Qt.AlignmentFlag.AlignRight)
 
         return rect
 
@@ -570,8 +570,8 @@ class Symbols:
         title_lbl.setFont(f)
         self.layout.addLayoutItem(title_lbl)
         title_lbl.attemptResize(QgsLayoutSize(table_w_mm, self.TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
-        title_lbl.setHAlign(Qt.AlignHCenter)
-        title_lbl.setVAlign(Qt.AlignVCenter)
+        title_lbl.setHAlign(Qt.AlignmentFlag.AlignHCenter)
+        title_lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         title_lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutMillimeters))
 
 
@@ -599,7 +599,7 @@ class Symbols:
             row_y,
             self.COL_W_MM[1] - 2 * pad,
             row_h_mm,
-            align=Qt.AlignLeft,
+            align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
 
@@ -620,7 +620,7 @@ class Symbols:
             row_y,
             self.COL_W_MM[3] - 2 * pad,
             row_h_mm,
-            align=Qt.AlignLeft,
+            align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
 
@@ -635,7 +635,7 @@ class Symbols:
             row_y,
             self.COL_W_MM[5] - 2 * pad,
             row_h_mm,
-            align=Qt.AlignLeft,
+            align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
 
@@ -656,7 +656,7 @@ class Symbols:
             row2_y,
             self.COL_W_MM[1] - 2 * pad,
             row_h_mm,
-            align=Qt.AlignLeft,
+            align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
 
@@ -669,7 +669,7 @@ class Symbols:
             row2_y,
             self.COL_W_MM[3] - 2 * pad,
             row_h_mm,
-            align=Qt.AlignLeft,
+            align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
 
@@ -682,7 +682,7 @@ class Symbols:
             row2_y,
             self.COL_W_MM[5] - 2 * pad,
             row_h_mm,
-            align=Qt.AlignLeft,
+            align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
 
@@ -780,6 +780,6 @@ class Symbols:
                     y0,
                     text_w - 2 * pad,
                     row_h_mm,
-                    align=Qt.AlignLeft,
+                    align=Qt.AlignmentFlag.AlignLeft,
                     font_pt=6.0,
                 )

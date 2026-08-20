@@ -741,10 +741,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         self.iface.mainWindow(),
                         "Помилки площ / формату чисел",
                         body + "\n\nЗберегти виправлення у файл зараз?",
-                        QMessageBox.Yes | QMessageBox.No,
-                        QMessageBox.Yes,
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes,
                     )
-                    if reply == QMessageBox.Yes:
+                    if reply == QMessageBox.StandardButton.Yes:
                         _ensure_backup_exists()
                         self.save_specific_xml(self.current_xml)
                     else:
@@ -1246,12 +1246,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             notify=True
         )
 
-        reply = QMessageBox.Yes
+        reply = QMessageBox.StandardButton.Yes
         if xml_to_save.changed:
             reply = QMessageBox.question(
-                self, 'Підтвердження збереження', f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+                self, 'Підтвердження збереження', f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
 
             xml_to_save.tree_view.save_xml_tree(
                 xml_to_save.tree, xml_to_save.path)
@@ -1424,8 +1424,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         logFile, f"Помилка під час перенумерації перед закриттям: {e}")
                 reply = QMessageBox.question(self, 'Підтвердження закриття',
                                              f"Файл для групи '{xml_to_close.group_name}' має незбережені зміни. \n\nЗакрити без збереження?",
-                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-                if reply == QMessageBox.No:
+                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+                if reply == QMessageBox.StandardButton.No:
                     self._is_closing = False
                     return
 
@@ -1578,7 +1578,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 close_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DockWidgetCloseButton)
                 close_button = QPushButton(close_icon, "")
                 close_button.setFlat(True)
-                close_button.setCursor(Qt.ArrowCursor)
+                close_button.setCursor(Qt.CursorShape.ArrowCursor)
                 close_button.setFixedSize(16, 16)
                 close_button.setIconSize(QSize(12, 12))
                 close_button.setStyleSheet("""
@@ -1602,7 +1602,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 buttons_layout.addWidget(close_button)
                 buttons_widget.setLayout(buttons_layout)
 
-                tab_bar.setTabButton(i, QTabBar.RightSide, buttons_widget)
+                tab_bar.setTabButton(i, QTabBar.ButtonPosition.RightSide, buttons_widget)
 
     def on_layer_will_be_removed(self, layer_id):
         """
@@ -1719,8 +1719,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         reply = QMessageBox.question(self, "Підтвердження видалення",
                                      f"Ви впевнені, що хочете видалити ВЕСЬ розділ '{layer_name}' з XML-файлу '{os.path.basename(xml_data.path)}' та відповідний шар?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.No:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.No:
             log_calls(logFile, "Видалення розділу XML скасовано користувачем.")
             return
 
@@ -2252,6 +2252,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                             self.update_window_title(xml_path)
                         break
 
+    
+
     def ensure_visible_for_xml_data(self, xml_data_obj):
         """
         Показує dockwidget (якщо прихований) та активує вкладку для xml_data_obj.
@@ -2302,7 +2304,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 item = parent_item.child(row, 0)
                 if item is None:
                     continue
-                if item.data(Qt.UserRole + 10) is xml_element:
+                if item.data(Qt.ItemDataRole.UserRole + 10) is xml_element:
                     return item.index()
                 idx = _walk(item)
                 if idx.isValid():
@@ -2440,7 +2442,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         selection_model = tree_view.selectionModel()
         if selection_model:
             selection_model.setCurrentIndex(
-                tree_index, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows
+                tree_index, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.Rows
             )
         tree_view.scrollTo(tree_index)
 

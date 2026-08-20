@@ -86,7 +86,7 @@ class XmlTopologyFixer:
             len(unused_points), len(unused_polylines))
         user_choice_role = msg_box.buttonRole(clicked_button)
 
-        if user_choice_role == QMessageBox.YesRole:  # "Виправити та зберегти"
+        if user_choice_role == QMessageBox.ButtonRole.YesRole:  # "Виправити та зберегти"
 
             self._backup_original_file()
 
@@ -107,7 +107,7 @@ class XmlTopologyFixer:
                 level=Qgis.Success, duration=5)
             return self.FixResult.FILE_FIXED_AND_SAVED
 
-        elif user_choice_role == QMessageBox.NoRole:  # "Відкрити як є"
+        elif user_choice_role == QMessageBox.ButtonRole.NoRole:  # "Відкрити як є"
             return self.FixResult.OPEN_AS_IS
         else:  # RejectRole ("Скасувати") or closed dialog
             return self.FixResult.OPERATION_CANCELLED
@@ -151,17 +151,17 @@ class XmlTopologyFixer:
         message += "\nБажаєте виправити топологію перед відкриттям?"
 
         msg_box = QMessageBox(self.parent_widget)
-        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setIcon(QMessageBox.Icon.Question)
         msg_box.setWindowTitle('Виправлення топології')
         msg_box.setText(message)
         msg_box.setInformativeText(
             "Буде створено резервну копію оригінального (неправильного) файлу.")
 
         fix_button = msg_box.addButton(
-            "Виправити та зберегти", QMessageBox.YesRole)
+            "Виправити та зберегти", QMessageBox.ButtonRole.YesRole)
         open_as_is_button = msg_box.addButton(
-            "Відкрити як є", QMessageBox.NoRole)
-        cancel_button = msg_box.addButton("Скасувати", QMessageBox.RejectRole)
+            "Відкрити як є", QMessageBox.ButtonRole.NoRole)
+        cancel_button = msg_box.addButton("Скасувати", QMessageBox.ButtonRole.RejectRole)
 
         msg_box.setDefaultButton(fix_button)
         msg_box.exec_()

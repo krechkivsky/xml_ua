@@ -35,7 +35,7 @@ class StateActTypeDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Checks if the item at the given index is the 'StateActType' element."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and full_path.endswith("/StateActInfo/StateActType")
 
     def createEditor(self, parent, option, index):
@@ -50,7 +50,7 @@ class StateActTypeDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """Sets the editor's data from the model."""
         if self._is_target_element(index):
-            value = index.model().data(index, Qt.EditRole)
+            value = index.model().data(index, Qt.ItemDataRole.EditRole)
 
             try:
 
@@ -69,7 +69,7 @@ class StateActTypeDelegate(QStyledItemDelegate):
         if self._is_target_element(index):
 
             value = str(editor.currentIndex() + 1)
-            model.setData(index, value, Qt.EditRole)
+            model.setData(index, value, Qt.ItemDataRole.EditRole)
         else:
             super().setModelData(editor, model, index)
 
@@ -115,7 +115,7 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'DocumentationType'."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and full_path.endswith("/TechnicalDocumentationInfo/DocumentationType")
 
     def createEditor(self, parent, option, index):
@@ -129,7 +129,7 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """Встановлює дані редактора з моделі."""
         if self._is_target_element(index):
-            code = index.model().data(index, Qt.EditRole)
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
             text_value = self.doc_types.get(code, "")
             idx = editor.findText(text_value)
             if idx != -1:
@@ -146,7 +146,7 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
             if code:
 
 
-                model.setData(index, code, Qt.EditRole)
+                model.setData(index, code, Qt.ItemDataRole.EditRole)
 
                 self.documentationTypeChanged.emit(code, index)
         else:
@@ -174,10 +174,10 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
         model = tree_view.model
         doc_type_item = model.itemFromIndex(index)
         tech_doc_info_item = doc_type_item.parent()
-        if not tech_doc_info_item or not tech_doc_info_item.data(Qt.UserRole).endswith("TechnicalDocumentationInfo"):
+        if not tech_doc_info_item or not tech_doc_info_item.data(Qt.ItemDataRole.UserRole).endswith("TechnicalDocumentationInfo"):
             return
 
-        tech_doc_info_path = tech_doc_info_item.data(Qt.UserRole)
+        tech_doc_info_path = tech_doc_info_item.data(Qt.ItemDataRole.UserRole)
         tech_doc_info_xml_element = tree_view._find_xml_element_by_path(
             tech_doc_info_path)
         if tech_doc_info_xml_element is None:
@@ -227,7 +227,7 @@ class CategoryDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'Category'."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and full_path.endswith("/CategoryPurposeInfo/Category")
 
     def createEditor(self, parent, option, index):
@@ -241,7 +241,7 @@ class CategoryDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """Встановлює дані редактора з моделі."""
         if self._is_target_element(index):
-            code = index.model().data(index, Qt.EditRole)
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
             text_value = self.category_types.get(code, "")
             idx = editor.findText(text_value)
             if idx != -1:
@@ -256,7 +256,7 @@ class CategoryDelegate(QStyledItemDelegate):
             selected_index = editor.currentIndex()
             if selected_index != -1:
                 code = list(self.category_types.keys())[selected_index]
-                model.setData(index, code, Qt.EditRole)
+                model.setData(index, code, Qt.ItemDataRole.EditRole)
 
         else:
             super().setModelData(editor, model, index)
@@ -289,7 +289,7 @@ class PurposeDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'Purpose'."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and full_path.endswith("/CategoryPurposeInfo/Purpose")
 
     def createEditor(self, parent, option, index):
@@ -336,7 +336,7 @@ class PurposeDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         """Встановлює дані моделі з вибраного значення."""
         if self._is_target_element(index) and hasattr(self, 'selected_code'):
-            model.setData(index, self.selected_code, Qt.EditRole)
+            model.setData(index, self.selected_code, Qt.ItemDataRole.EditRole)
             del self.selected_code  # Очищуємо тимчасове значення
         else:
             super().setModelData(editor, model, index)
@@ -377,7 +377,7 @@ class OwnershipCodeDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'OwnershipInfo/Code'."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and full_path.endswith("/OwnershipInfo/Code")
 
     def createEditor(self, parent, option, index):
@@ -391,7 +391,7 @@ class OwnershipCodeDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """Встановлює дані редактора з моделі."""
         if self._is_target_element(index):
-            code = index.model().data(index, Qt.EditRole)
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
             text_value = self.ownership_forms.get(code, "")
             idx = editor.findText(text_value)
             if idx != -1:
@@ -406,7 +406,7 @@ class OwnershipCodeDelegate(QStyledItemDelegate):
             selected_index = editor.currentIndex()
             if selected_index != -1:
                 code = list(self.ownership_forms.keys())[selected_index]
-                model.setData(index, code, Qt.EditRole)
+                model.setData(index, code, Qt.ItemDataRole.EditRole)
 
         else:
             super().setModelData(editor, model, index)
@@ -443,7 +443,7 @@ class LandCodeDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'LandCode'."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and full_path.endswith("/LandParcelInfo/LandCode")
 
     def createEditor(self, parent, option, index):
@@ -457,7 +457,7 @@ class LandCodeDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """Встановлює дані редактора з моделі."""
         if self._is_target_element(index):
-            code = index.model().data(index, Qt.EditRole)
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
             text_value = self.land_codes.get(code, "")
             display_text = f"{code} - {text_value}"
             idx = editor.findText(display_text)
@@ -472,7 +472,7 @@ class LandCodeDelegate(QStyledItemDelegate):
             text_value = editor.currentText()
             code = self.reverse_land_codes.get(text_value)
             if code:
-                model.setData(index, code, Qt.EditRole)
+                model.setData(index, code, Qt.ItemDataRole.EditRole)
         else:
             super().setModelData(editor, model, index)
 
@@ -511,7 +511,7 @@ class DocumentCodeDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         """Встановлює поточне значення в редакторі."""
         if self._is_target_element(index):
-            value = index.model().data(index, Qt.EditRole)
+            value = index.model().data(index, Qt.ItemDataRole.EditRole)
             idx = editor.findData(value)
             if idx != -1:
                 editor.setCurrentIndex(idx)
@@ -522,7 +522,7 @@ class DocumentCodeDelegate(QStyledItemDelegate):
         """Зберігає вибраний код документа в модель."""
         if self._is_target_element(index):
             code = editor.currentData()  # Отримуємо код, збережений в userData
-            model.setData(index, code, Qt.EditRole)
+            model.setData(index, code, Qt.ItemDataRole.EditRole)
         else:
             super().setModelData(editor, model, index)
 
@@ -542,7 +542,7 @@ class DocumentCodeDelegate(QStyledItemDelegate):
             return False
 
         try:
-            full_path = parent_item.child(item.row(), 0).data(Qt.UserRole) or ""
+            full_path = parent_item.child(item.row(), 0).data(Qt.ItemDataRole.UserRole) or ""
             schema_path = re.sub(r"\\[\\d+\\]", "", str(full_path))
             return schema_path.endswith("/DocumentList")
         except Exception:
@@ -565,7 +565,7 @@ class ClosedDelegate(QStyledItemDelegate):
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'Closed'."""
-        full_path = index.data(Qt.UserRole)
+        full_path = index.data(Qt.ItemDataRole.UserRole)
         return full_path and (full_path.endswith("/Boundary/Closed") or full_path.endswith("/AdjacentBoundary/Closed"))
 
     def createEditor(self, parent, option, index):
@@ -577,7 +577,7 @@ class ClosedDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor, index):
         if self._is_target_element(index):
-            code = index.model().data(index, Qt.EditRole)
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
             text_value = self.closed_options.get(code, "")
             idx = editor.findText(text_value)
             if idx != -1:
@@ -590,7 +590,7 @@ class ClosedDelegate(QStyledItemDelegate):
             if selected_index != -1:
 
                 code = "true" if selected_index == 0 else "false"
-                model.setData(index, code, Qt.EditRole)
+                model.setData(index, code, Qt.ItemDataRole.EditRole)
 
     def displayText(self, value, locale):
         """Відображає 'Так'/'Ні' замість 'true'/'false'."""
@@ -692,10 +692,10 @@ class DispatcherDelegate(QStyledItemDelegate):
         if index.isValid() and index.column() == 1:
 
             try:
-                full_path = index.data(Qt.UserRole) or ""
+                full_path = index.data(Qt.ItemDataRole.UserRole) or ""
                 schema_path = re.sub(r"\[\d+\]", "", str(full_path))
                 if schema_path.endswith("DocumentList") and self.doc_code_delegate:
-                    code = index.model().data(index, Qt.EditRole)
+                    code = index.model().data(index, Qt.ItemDataRole.EditRole)
                     option.text = self.doc_code_delegate.doc_list.get(str(code), str(option.text))
                     return
             except Exception:

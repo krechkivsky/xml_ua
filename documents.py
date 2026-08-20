@@ -690,10 +690,10 @@ class DocumentGenerator:
                     f"Не вдалося зберегти файл:\n\n{output_path}\n\n"
                     "Можливо, цей файл вже відкритий в іншій програмі (наприклад, MS Word). "
                     "Будь ласка, закрийте його та спробуйте ще раз.",
-                    QMessageBox.Retry | QMessageBox.Cancel,
-                    QMessageBox.Retry
+                    QMessageBox.StandardButton.Retry | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.Retry
                 )
-                if reply == QMessageBox.Cancel:
+                if reply == QMessageBox.StandardButton.Cancel:
                     log_msg(
                         logFile, "Збереження документа скасовано користувачем через помилку доступу.")
                     return  # Вихід з функції, якщо користувач натиснув "Скасувати"
@@ -736,8 +736,8 @@ class DocumentGenerator:
                     return info_element.text.strip()
 
         reply = QMessageBox.question(
-            self.dockwidget, prompt_title, prompt_text, QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if reply == QMessageBox.No:
+            self.dockwidget, prompt_title, prompt_text, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+        if reply == QMessageBox.StandardButton.No:
             return None
 
         parts = [prefix]
@@ -762,7 +762,7 @@ class DocumentGenerator:
 
         if has_date:
             date_dialog = DateInputDialog(parent=self.dockwidget)
-            if date_dialog.exec_() == QDialog.Accepted:
+            if date_dialog.exec_() == QDialog.DialogCode.Accepted:
                 date_str = date_dialog.get_date()  # yyyy-MM-dd
                 parts.append(f" від {date_str}")
             else:
