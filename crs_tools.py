@@ -1,11 +1,10 @@
+import configparser
 import math
 import os
-import configparser
 from typing import Dict, Optional, Tuple
 
-from qgis.PyQt.QtCore import QSettings
 from qgis.core import QgsCoordinateReferenceSystem
-
+from qgis.PyQt.QtCore import QSettings
 
 USK2000_EPSG_MIN = 6381
 USK2000_EPSG_MAX = 6387

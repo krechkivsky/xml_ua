@@ -1,18 +1,18 @@
 
 
 import os
+
+from lxml import etree
 from qgis.core import (
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
-    QgsPolygon,
     QgsLineString,
     QgsPointXY,
-    QgsProject
+    QgsPolygon,
+    QgsProject,
+    QgsVectorLayer,
 )
 from qgis.PyQt.QtWidgets import QMessageBox
-from lxml import etree
 
 from .common import ensure_object_layer_fields
 
@@ -159,7 +159,7 @@ class CadastralQuarters:
             provider.addFeature(feature)
 
         QgsProject.instance().addMapLayer(self.layer, False)
-        layer_node = self.group.addLayer(self.layer)
+        self.group.addLayer(self.layer)
         if hasattr(self, 'xml_ua_layers'):
             self.xml_ua_layers.last_to_first(self.group)
 

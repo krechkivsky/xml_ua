@@ -1,26 +1,16 @@
 
 
+import configparser
+import inspect
 import os
 import sys
-import inspect
-import configparser
 from datetime import datetime
-
-from qgis.core import QgsGeometry
-from qgis.core import QgsWkbTypes
-
-from qgis.PyQt.QtCore import QObject
-from qgis.PyQt.QtCore import pyqtSignal
-from qgis.PyQt.QtCore import QVariant
-
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtWidgets import QDockWidget
-
-from types import ModuleType, FunctionType
 from gc import get_referents
+from types import FunctionType, ModuleType
 
-from qgis.core import QgsField
-
+from qgis.core import QgsField, QgsGeometry, QgsWkbTypes
+from qgis.PyQt.QtCore import QObject, QVariant, pyqtSignal
+from qgis.PyQt.QtWidgets import QDockWidget, QMessageBox
 
 logFile = open(os.path.dirname(__file__) + "/log.md", "w", encoding="utf-8")
 logFile.write(
@@ -225,7 +215,9 @@ def ensure_object_layer_fields(layer):
 
 
     try:
-        from qgis.core import QgsDefaultValue  # local import to avoid hard dependency at import time
+        from qgis.core import (
+            QgsDefaultValue,  # local import to avoid hard dependency at import time
+        )
 
         idx = layer.fields().indexFromName("object_id")
         if idx != -1:
@@ -458,8 +450,36 @@ def get_call_stack(i: int):
 
     return result
 
+def get_call_stack(i: int):
+    """Отримує стек викликів у вигляді рядка у зворотному порядку,
+    фільтруючи лише файли з директорії плагіна.
+    """
+    stack = inspect.stack()
+    result = ""
 
-def log_calls(logFile: str, msg: str = "") -> None:
+    # Отримуємо абсолютний шлях до папки плагіна
+    plugin_dir = os.path.dirname(os.path.abspath(__file__))
+
+    idx = 0
+    for frame_info in reversed(stack[2:]):
+        frame = frame_info.frame
+        abs_filename = os.path.abspath(frame.f_code.co_filename)
+
+        # Фільтруємо: залишаємо тільки файли, що знаходяться всередині директорії плагіна
+        if not abs_filename.startswith(plugin_dir):
+            continue
+
+        idx += 1
+        filename = os.path.basename(abs_filename)
+        lineno = frame.f_lineno
+        spaces = ' ' * max(1, (24 - len(filename)))
+        func_name = frame.f_code.co_name
+
+        result += f"\n [{idx}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
+
+    return result
+
+def log_calls(logFile, msg: str = "") -> None:
     """ Записує повідомлення в лог-файл з інформацією про стек викликів.
     """
     stack_info = get_call_stack(2)

@@ -1,8 +1,16 @@
 
 
 import re
-from qgis.PyQt.QtWidgets import (QDialog, QVBoxLayout, QScrollArea, QWidget,
-                                 QCheckBox, QDialogButtonBox)
+
+from qgis.PyQt.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
+
 from .common import config_docs
 
 

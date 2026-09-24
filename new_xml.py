@@ -1,16 +1,16 @@
 
 
-import os
-import math
 import copy
+import math
+import os
 import uuid
 from datetime import datetime
-from lxml import etree
 
-from qgis.core import QgsWkbTypes, QgsProject, QgsFeature
+from lxml import etree
+from qgis.core import QgsFeature, QgsProject, QgsWkbTypes
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 
-from .common import logFile, log_msg, xml_template
+from .common import log_msg, logFile, xml_template
 
 
 class NewXmlCreator:

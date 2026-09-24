@@ -16,6 +16,7 @@ import os
 import shutil
 
 from qgis.core import (
+    Qgis,
     QgsFeature,
     QgsField,
     QgsFields,
@@ -26,18 +27,14 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
-    Qgis,
 )
-
 from qgis.PyQt.QtCore import QVariant
-from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox
 
+from .boundary_agreement_layout import BoundaryAgreementLayoutCreator
 from .common import PARCEL_MARGIN_FACTOR, log_calls, logFile
-from qgis.PyQt.QtWidgets import QInputDialog
-
 from .plan_layout import MAP_SIDE_MM, compute_map_scale
 from .topology import GeometryProcessor
-from .boundary_agreement_layout import BoundaryAgreementLayoutCreator
 
 
 class BoundaryAgreementCreator:

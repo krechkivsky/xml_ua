@@ -1,23 +1,27 @@
 
 
 import os
+
 from qgis.core import (
     Qgis,
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
-    QgsPolygon,
     QgsLineString,
     QgsPointXY,
-    QgsWkbTypes,
+    QgsPolygon,
     QgsProject,
-    QgsLayerTreeLayer
+    QgsVectorLayer,
 )
 from qgis.utils import iface
+
+from .common import (
+    ensure_object_layer_fields,
+    insert_element_in_order,
+    log_msg,
+    logFile,
+    parse_float,
+)
 from .data_models import ShapeInfo  # noqa
-from .common import ensure_object_layer_fields, log_msg, insert_element_in_order, parse_float
-from .common import logFile
 
 
 class LandsParcels:
@@ -92,7 +96,7 @@ class LandsParcels:
                 continue
 
             size_element = metric_info.find("./Area/Size")
-            size = parse_float(size_element.text, default=None) if size_element is not None else None
+            parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = metric_info.find("Externals")
 
@@ -176,7 +180,7 @@ class LandsParcels:
             land_parcel_info = lands_parcel.getparent()
             object_id_text = str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
             size_element = lands_parcel.find("./Area/Size")
-            size = parse_float(size_element.text, default=None) if size_element is not None else None
+            parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = lands_parcel.find(".//Externals")
             if externals_element is None:

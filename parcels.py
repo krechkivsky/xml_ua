@@ -1,19 +1,19 @@
 
 
 import os
+
 from qgis.core import (
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
-    QgsPolygon,
     QgsLineString,
     QgsPointXY,
-    QgsWkbTypes,
-    QgsProject
+    QgsPolygon,
+    QgsProject,
+    QgsVectorLayer,
 )
+
+from .common import ensure_object_layer_fields, log_msg, logFile
 from .data_models import ShapeInfo  # noqa
-from .common import ensure_object_layer_fields, logFile, log_msg
 
 
 class CadastralParcel:
@@ -60,9 +60,9 @@ class CadastralParcel:
 
         parcel_metric_info = self.root.find(".//ParcelMetricInfo")
         if parcel_metric_info is not None:
-            parcel_id = parcel_metric_info.findtext("ParcelID")
+            parcel_metric_info.findtext("ParcelID")
             area_element = parcel_metric_info.find("./Area/Size")
-            area = float(
+            float(
                 area_element.text) if area_element is not None and area_element.text else None
 
             externals_element = parcel_metric_info.find(".//Externals")
@@ -119,7 +119,7 @@ class CadastralParcel:
             provider.addFeature(feature)
 
         QgsProject.instance().addMapLayer(self.layer, False)
-        layer_node = self.group.addLayer(self.layer)
+        self.group.addLayer(self.layer)
         if hasattr(self, 'xml_ua_layers'):
             self.xml_ua_layers.last_to_first(self.group)
 

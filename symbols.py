@@ -2,22 +2,21 @@ import os
 from typing import Optional
 
 from qgis.core import (
-    QgsFillSymbol,
-    QgsLineSymbol,
-    QgsLinePatternFillSymbolLayer,
     QgsApplication,
+    QgsFillSymbol,
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
     QgsLayoutItemLabel,
     QgsLayoutItemPicture,
     QgsLayoutItemShape,
     QgsLayoutPoint,
     QgsLayoutSize,
+    QgsLinePatternFillSymbolLayer,
+    QgsLineSymbol,
     QgsUnitTypes,
-    QgsLayerTreeGroup,
-    QgsLayerTreeLayer,
 )
-
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtGui import QFont, QColor
+from qgis.PyQt.QtGui import QColor, QFont
 
 
 class Symbols:

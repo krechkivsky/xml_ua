@@ -1,14 +1,14 @@
 
 
 import os
+
 from qgis.core import (
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
+    QgsField,
     QgsGeometry,
     QgsPointXY,
     QgsProject,
-    QgsLayerTreeLayer
+    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
@@ -144,7 +144,7 @@ class Points:
             provider.addFeature(feature)
 
         QgsProject.instance().addMapLayer(self.layer, False)
-        layer_node = self.group.addLayer(self.layer)
+        self.group.addLayer(self.layer)
         if hasattr(self, 'xml_ua_layers'):
             self.xml_ua_layers.last_to_first(self.group)
 

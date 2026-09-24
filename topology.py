@@ -4,10 +4,16 @@
 Модуль для обробки та унікалізації геометричних даних в XML.
 """
 import math
-from lxml import etree as etree
-from qgis.core import QgsGeometry, QgsPolygon, QgsMultiPolygon, QgsWkbTypes, QgsPointXY
 
-from .common import log_calls, log_calls, logFile, insert_element_in_order, next_object_id_in_container
+from lxml import etree as etree
+from qgis.core import QgsGeometry, QgsMultiPolygon, QgsPointXY, QgsPolygon, QgsWkbTypes
+
+from .common import (
+    insert_element_in_order,
+    log_calls,
+    logFile,
+    next_object_id_in_container,
+)
 
 
 class GeometryProcessor:
@@ -591,9 +597,9 @@ class GeometryProcessor:
 
             return ""
 
-        parent_tag = lines_container.getparent(
+        lines_container.getparent(
         ).tag if lines_container.getparent() is not None else "N/A"
-        ulids_in_container = [line.findtext('ULID') for line in lines_container.findall(
+        [line.findtext('ULID') for line in lines_container.findall(
             'Line') if line.findtext('ULID') is not None]
 
         if lines_container is None:

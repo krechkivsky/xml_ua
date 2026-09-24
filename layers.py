@@ -3,31 +3,23 @@
 import os
 import xml.etree.ElementTree as ET
 
-from qgis.PyQt.QtWidgets import QMessageBox
+from lxml import etree as ET
+from qgis.core import QgsLayerTreeLayer, QgsPointXY, QgsProject
+from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox
 from qgis.utils import iface
 
-
-from qgis.core import QgsProject
-from qgis.core import QgsLayerTreeLayer
-from qgis.core import QgsPointXY
-from qgis.PyQt.QtWidgets import QInputDialog
-
-from lxml import etree as ET
-
-from .common import logFile
-from .common import log_msg
-from .data_models import xml_data
-from .points import Points
+from .adjacents import AdjacentUnits
+from .common import log_msg, logFile
 from .control_point import ControlPoint
-from .lines import PLs
-from .zone import CadastralZoneInfo
-from .quarters import CadastralQuarters
-from .parcels import CadastralParcel
 from .lands import LandsParcels
 from .leases import Leases
-from .subleases import Subleases
+from .lines import PLs
+from .parcels import CadastralParcel
+from .points import Points
+from .quarters import CadastralQuarters
 from .restrictions import Restrictions
-from .adjacents import AdjacentUnits
+from .subleases import Subleases
+from .zone import CadastralZoneInfo
 
 
 class xmlUaLayers:

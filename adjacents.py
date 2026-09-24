@@ -1,20 +1,20 @@
 
 
 import os
+
 from qgis.core import (
     Qgis,
-    QgsWkbTypes,
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
     QgsLineString,
     QgsPointXY,
-    QgsProject
+    QgsProject,
+    QgsVectorLayer,
 )
 from qgis.utils import iface
-from .data_models import ShapeInfo  # noqa
+
 from .common import ensure_object_layer_fields, log_msg, logFile
+from .data_models import ShapeInfo  # noqa
 
 
 class AdjacentUnits:

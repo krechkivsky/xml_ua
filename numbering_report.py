@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-
 ULID_REF_XPATH = (
     ".//Externals/Boundary/Lines/Line/ULID | "
     ".//Internals/Boundary/Lines/Line/ULID | "

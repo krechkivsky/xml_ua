@@ -1,5 +1,5 @@
-from qgis.gui import QgsLayerTreeViewMenuProvider
 from qgis.core import QgsLayerTreeLayer
+from qgis.gui import QgsLayerTreeViewMenuProvider
 from qgis.PyQt.QtWidgets import QAction, QMenu
 from qgis.utils import iface as qgis_iface
 

@@ -15,42 +15,38 @@ plan_layout.py
 Версія: 2026-02-09 (scale-choice + overlay labels)
 """
 
+import configparser
 import math
 import os
-import configparser
 from typing import Dict, Optional, Tuple
 
 from qgis.core import (
-    QgsProject,
-    QgsPrintLayout,
-    QgsLayoutItemMap,
-    QgsLayoutItemLabel,
-    QgsLayoutItemShape,
-    QgsLayoutSize,
-    QgsLayoutPoint,
-    QgsUnitTypes,
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsFillSymbol,
     QgsLayerTreeGroup,
     QgsLayerTreeLayer,
-    QgsFillSymbol,
+    QgsLayoutItemLabel,
+    QgsLayoutItemMap,
+    QgsLayoutItemShape,
+    QgsLayoutPoint,
+    QgsLayoutSize,
+    QgsPrintLayout,
+    QgsProject,
     QgsRectangle,
-    Qgis,
-    QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform
+    QgsUnitTypes,
 )
-
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtGui import QFont
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtGui import QFontMetricsF
-from qgis.PyQt.QtWidgets import QApplication
+from qgis.PyQt.QtGui import QFont, QFontMetricsF
+from qgis.PyQt.QtWidgets import QApplication, QMessageBox
 
-from .common import PARCEL_MARGIN_FACTOR, log_calls, log_msg, logFile
-from .symbols import Symbols
 from .cases import to_genitive
+from .common import PARCEL_MARGIN_FACTOR, log_calls, log_msg, logFile
 from .lands_explication import LandsExplicationTable
-from .restrictions_parts import RestrictionsPartsTable
 from .leases_parts import LeasesPartsTable
+from .restrictions_parts import RestrictionsPartsTable
 from .subleases_parts import SubleasesPartsTable
+from .symbols import Symbols
 
 LOG = True
 

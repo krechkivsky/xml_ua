@@ -1,22 +1,21 @@
 
 
 import os
+
 from qgis.core import (
     Qgis,
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
-    QgsPolygon,
     QgsLineString,
     QgsPointXY,
-    QgsWkbTypes,
-    QgsProject
+    QgsPolygon,
+    QgsProject,
+    QgsVectorLayer,
 )
 from qgis.utils import iface
+
+from .common import ensure_object_layer_fields, log_msg, logFile
 from .data_models import ShapeInfo  # noqa
-from .common import ensure_object_layer_fields, log_msg
-from .common import logFile
 
 
 class Restrictions:
@@ -71,11 +70,11 @@ class Restrictions:
             return
 
         for restriction in restrictions_parent.findall(".//RestrictionInfo"):
-            restriction_code = restriction.findtext(".//RestrictionCode")
-            restriction_name = restriction.findtext(".//RestrictionName")
-            start_date = restriction.findtext(
+            restriction.findtext(".//RestrictionCode")
+            restriction.findtext(".//RestrictionName")
+            restriction.findtext(
                 ".//RestrictionTerm/Time/StartDate")
-            expiration_date = restriction.findtext(
+            restriction.findtext(
                 ".//RestrictionTerm/Time/ExpirationDate")
 
             object_id_text = str(restriction.get("object_id") or "").strip()
@@ -144,11 +143,11 @@ class Restrictions:
         next_object_id = 1
 
         for restriction in restrictions_parent.findall(".//RestrictionInfo"):
-            restriction_code = restriction.findtext(".//RestrictionCode")
-            restriction_name = restriction.findtext(".//RestrictionName")
-            start_date = restriction.findtext(
+            restriction.findtext(".//RestrictionCode")
+            restriction.findtext(".//RestrictionName")
+            restriction.findtext(
                 ".//RestrictionTerm/Time/StartDate")
-            expiration_date = restriction.findtext(
+            restriction.findtext(
                 ".//RestrictionTerm/Time/ExpirationDate")
 
             object_id_text = str(restriction.get("object_id") or "").strip()

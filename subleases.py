@@ -1,20 +1,19 @@
 
 
 import os
+
 from qgis.core import (
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
-    QgsPolygon,
     QgsLineString,
     QgsPointXY,
-    QgsWkbTypes,
-    QgsProject
+    QgsPolygon,
+    QgsProject,
+    QgsVectorLayer,
 )
+
+from .common import ensure_object_layer_fields, log_msg, logFile
 from .data_models import ShapeInfo  # noqa
-from .common import logFile
-from .common import ensure_object_layer_fields, log_msg
 
 
 class Subleases:
@@ -64,10 +63,10 @@ class Subleases:
 
         for sublease in subleases_parent.findall(".//SubleaseInfo"):
             object_id_text = str(sublease.get("object_id") or "").strip()
-            registration_date = sublease.findtext(
+            sublease.findtext(
                 ".//SubleaseInfo/RegistrationDate")
             area_element = sublease.find(".//SubleaseInfo/Area")
-            area = float(
+            float(
                 area_element.text) if area_element is not None and area_element.text else None
 
             externals_lines = sublease.find(".//Externals/Boundary/Lines")
@@ -125,7 +124,7 @@ class Subleases:
         next_object_id = 1
 
         for sublease in subleases_parent.findall(".//SubleaseInfo"):
-            registration_date = sublease.findtext(
+            sublease.findtext(
                 ".//SubleaseInfo/RegistrationDate")
 
             try:
@@ -137,7 +136,7 @@ class Subleases:
                 processor = None
 
             area_element = sublease.find(".//SubleaseInfo/Area")
-            area = float(
+            float(
                 area_element.text) if area_element is not None and area_element.text else 0.0
 
             externals_element = sublease.find(".//Externals")

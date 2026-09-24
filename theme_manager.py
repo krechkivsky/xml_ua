@@ -1,8 +1,9 @@
 
 
 import os
-from qgis.core import QgsProject
 from collections import namedtuple
+
+from qgis.core import QgsProject
 
 Theme = namedtuple("Theme", ["name", "styles"])
 

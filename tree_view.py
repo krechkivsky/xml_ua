@@ -3,34 +3,38 @@
 """Обробка XML дерева"""
 
 import configparser
-import re
-
 import os
+import re
 import uuid
+
 from lxml import etree
+from qgis.PyQt.QtCore import QDate, QModelIndex, Qt, pyqtSignal
+from qgis.PyQt.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import (
+    QAbstractItemView,
+    QAction,
+    QDialog,
+    QInputDialog,
+    QMenu,
+    QMessageBox,
+    QStyle,
+    QTreeView,
+)
 
-from qgis.PyQt.QtWidgets import QMenu
-from qgis.PyQt.QtWidgets import QAction
-from qgis.PyQt.QtWidgets import QDialog
-from qgis.PyQt.QtWidgets import QInputDialog
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtWidgets import QStyle
-from qgis.PyQt.QtWidgets import QTreeView
-from qgis.PyQt.QtWidgets import QAbstractItemView
-from qgis.PyQt.QtGui import QStandardItem
-from qgis.PyQt.QtGui import QBrush, QColor
-from qgis.PyQt.QtGui import QStandardItemModel
-from qgis.PyQt.QtCore import QDate, QModelIndex
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtCore import pyqtSignal
-
-from .common import logFile
-from .common import log_msg
-from .common import config
-from .common import connector
+from .common import config, connector, log_calls, log_msg, logFile
 from .date_dialog import DateInputDialog
+from .delegates import (
+    CategoryDelegate,
+    ClosedDelegate,
+    DispatcherDelegate,
+    DocumentationTypeDelegate,
+    DocumentCodeDelegate,
+    LandCodeDelegate,
+    OwnershipCodeDelegate,
+    PurposeDelegate,
+    StateActTypeDelegate,
+)
 from .validators import validate_element
-from .delegates import StateActTypeDelegate, CategoryDelegate, PurposeDelegate, OwnershipCodeDelegate, DocumentCodeDelegate, DispatcherDelegate, DocumentationTypeDelegate, LandCodeDelegate, ClosedDelegate
 
 CONTAINER_TAGS_TO_DELETE_LAYER = [
     "Leases", "Subleases", "Restrictions", "LandsParcel", "AdjacentUnits"
@@ -189,10 +193,10 @@ class CustomTreeView(QTreeView):
 
             name_item_index = index.sibling(index.row(), 0)
 
-            full_path = self.model.data(name_item_index, Qt.UserRole)
-            xml_element = self.model.data(name_item_index, Qt.UserRole + 10)
+            full_path = self.model.data(name_item_index, Qt.ItemDataRole.UserRole)
+            xml_element = self.model.data(name_item_index, Qt.ItemDataRole.UserRole + 10)
 
-            value = self.model.data(index, Qt.EditRole)
+            value = self.model.data(index, Qt.ItemDataRole.EditRole)
 
             if not full_path:
                 log_msg(
@@ -298,7 +302,7 @@ class CustomTreeView(QTreeView):
         select_code_action.triggered.connect(
             lambda: self.select_restriction_code(item))
         menu.addAction(select_code_action)
-        menu.exec_(self.viewport().mapToGlobal(point))
+        menu.exec(self.viewport().mapToGlobal(point))
 
     def get_key_item_path(self, item):
         """Отримує шлях до елемента в дереві"""
@@ -435,13 +439,13 @@ class CustomTreeView(QTreeView):
 
             menu.addSeparator()
 
-            menu.exec_(self.viewport().mapToGlobal(point))
+            menu.exec(self.viewport().mapToGlobal(point))
             return
 
         item = self.model.itemFromIndex(index)
         parent_item = item.parent()  # Визначаємо parent_item тут
 
-        full_item_path = item.data(Qt.UserRole)
+        full_item_path = item.data(Qt.ItemDataRole.UserRole)
 
         schema_item_path = re.sub(
             r'\[\d+\]', '', full_item_path) if full_item_path else ""
@@ -467,7 +471,7 @@ class CustomTreeView(QTreeView):
                     has_actions = True
 
             if has_actions:
-                menu.exec_(self.viewport().mapToGlobal(point))
+                menu.exec(self.viewport().mapToGlobal(point))
                 return
 
         height_system_path = "UkrainianCadastralExchangeFile/InfoPart/MetricInfo/HeightSystem"
@@ -488,7 +492,7 @@ class CustomTreeView(QTreeView):
                     has_actions = True
 
             if has_actions:
-                menu.exec_(self.viewport().mapToGlobal(point))
+                menu.exec(self.viewport().mapToGlobal(point))
                 return
 
         measurement_unit_path = "UkrainianCadastralExchangeFile/InfoPart/MetricInfo/MeasurementUnit"
@@ -509,7 +513,7 @@ class CustomTreeView(QTreeView):
                     has_actions = True
 
             if has_actions:
-                menu.exec_(self.viewport().mapToGlobal(point))
+                menu.exec(self.viewport().mapToGlobal(point))
                 return
 
         parcel_location_path = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelLocation"
@@ -530,7 +534,7 @@ class CustomTreeView(QTreeView):
                     has_actions = True
 
             if has_actions:
-                menu.exec_(self.viewport().mapToGlobal(point))
+                menu.exec(self.viewport().mapToGlobal(point))
                 return
 
         if schema_item_path in self.xsd_schema:
@@ -602,11 +606,11 @@ class CustomTreeView(QTreeView):
             has_actions = True
 
         if has_actions:
-            menu.exec_(self.viewport().mapToGlobal(point))
+            menu.exec(self.viewport().mapToGlobal(point))
 
     def invert_lines_for_adjacent(self, item):
         """Інвертує порядок ліній у елементі AdjacentUnitInfo."""
-        full_item_path = item.data(Qt.UserRole)
+        full_item_path = item.data(Qt.ItemDataRole.UserRole)
         xml_element = self._find_xml_element_by_path(full_item_path)
 
         if xml_element is not None:
@@ -656,7 +660,7 @@ class CustomTreeView(QTreeView):
             item = self.model.itemFromIndex(index)
             if item:
 
-                path = item.data(Qt.UserRole)
+                path = item.data(Qt.ItemDataRole.UserRole)
                 if path:
                     expanded_list.append(path)
 
@@ -677,7 +681,7 @@ class CustomTreeView(QTreeView):
                 index = self.model.index(row, 0, parent_index)
                 item = self.model.itemFromIndex(index)
                 if item:
-                    path = item.data(Qt.UserRole)
+                    path = item.data(Qt.ItemDataRole.UserRole)
                     if path in expanded_list:
                         self.expand(index)
 
@@ -699,7 +703,7 @@ class CustomTreeView(QTreeView):
                 name_item = parent_item.child(row, 0)
                 value_item = parent_item.child(row, 1)
                 if name_item and value_item:
-                    full_path = name_item.data(Qt.UserRole)
+                    full_path = name_item.data(Qt.ItemDataRole.UserRole)
                     if full_path:
 
                         xml_element = self._find_xml_element_by_path(full_path)
@@ -730,7 +734,7 @@ class CustomTreeView(QTreeView):
         dialog1.setLabelText("Виберіть розділ:")
         dialog1.setComboBoxItems(main_code_display_names)
         dialog1.setWindowTitle("Вибір розділу обмеження")
-        ok = dialog1.exec_()
+        ok = dialog1.exec()
         main_code_selection = dialog1.textValue()
 
         if not ok or not main_code_selection:
@@ -764,7 +768,7 @@ class CustomTreeView(QTreeView):
                 dialog2.setLabelText("Виберіть код:")
                 dialog2.setComboBoxItems(sub_code_display_names)
                 dialog2.setWindowTitle("Уточнення коду обмеження")
-                ok = dialog2.exec_()
+                ok = dialog2.exec()
                 sub_code_selection = dialog2.textValue()
 
                 if ok and sub_code_selection:
@@ -781,7 +785,7 @@ class CustomTreeView(QTreeView):
 
         item.setText(selected_code)
         try:
-            item.setData(selected_code, Qt.EditRole)
+            item.setData(selected_code, Qt.ItemDataRole.EditRole)
         except Exception:
             pass
         try:
@@ -797,7 +801,7 @@ class CustomTreeView(QTreeView):
 
                 for row in range(restriction_info_item.rowCount()):
                     child_name_item = restriction_info_item.child(row, 0)
-                    if child_name_item and child_name_item.text() == self.xsd_appinfo.get(f"{restriction_info_item.data(Qt.UserRole)}/RestrictionName", "RestrictionName"):
+                    if child_name_item and child_name_item.text() == self.xsd_appinfo.get(f"{restriction_info_item.data(Qt.ItemDataRole.UserRole)}/RestrictionName", "RestrictionName"):
 
                         restriction_name_value_item = restriction_info_item.child(
                             row, 1)
@@ -819,7 +823,7 @@ class CustomTreeView(QTreeView):
         if not item:
             return False
 
-        full_item_path = item.data(Qt.UserRole)
+        full_item_path = item.data(Qt.ItemDataRole.UserRole)
         schema_item_path = re.sub(
             r'\[\d+\]', '', full_item_path) if full_item_path else ""
 
@@ -897,7 +901,7 @@ class CustomTreeView(QTreeView):
         items = [(k, categories[k]) for k in sorted(categories.keys(), key=_key_sort)]
         display_names = [v for _, v in items]
 
-        current_code = self.model.data(index, Qt.EditRole)
+        current_code = self.model.data(index, Qt.ItemDataRole.EditRole)
         current_name = categories.get(str(current_code), "")
         default_idx = 0
         if current_name:
@@ -932,7 +936,7 @@ class CustomTreeView(QTreeView):
             return
 
 
-        self.model.setData(index, str(selected_code), Qt.EditRole)
+        self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
         try:
             it = self.model.itemFromIndex(index)
             if it:
@@ -998,7 +1002,7 @@ class CustomTreeView(QTreeView):
         for k, v in filtered:
             sub_reverse.setdefault(v, k)
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         default_idx = 0
         if current_code:
             for i, (k, _) in enumerate(filtered):
@@ -1021,7 +1025,7 @@ class CustomTreeView(QTreeView):
         if not sub_code:
             return
 
-        self.model.setData(index, str(sub_code), Qt.EditRole)
+        self.model.setData(index, str(sub_code), Qt.ItemDataRole.EditRole)
         try:
             it = self.model.itemFromIndex(index)
             if it:
@@ -1052,7 +1056,7 @@ class CustomTreeView(QTreeView):
         items = [(k, forms[k]) for k in sorted(forms.keys(), key=_key_sort)]
         names = [v for _, v in items]
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         default_idx = 0
         if current_code:
             current_name = forms.get(current_code, "")
@@ -1086,7 +1090,7 @@ class CustomTreeView(QTreeView):
         if not code:
             return
 
-        self.model.setData(index, str(code), Qt.EditRole)
+        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
         try:
             it = self.model.itemFromIndex(index)
             if it:
@@ -1118,7 +1122,7 @@ class CustomTreeView(QTreeView):
         items = [(k, doc_types[k]) for k in sorted(doc_types.keys(), key=_key_sort)]
         names = [v for _, v in items]
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         default_idx = 0
         if current_code:
             current_name = doc_types.get(current_code, "")
@@ -1152,7 +1156,7 @@ class CustomTreeView(QTreeView):
         if not code:
             return
 
-        self.model.setData(index, str(code), Qt.EditRole)
+        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
         try:
             it = self.model.itemFromIndex(index)
             if it:
@@ -1185,7 +1189,7 @@ class CustomTreeView(QTreeView):
 
         display_items = [f"{code} - {name}" for code, name in items]
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         default_idx = 0
         if current_code:
             for i, (code, _) in enumerate(items):
@@ -1215,12 +1219,12 @@ class CustomTreeView(QTreeView):
             if it:
                 it.setText(str(friendly) if friendly else str(selection))
                 it.setToolTip(str(friendly) if friendly else str(selection))
-                it.setData(str(selected_code), Qt.EditRole)
+                it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
         except Exception:
             pass
 
-        self.model.setData(index, str(selected_code), Qt.EditRole)
+        self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
 
     def handle_land_parcel_land_code_edit(self, index: QModelIndex):
         """
@@ -1245,7 +1249,7 @@ class CustomTreeView(QTreeView):
         items = [(k, land_codes[k]) for k in sorted(land_codes.keys(), key=_key_sort)]
         names = [v for _, v in items]
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         current_name = land_codes.get(current_code, "")
         default_idx = 0
         if current_name:
@@ -1279,12 +1283,12 @@ class CustomTreeView(QTreeView):
             if it:
                 it.setText(str(selected_code))
                 it.setToolTip(str(selection))
-                it.setData(str(selected_code), Qt.EditRole)
+                it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
         except Exception:
             pass
 
-        self.model.setData(index, str(selected_code), Qt.EditRole)
+        self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
 
     def handle_state_act_type_edit(self, index: QModelIndex):
         """
@@ -1316,7 +1320,7 @@ class CustomTreeView(QTreeView):
         items = [(k, state_act_types[k]) for k in sorted(state_act_types.keys(), key=_key_sort)]
         names = [v for _, v in items]
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         current_name = state_act_types.get(current_code, "")
         default_idx = 0
         if current_name:
@@ -1349,12 +1353,12 @@ class CustomTreeView(QTreeView):
             if it:
                 it.setText(str(selected_code))
                 it.setToolTip(str(selection))
-                it.setData(str(selected_code), Qt.EditRole)
+                it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
         except Exception:
             pass
 
-        self.model.setData(index, str(selected_code), Qt.EditRole)
+        self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
 
     def handle_reason_act_doc_edit(self, index: QModelIndex):
         """
@@ -1378,7 +1382,7 @@ class CustomTreeView(QTreeView):
         items.sort(key=lambda kv: kv[0])
         names = [v for _, v in items]
 
-        current_code = str(self.model.data(index, Qt.EditRole) or "").strip()
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
         current_name = reasons.get(current_code, "")
         default_idx = 0
         if current_name:
@@ -1411,12 +1415,12 @@ class CustomTreeView(QTreeView):
             if it:
                 it.setText(str(selected_code))
                 it.setToolTip(str(selection))
-                it.setData(str(selected_code), Qt.EditRole)
+                it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
         except Exception:
             pass
 
-        self.model.setData(index, str(selected_code), Qt.EditRole)
+        self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
 
     def on_documentation_type_changed(self, doc_type_code, index):
         """Слот, який реагує на зміну типу документації та оновлює список документів."""
@@ -1431,7 +1435,7 @@ class CustomTreeView(QTreeView):
 
         dialog = DateInputDialog(default_date=default_date, parent=self)
 
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             new_date_str = dialog.get_date()
 
             if new_date_str != current_value:
@@ -1483,7 +1487,7 @@ class CustomTreeView(QTreeView):
     def add_child_element(self, parent_item, child_tag):
         """Додає дочірній елемент в XML та в дерево GUI."""
 
-        parent_path = parent_item.data(Qt.UserRole)
+        parent_path = parent_item.data(Qt.ItemDataRole.UserRole)
         schema_parent_path = re.sub(
             r'\[\d+\]', '', parent_path) if parent_path else ""
 
@@ -1497,7 +1501,7 @@ class CustomTreeView(QTreeView):
 
     def handle_add_choice_element(self, parent_item, schema):
         """Показує діалог для вибору та додавання елемента з xsd:choice."""
-        parent_path = parent_item.data(Qt.UserRole)
+        parent_path = parent_item.data(Qt.ItemDataRole.UserRole)
         schema_parent_path = re.sub(
             r'\[\d+\]', '', parent_path) if parent_path else ""
 
@@ -1549,7 +1553,7 @@ class CustomTreeView(QTreeView):
 
     def delete_element(self, item):
         """Видаляє елемент з XML та з дерева GUI."""
-        item_path = item.data(Qt.UserRole)
+        item_path = item.data(Qt.ItemDataRole.UserRole)
         xml_element_to_delete = self._find_xml_element_by_path(item_path)
 
         if xml_element_to_delete is None:
@@ -1571,7 +1575,6 @@ class CustomTreeView(QTreeView):
 
             return
 
-        is_mandatory_single_element = False
         schema_parent_path = re.sub(
             r'\[\d+\]', '', item_path.rsplit('/', 1)[0]) if '/' in item_path else ""
         if schema_parent_path in self.xsd_schema:
@@ -1591,7 +1594,7 @@ class CustomTreeView(QTreeView):
                                 logFile, f"Видалення обов'язкового елемента '{item.text()}' скасовано користувачем.")
                             return  # Скасовуємо видалення
                         else:
-                            is_mandatory_single_element = True  # Продовжуємо, якщо користувач погодився
+                            pass  # Продовжуємо, якщо користувач погодився
                     break
 
         if item_tag in CONTAINER_TAGS_TO_DELETE_LAYER:
@@ -1771,7 +1774,7 @@ class CustomTreeView(QTreeView):
             if item is None:
                 return
 
-            item_full_path = item.data(Qt.UserRole)
+            item_full_path = item.data(Qt.ItemDataRole.UserRole)
             if item_full_path:
 
                 tag_match = re.match(
@@ -1802,10 +1805,10 @@ class CustomTreeView(QTreeView):
         if index.column() == 1:
 
             name_item_index = index.sibling(index.row(), 0)
-            path = self.model.data(name_item_index, Qt.UserRole)
+            path = self.model.data(name_item_index, Qt.ItemDataRole.UserRole)
         else:
 
-            path = self.model.data(index, Qt.UserRole)
+            path = self.model.data(index, Qt.ItemDataRole.UserRole)
         return path if path else ""
 
     def validate_full_name(self, full_name):
@@ -2099,7 +2102,7 @@ class CustomTreeView(QTreeView):
         item_LocalAuthorityHead_child_0 = item_LocalAuthorityHead.child(0)
         pathLastName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/LocalAuthorityHead/LastName"
 
-        index_LocalAuthorityHead_child_0 = self.find_element_index(
+        self.find_element_index(
             pathLastName)
 
         item_LocalAuthorityHead_child_0.parent().child(item_LocalAuthorityHead_child_0.row(),
@@ -2109,7 +2112,7 @@ class CustomTreeView(QTreeView):
         item_LocalAuthorityHead_child_1 = item_LocalAuthorityHead.child(1)
         pathFirstName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/LocalAuthorityHead/FirstName"
 
-        index_LocalAuthorityHead_child_1 = self.find_element_index(
+        self.find_element_index(
             pathFirstName)
 
         item_LocalAuthorityHead_child_1.parent().child(
@@ -2118,7 +2121,7 @@ class CustomTreeView(QTreeView):
         item_LocalAuthorityHead_child_2 = item_LocalAuthorityHead.child(2)
         pathMiddleName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/LocalAuthorityHead/MiddleName"
 
-        index_LocalAuthorityHead_child_2 = self.find_element_index(
+        self.find_element_index(
             pathMiddleName)
 
         item_LocalAuthorityHead_child_2.parent().child(
@@ -2151,7 +2154,7 @@ class CustomTreeView(QTreeView):
         item_DKZRHead_child_0 = item_DKZRHead.child(0)
         pathLastName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/DKZRHead/LastName"
 
-        index_DKZRHead_child_0 = self.find_element_index(pathLastName)
+        self.find_element_index(pathLastName)
 
         item_DKZRHead_child_0.parent().child(item_DKZRHead_child_0.row(),
 
@@ -2160,14 +2163,14 @@ class CustomTreeView(QTreeView):
         item_DKZRHead_child_1 = item_DKZRHead.child(1)
         pathFirstName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/DKZRHead/FirstName"
 
-        index_DKZRHead_child_1 = self.find_element_index(pathFirstName)
+        self.find_element_index(pathFirstName)
 
         item_DKZRHead_child_1.parent().child(item_DKZRHead_child_1.row(), 1).setText(name)
 
         item_DKZRHead_child_2 = item_DKZRHead.child(2)
         pathMiddleName = "UkrainianCadastralExchangeFile/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/RegionalContacts/DKZRHead/MiddleName"
 
-        index_DKZRHead_child_2 = self.find_element_index(pathMiddleName)
+        self.find_element_index(pathMiddleName)
 
         item_DKZRHead_child_2.parent().child(
             item_DKZRHead_child_2.row(), 1).setText(MiddleName)
@@ -2348,14 +2351,14 @@ class CustomTreeView(QTreeView):
         value_item = QStandardItem(
             element.text.strip() if element.text else "")
 
-        name_item.setData(full_path, Qt.UserRole)
-        value_item.setData(full_path, Qt.UserRole)
+        name_item.setData(full_path, Qt.ItemDataRole.UserRole)
+        value_item.setData(full_path, Qt.ItemDataRole.UserRole)
 
         self.tree_row += 1
-        name_item.setData(self.tree_row, Qt.UserRole + 1)
-        value_item.setData(self.tree_row, Qt.UserRole + 1)
-        name_item.setData(0, Qt.UserRole + 2)
-        value_item.setData(1, Qt.UserRole + 2)
+        name_item.setData(self.tree_row, Qt.ItemDataRole.UserRole + 1)
+        value_item.setData(self.tree_row, Qt.ItemDataRole.UserRole + 1)
+        name_item.setData(0, Qt.ItemDataRole.UserRole + 2)
+        value_item.setData(1, Qt.ItemDataRole.UserRole + 2)
 
         description = self.xsd_descriptions.get(full_path, "")
         if description:
@@ -2391,6 +2394,8 @@ class CustomTreeView(QTreeView):
             Exception: If there is an error loading or parsing the XML file.
         """
 
+        log_calls(logFile, f"xml_path={xml_path}\ntree={tree}")
+
         self.tree_row = 0
         try:
 
@@ -2405,7 +2410,8 @@ class CustomTreeView(QTreeView):
             self.model.removeRows(0, self.model.rowCount())
 
             root = self.xml_tree.getroot()
-
+            # pass
+        
             def build_tree(xml_node, parent_qt_item, parent_full_path="", parent_schema_path=""):
 
                 preceding_siblings = xml_node.xpath(
@@ -2446,8 +2452,8 @@ class CustomTreeView(QTreeView):
 
         name_item = QStandardItem(display_name)
         name_item.setEditable(False)
-        name_item.setData(full_path, Qt.UserRole)
-        name_item.setData(element, Qt.UserRole + 10)
+        name_item.setData(full_path, Qt.ItemDataRole.UserRole)
+        name_item.setData(element, Qt.ItemDataRole.UserRole + 10)
         if description:
             name_item.setToolTip(description)
 
@@ -2457,7 +2463,7 @@ class CustomTreeView(QTreeView):
         is_purpose = schema_path.endswith("/CategoryPurposeInfo/Purpose")
         is_ownership_code = schema_path.endswith("/OwnershipInfo/Code")
         is_restriction_code = schema_path.endswith("/RestrictionInfo/RestrictionCode")
-        is_doc_code = self.doc_code_delegate._is_target_element(
+        self.doc_code_delegate._is_target_element(
             name_item.index())
         is_doc_type = self.doc_type_delegate._is_target_element(
             name_item.index())
@@ -2477,7 +2483,7 @@ class CustomTreeView(QTreeView):
         value_item = QStandardItem(value_text)
         if schema_path.endswith("DocumentList"):
             try:
-                value_item.setData(raw_value_text, Qt.EditRole)
+                value_item.setData(raw_value_text, Qt.ItemDataRole.EditRole)
             except Exception:
                 pass
 
@@ -2487,8 +2493,8 @@ class CustomTreeView(QTreeView):
         else:
             value_item.setEditable(is_leaf)
 
-        value_item.setData(full_path, Qt.UserRole)
-        value_item.setData(element, Qt.UserRole + 10)
+        value_item.setData(full_path, Qt.ItemDataRole.UserRole)
+        value_item.setData(element, Qt.ItemDataRole.UserRole + 10)
         if description:
             value_item.setToolTip(description)
         if is_state_act_type:
@@ -2728,7 +2734,7 @@ class CustomTreeView(QTreeView):
 
         def clear_tooltips(item):
             """Рекурсивно очищує старі помилки з підказок."""
-            path = item.data(Qt.UserRole)
+            path = item.data(Qt.ItemDataRole.UserRole)
             if path in self.xsd_descriptions:
                 base_tooltip = self.xsd_descriptions[path]
                 item.setToolTip(base_tooltip)
@@ -2763,7 +2769,7 @@ class CustomTreeView(QTreeView):
             """
             Рекурсивна функція. Повертає True, якщо гілка валідна, інакше False.
             """
-            path = item.data(Qt.UserRole)
+            path = item.data(Qt.ItemDataRole.UserRole)
             xml_element = self._find_xml_element_by_path(path)
             direct_item_errors = []  # Помилки безпосередньо цього елемента
             child_errors = []  # Помилки, зібрані з дочірніх елементів
@@ -2780,7 +2786,7 @@ class CustomTreeView(QTreeView):
 
             is_self_valid = validate_element(xml_element, path)
             if not is_self_valid and generate_report:
-                ukr_path = self._generate_ukr_path(path)
+                self._generate_ukr_path(path)
 
                 ukr_name = item.text().rstrip(" ⋮↵")
                 value = xml_element.text if xml_element is not None else "N/A"
@@ -2792,7 +2798,7 @@ class CustomTreeView(QTreeView):
 
             is_structure_valid = True
 
-            ukr_path_for_structure = self._generate_ukr_path(path)
+            self._generate_ukr_path(path)
             if path in self.xsd_schema and xml_element is not None:
                 schema = self.xsd_schema[path]
                 if 'children' in schema:
@@ -2877,7 +2883,7 @@ class CustomTreeView(QTreeView):
 
     def _normalize_xpath_path(self, path_str):
         """
-        Нормалізує XPath до формату шляхів у Qt.UserRole: Tag[1]/Child[2]/...
+        Нормалізує XPath до формату шляхів у Qt.ItemDataRole.UserRole: Tag[1]/Child[2]/...
         """
         if not path_str:
             return ""
@@ -2925,7 +2931,7 @@ class CustomTreeView(QTreeView):
         items_iter = self._iter_name_items()
         if items_iter:
             for item in items_iter:
-                item_path = item.data(Qt.UserRole) or ""
+                item_path = item.data(Qt.ItemDataRole.UserRole) or ""
                 norm_item_path = self._normalize_xpath_path(item_path)
                 if norm_item_path:
                     normalized_to_item[norm_item_path] = item
@@ -2958,7 +2964,7 @@ class CustomTreeView(QTreeView):
         if value_item:
             value_item.setForeground(error_brush)
 
-        item_path = item.data(Qt.UserRole) or item.text()
+        item_path = item.data(Qt.ItemDataRole.UserRole) or item.text()
         self.validation_errors.setdefault(item_path, [])
         if error_message not in self.validation_errors[item_path]:
             self.validation_errors[item_path].append(error_message)
@@ -3116,7 +3122,7 @@ class CustomTreeView(QTreeView):
                     while stack:
                         curr = stack.pop()
                         curr.setForeground(default_brush)
-                        curr_path = curr.data(Qt.UserRole) or ""
+                        curr_path = curr.data(Qt.ItemDataRole.UserRole) or ""
                         schema_path = re.sub(r"\[\d+\]", "", curr_path)
                         base_tooltip = self.xsd_descriptions.get(schema_path, "")
                         curr.setToolTip(base_tooltip)
@@ -3146,7 +3152,7 @@ class CustomTreeView(QTreeView):
                 raw_message = str(getattr(err, "message", str(err)))
                 item = self._find_item_by_xpath_path(err_path)
 
-                item_path = item.data(Qt.UserRole) if item else ""
+                item_path = item.data(Qt.ItemDataRole.UserRole) if item else ""
                 schema_path = re.sub(r"\[\d+\]", "", item_path or "")
 
                 err_message = self._translate_xsd_error_message(raw_message, schema_path=schema_path)

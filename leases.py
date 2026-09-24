@@ -1,20 +1,19 @@
 
 
 import os
+
 from qgis.core import (
-    QgsVectorLayer,
-    QgsField,
     QgsFeature,
     QgsGeometry,
-    QgsPolygon,
     QgsLineString,
     QgsPointXY,
-    QgsWkbTypes,
-    QgsProject
+    QgsPolygon,
+    QgsProject,
+    QgsVectorLayer,
 )
+
+from .common import ensure_object_layer_fields, log_msg, logFile
 from .data_models import ShapeInfo  # noqa
-from .common import logFile
-from .common import ensure_object_layer_fields, log_msg
 
 
 class Leases:
@@ -64,12 +63,12 @@ class Leases:
 
         for lease in leases_parent.findall(".//LeaseInfo"):
             object_id_text = str(lease.get("object_id") or "").strip()
-            lease_duration = lease.findtext(
+            lease.findtext(
                 ".//LeaseAgreement/LeaseTerm/LeaseDuration")
-            registration_date = lease.findtext(
+            lease.findtext(
                 ".//LeaseAgreement/RegistrationDate")
             area_element = lease.find(".//LeaseAgreement/Area")
-            area = float(
+            float(
                 area_element.text) if area_element is not None and area_element.text else None
 
             externals_lines = lease.find(".//Externals/Boundary/Lines")
@@ -128,9 +127,9 @@ class Leases:
         next_object_id = 1
 
         for lease in leases_parent.findall(".//LeaseInfo"):
-            lease_duration = lease.findtext(
+            lease.findtext(
                 ".//LeaseAgreement/LeaseTerm/LeaseDuration")
-            registration_date = lease.findtext(
+            lease.findtext(
                 ".//LeaseAgreement/RegistrationDate")
 
             try:
@@ -142,7 +141,7 @@ class Leases:
                 processor = None
 
             area_element = lease.find(".//LeaseAgreement/Area")
-            area = float(
+            float(
                 area_element.text) if area_element is not None and area_element.text else None
 
             externals_element = lease.find(".//Externals")
@@ -245,9 +244,9 @@ class Leases:
         next_object_id = 1
 
         for lease in leases_parent.findall(".//LeaseInfo"):
-            lease_duration = lease.findtext(
+            lease.findtext(
                 ".//LeaseAgreement/LeaseTerm/LeaseDuration")
-            registration_date = lease.findtext(
+            lease.findtext(
                 ".//LeaseAgreement/RegistrationDate")
 
             try:
@@ -259,7 +258,7 @@ class Leases:
                 processor = None
 
             area_element = lease.find(".//LeaseAgreement/Area")
-            area = float(
+            float(
                 area_element.text) if area_element is not None and area_element.text else None
 
             externals_element = lease.find(".//Externals")

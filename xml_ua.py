@@ -24,51 +24,10 @@
 """
 
 
+import importlib.util
 import os
 import os.path
 import shutil
-import sys
-import importlib.util
-
-
-from qgis.core import Qgis
-from qgis.core import QgsGeometry
-from qgis.core import QgsFeature
-from qgis.core import QgsWkbTypes
-from qgis.core import QgsProject
-from qgis.core import QgsVectorLayer
-
-
-from qgis.core import QgsField
-from qgis.core import QgsPointXY
-from qgis.core import QgsFields
-from qgis.core import QgsLayerTreeGroup
-from qgis.core import QgsLayerTreeLayer
-from qgis.core import QgsApplication
-
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtCore import QSettings
-from qgis.PyQt.QtCore import QVariant
-from qgis.PyQt.QtCore import QTranslator
-from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtCore import QFileInfo
-from qgis.PyQt.QtCore import QUrl
-
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtGui import QDesktopServices
-from qgis.PyQt.QtGui import QKeySequence
-from qgis.PyQt.QtGui import QImage, QPixmap
-
-from qgis.PyQt.QtWidgets import QAction
-from qgis.PyQt.QtWidgets import QMenu
-from qgis.PyQt.QtWidgets import QToolBar
-from qgis.PyQt.QtWidgets import QToolButton
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtWidgets import QStyle
-from qgis.PyQt.QtWidgets import QInputDialog
-from qgis.PyQt.QtWidgets import QFileIconProvider
-
-from qgis.utils import iface
 
 from qgis.core import (
     Qgis,
@@ -85,6 +44,7 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import (
+    QCoreApplication,
     QFileInfo,
     QSettings,
     Qt,
@@ -99,10 +59,8 @@ from qgis.PyQt.QtGui import (
     QKeySequence,
     QPixmap,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
-    # QCoreApplication,
     QFileIconProvider,
     QInputDialog,
     QMenu,
@@ -112,21 +70,16 @@ from qgis.PyQt.QtWidgets import (
     QToolButton,
 )
 
+# from qgis.utils import iface 
 from . import resources  # noqa: F401
-
-
+from .boundary_agreement import BoundaryAgreementCreator
+from .common import PARCEL_MARGIN_FACTOR, connector, log_calls, logFile
 from .dockwidget import xml_uaDockWidget
-
-from .common import logFile, log_calls
-from .common import log_msg
-from .common import connector
-from .common import PARCEL_MARGIN_FACTOR
-from .new_xml import NewXmlCreator
 from .documents import DocumentGenerator
 from .layer_tree_menu_provider import XmlUaLayerTreeMenuProvider
+from .new_xml import NewXmlCreator
+from .plan_layout import MAP_SIDE_MM, PlanLayoutCreator, compute_map_scale
 from .topology import GeometryProcessor
-from .plan_layout import PlanLayoutCreator, compute_map_scale, MAP_SIDE_MM
-from .boundary_agreement import BoundaryAgreementCreator
 
 LOG = True
 
@@ -200,7 +153,7 @@ class xml_ua:
             QCoreApplication.installTranslator(self.translator)
 
         self.actions = []
-        self.menu = self.tr(u'&xml_ua')
+        self.menu = self.tr('&xml_ua')
         self.toolbar = None
         self.pluginIsActive = False
         self.dockwidget = None
@@ -225,7 +178,8 @@ class xml_ua:
             return True
         return str(value).strip().lower() in ("1", "true", "yes", "on")
 
-    def _apply_signal_log_setting(self, enabled: bool, persist: bool = True, notify: bool = False):
+    def _apply_signal_log_setting(
+            self, enabled: bool, persist: bool = True, notify: bool = False):
         global LOG
         was_enabled = self.signal_log_enabled
         self.signal_log_enabled = bool(enabled)
@@ -670,7 +624,7 @@ class xml_ua:
             bool: True, якщо шар належить до однієї з груп, інакше False.
         """
 
-        layer_name = layer.name()
+        layer.name()
 
         if not self.dockwidget or not hasattr(self.dockwidget, 'opened_xmls'):
             return False
@@ -703,7 +657,7 @@ class xml_ua:
         Returns:
             None
         """
-        log_msg(logFile, "Запуск плагіна.")
+        log_calls(logFile, "Запуск плагіна.")
 
         if not QgsProject.instance().fileName():
 
@@ -869,7 +823,7 @@ class xml_ua:
         - `tools_button.clicked`: при натисканні на головну іконку плагіна на панелі інструментів.
         """
 
-        found_dockwidget = self.iface.mainWindow().findChild(xml_uaDockWidget, "")
+        self.iface.mainWindow().findChild(xml_uaDockWidget, "")
         if self.dockwidget is None:
 
             self.dockwidget = xml_uaDockWidget(
@@ -976,6 +930,7 @@ class xml_ua:
         """Створює меню та панель інструментів після запуску QGIS."""
 
         self.create_toolbar_and_menu()
+        pass
 
         # Ensure custom SK-63 CRS definitions (templates/crs63cpt_wkt2.ini) are available in QGIS.
         try:
@@ -1062,7 +1017,6 @@ class xml_ua:
     def create_menu(self):
         """Створює меню плагіна."""
 
-        pass
 
     def create_toolbar_and_menu(self):
 
@@ -1376,7 +1330,7 @@ class xml_ua:
         if not parcel_node:
             parcel_node = _find_first_layer_node_by_name(xml_group, "Ділянка")
 
-        index = (xml_group.children().index(parcel_node)
+        (xml_group.children().index(parcel_node)
                  if parcel_node in xml_group.children()
                  else len(xml_group.children()) - 1)
 
@@ -1486,7 +1440,7 @@ class xml_ua:
             if not original_layer:
                 continue  # Skip if layer not found
 
-            geom_type = original_layer.geometryType()
+            original_layer.geometryType()
             geom_type_str = QgsWkbTypes.displayString(original_layer.wkbType())
             crs = original_layer.crs().authid()
             memory_layer = QgsVectorLayer(
@@ -1579,7 +1533,7 @@ class xml_ua:
 
 
         plan_creator = PlanLayoutCreator(self.iface, parent_group, QgsProject.instance(), plugin=self)
-        layout = plan_creator.create_layout(scale_value=scale_value, show_ruler=is_calculated_scale)
+        plan_creator.create_layout(scale_value=scale_value, show_ruler=is_calculated_scale)
 
     def on_boundary_agreement_clicked(self):
         """Handler for 'Акт погодження меж' menu action."""
@@ -1608,7 +1562,7 @@ class xml_ua:
                 break
 
         if not lines_layer:
-            log_msg(logFile, "Полілінії не знайдено — Вузли ділянки не створено")
+            log_calls(logFile, "Полілінії не знайдено — Вузли ділянки не створено")
             return
 
 
@@ -1631,7 +1585,7 @@ class xml_ua:
                     break
 
         if not nodes_layer:
-            log_msg(logFile, "Шар 'Вузли' не знайдено")
+            log_calls(logFile, "Шар 'Вузли' не знайдено")
             return
 
 
@@ -1647,7 +1601,7 @@ class xml_ua:
                 parcel_vertices.add((round(pt.x(), 6), round(pt.y(), 6)))
 
         if not parcel_vertices:
-            log_msg(logFile, "Не знайдено вершин полігона ділянки")
+            log_calls(logFile, "Не знайдено вершин полігона ділянки")
             return
 
 
@@ -1680,19 +1634,18 @@ class xml_ua:
             mem_layer.loadNamedStyle(style_path)
             mem_layer.triggerRepaint()
         else:
-            log_msg(logFile, f"Стиль не знайдено: {style_path}")
+            log_calls(logFile, f"Стиль не знайдено: {style_path}")
 
 
         project.addMapLayer(mem_layer, False)
         cadastral_plan_group.addLayer(mem_layer)
 
-        log_msg(logFile, f"Створено шар 'Вузли ділянки': {len(feats_to_add)} точок")
+        log_calls(logFile, f"Створено шар 'Вузли ділянки': {len(feats_to_add)} точок")
 
 
     def create_adjacent_parcels_layer(self, cadastral_plan_group, group_name):
 
 
-        from .plan_layout import PlanLayoutCreator
 
         """
         Створює новий шар "Суміжники" у дочірній групі "Кадастровий план".
@@ -1973,7 +1926,7 @@ class xml_ua:
                 if self.dockwidget:
                     try:
 
-                        layer.editingStarted.connect(lambda l=layer: log_msg(logFile, f"Користувач ввімкнув режим редагування шару: '{l.name()}'"))  # noqa
+                        layer.editingStarted.connect(lambda l=layer: log_calls(logFile, f"Користувач ввімкнув режим редагування шару: '{l.name()}'"))  # noqa
                         layer.editingStopped.connect(
                             lambda l=layer: self.dockwidget.on_layer_editing_stopped(l))
                     except Exception as e:

@@ -18,34 +18,30 @@ from qgis.core import (
     QgsLayoutPoint,
     QgsLayoutSize,
     QgsPrintLayout,
-    QgsProject,
     QgsRectangle,
     QgsUnitTypes,
-    Qgis,
 )
-
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QFont
 from qgis.PyQt.QtWidgets import QMessageBox
 
 from .common import PARCEL_MARGIN_FACTOR, log_calls, logFile
 from .plan_layout import (
-    PlanLayoutCreator,
     MAP_SIDE_MM,
     MARGIN_BOTTOM_MM,
     MARGIN_LEFT_MM,
     MARGIN_RIGHT_MM,
     MARGIN_TOP_MM,
+    NODES_TABLE_BORDER_MM,
+    NODES_TABLE_HEADER_BG,
+    NODES_TABLE_HEADER_ROW_H_MM,
+    NODES_TABLE_ROW_H_MM,
+    NODES_TABLE_TITLE_H_MM,
     OVERLAY_PAD_MM,
     PAGE_H_MM,
     PAGE_W_MM,
     TITLE_H_MM,
-    NODES_TABLE_HEADER_BG,
-    NODES_TABLE_ROW_ALT_BG,
-    NODES_TABLE_BORDER_MM,
-    NODES_TABLE_ROW_H_MM,
-    NODES_TABLE_HEADER_ROW_H_MM,
-    NODES_TABLE_TITLE_H_MM,
+    PlanLayoutCreator,
 )
 
 

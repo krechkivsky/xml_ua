@@ -1,11 +1,11 @@
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtCore import QDate
-
-from qgis.PyQt.QtWidgets import QDialog
-from qgis.PyQt.QtWidgets import QDateEdit
-from qgis.PyQt.QtWidgets import QPushButton
-from qgis.PyQt.QtWidgets import QVBoxLayout
-from qgis.PyQt.QtWidgets import QHBoxLayout
+from qgis.PyQt.QtCore import QDate, Qt
+from qgis.PyQt.QtWidgets import (
+    QDateEdit,
+    QDialog,
+    QHBoxLayout,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from .common import connector
 

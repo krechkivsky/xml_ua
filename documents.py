@@ -1,24 +1,24 @@
 
 
-import re
-import os
 import datetime
-import subprocess
+import os
+import re
 import shutil
+import subprocess
+
 try:
     from docxtpl import DocxTemplate
     DOCXTPL_AVAILABLE = True
 except Exception:
     DocxTemplate = None
     DOCXTPL_AVAILABLE = False
-from qgis.PyQt.QtWidgets import QMessageBox, QInputDialog, QDialog
 from lxml import etree
-from qgis.PyQt.QtCore import QUrl
-from qgis.PyQt.QtCore import QStandardPaths
+from qgis.PyQt.QtCore import QStandardPaths, QUrl
+from qgis.PyQt.QtWidgets import QDialog, QInputDialog, QMessageBox
 
-from .common import log_msg, logFile, config
-from .date_dialog import DateInputDialog
 from .cases import bornPIB, to_genitive
+from .common import config, log_msg, logFile
+from .date_dialog import DateInputDialog
 
 
 class DocumentGenerator:

@@ -24,62 +24,63 @@
 """
 
 
-from .data_models import xml_data, ShapeInfo
-import os
 import copy
-import shutil
+import os
 import re
+import shutil
 from datetime import datetime
 
 from lxml import etree
-
+from qgis.core import (
+    Qgis,
+    QgsApplication,
+    QgsFeature,
+    QgsGeometry,
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
+    QgsPointXY,
+    QgsProject,
+    QgsTask,
+    QgsVectorLayer,
+    QgsWkbTypes,
+)
 from qgis.PyQt import uic
+from qgis.PyQt.QtCore import (
+    QItemSelectionModel,
+    QModelIndex,
+    QSize,
+    Qt,
+    QTimer,
+    pyqtSignal,
+)
+from qgis.PyQt.QtWidgets import (
+    QApplication,
+    QDockWidget,
+    QFileDialog,
+    QHBoxLayout,
+    QInputDialog,
+    QLayout,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QStyle,
+    QTabBar,
+    QVBoxLayout,
+    QWidget,
+)
 
-from qgis.PyQt.QtCore import QModelIndex
-from qgis.PyQt.QtCore import pyqtSignal
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtCore import QTimer
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtCore import QItemSelectionModel
-
-from qgis.core import Qgis
-from qgis.core import QgsLayerTreeGroup
-from qgis.core import QgsLayerTreeLayer
-from qgis.core import QgsProject
-from qgis.core import QgsVectorLayer
-from qgis.core import QgsFeature
-from qgis.core import QgsPointXY
-from qgis.core import QgsWkbTypes
-from qgis.core import QgsGeometry
-from qgis.core import QgsTask, QgsApplication
-
-
-from qgis.PyQt.QtWidgets import QDockWidget
-from qgis.PyQt.QtWidgets import QVBoxLayout
-from qgis.PyQt.QtWidgets import QHBoxLayout
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtWidgets import QLayout
-from qgis.PyQt.QtWidgets import QStyle
-from qgis.PyQt.QtWidgets import QFileDialog
-from qgis.PyQt.QtWidgets import QInputDialog
-from qgis.PyQt.QtWidgets import QProgressBar
-from qgis.PyQt.QtWidgets import QApplication
-from qgis.PyQt.QtWidgets import QWidget
-from qgis.PyQt.QtWidgets import QPushButton, QTabBar
-
-from .tree_view import CustomTreeView
-
-
+from .common import (
+    connector,
+    ensure_object_layer_fields,
+    log_calls,
+    logFile,
+    next_object_id_in_container,
+    xsd_path,
+)
+from .data_models import ShapeInfo, xml_data
 from .layers import xmlUaLayers
-
-from .common import logFile
-from .common import log_calls
-from .common import ensure_object_layer_fields
-from .common import next_object_id_in_container
 from .topology import GeometryProcessor
-from .common import size
-from .common import xsd_path
-from .common import connector
+from .tree_view import CustomTreeView
 
 LOG = True
 
@@ -630,7 +631,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def open_xml_file(self, xml_path, backup_path=None, original_path=None):
         """Відкриває XML файл, створює вкладку та групу."""
 
-        current_time = datetime.now().strftime("%H:%M:%S")
+        datetime.now().strftime("%H:%M:%S")
 
         if backup_path is None:
 
@@ -662,8 +663,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         was_areas_fixed = False
         area_changed_on_open = False
         try:
-            from decimal import Decimal
             import importlib
+            from decimal import Decimal
+
             from . import area_checks as _area_checks
 
             _area_checks = importlib.reload(_area_checks)
@@ -811,12 +813,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         was_renumbered = False
         try:
-            from .topology import GeometryProcessor
             from .numbering_report import (
-                snapshot_geometry_numbering,
                 build_geometry_numbering_report,
+                snapshot_geometry_numbering,
                 write_numbering_report,
             )
+            from .topology import GeometryProcessor
 
             before_numbering = snapshot_geometry_numbering(self.current_xml.tree)
             processor = GeometryProcessor(self.current_xml.tree)
@@ -883,8 +885,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         try:
             from .proximity_checks import (
-                run_proximity_checks,
                 build_proximity_report,
+                run_proximity_checks,
                 write_proximity_report,
             )
 
@@ -1560,7 +1562,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 buttons_layout.setSpacing(0)
 
-                buttons_layout.setSizeConstraint(QLayout.SetFixedSize)
+                buttons_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
 
                 save_button = QPushButton(self.save_icon, "")
                 save_button.setFlat(True)
@@ -1617,15 +1619,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if getattr(self, "_suppress_close_on_layer_remove", False):
             return
 
-        LAYER_TO_XML_PATH = {  # type: ignore
-
-
-            "Суміжники": ".//AdjacentUnitInfo",
-            "Обмеження": ".//RestrictionInfo",
-            "Суборенда": ".//SubleaseInfo",
-            "Оренда": ".//LeaseInfo",
-            "Угіддя": ".//LandParcelInfo"
-        }
 
         layer = QgsProject.instance().mapLayer(layer_id)
         if not layer:
@@ -2912,7 +2905,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 f"MultiPolygon?crs={self.iface.mapCanvas().mapSettings().destinationCrs().authid()}", layer_name, "memory")
             lands_layer.loadNamedStyle(os.path.join(
                 os.path.dirname(__file__), "templates", "lands_parcel.qml"))
-            provider = lands_layer.dataProvider()
+            lands_layer.dataProvider()
             ensure_object_layer_fields(lands_layer)
             QgsProject.instance().addMapLayer(lands_layer, False)
             group.insertChildNode(0, QgsLayerTreeLayer(lands_layer))
@@ -3062,7 +3055,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.mark_as_changed()
 
         layers_root = QgsProject.instance().layerTreeRoot()
-        group = layers_root.findGroup(self.current_xml.group_name)
+        layers_root.findGroup(self.current_xml.group_name)
 
         self.redraw_current_group()
 
@@ -3122,7 +3115,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.mark_as_changed()
 
         layers_root = QgsProject.instance().layerTreeRoot()
-        group = layers_root.findGroup(self.current_xml.group_name)
+        layers_root.findGroup(self.current_xml.group_name)
 
         self.redraw_current_group()
 
@@ -4044,7 +4037,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             object_id_text = str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
             size_element = lands_parcel.find("./Area/Size")
             from .common import parse_float
-            size = parse_float(size_element.text, default=None) if size_element is not None else None
+            parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = lands_parcel.find("Externals")
             externals_lines = externals_element.find(

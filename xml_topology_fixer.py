@@ -1,12 +1,13 @@
 
 
-from enum import Enum
 import os
 import shutil
 from datetime import datetime
+from enum import Enum
+
 from lxml import etree
-from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import Qgis
+from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 
@@ -159,9 +160,9 @@ class XmlTopologyFixer:
 
         fix_button = msg_box.addButton(
             "Виправити та зберегти", QMessageBox.ButtonRole.YesRole)
-        open_as_is_button = msg_box.addButton(
+        msg_box.addButton(
             "Відкрити як є", QMessageBox.ButtonRole.NoRole)
-        cancel_button = msg_box.addButton("Скасувати", QMessageBox.ButtonRole.RejectRole)
+        msg_box.addButton("Скасувати", QMessageBox.ButtonRole.RejectRole)
 
         msg_box.setDefaultButton(fix_button)
         msg_box.exec_()
