@@ -2524,7 +2524,7 @@ class CustomTreeView(QTreeView):
         """
         Рекурсивно обходить дерево, валідує елементи та зафарбовує їх у разі помилки.
         """
-        default_brush = QBrush(Qt.black)
+        default_brush = QBrush(Qt.GlobalColor.black)
         error_brush = QBrush(QColor("red"))
         errors = []
 
@@ -2650,11 +2650,11 @@ class CustomTreeView(QTreeView):
             has_direct_error = not is_self_valid or not is_structure_valid
 
             brush_to_set = error_brush if has_direct_error else default_brush
-            item.model().setData(item.index(), brush_to_set, Qt.ForegroundRole)
+            item.model().setData(item.index(), brush_to_set, Qt.ItemDataRole.ForegroundRole)
             value_item = item.parent().child(
                 item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
             if value_item:
-                value_item.model().setData(value_item.index(), brush_to_set, Qt.ForegroundRole)
+                value_item.model().setData(value_item.index(), brush_to_set, Qt.ItemDataRole.ForegroundRole)
 
             if has_direct_error:
                 parent = item.parent()
@@ -2733,15 +2733,218 @@ class CustomTreeView(QTreeView):
                     stack.append(child_item)
 
     def _find_item_by_xpath_path(self, xpath_path):
-        """Повертає елемент дерева, що відповідає XPath з XSD-помилки."""
+        """Знаходить елемент дерева, що відповідає XPath з XSD-помилки."""
         normalized_target = self._normalize_xpath_path(xpath_path)
         if not normalized_target:
             return self.model.invisibleRootItem().child(0, 0)
 
         normalized_to_item = {}
-        no_index_to_item = {}
         items_iter = self._iter_name_items()
         if items_iter:
             for item in items_iter:
                 item_path = item.data(Qt.ItemDataRole.UserRole) or ""
                 norm_item_path = self._normalize_xpath_path(item_path)
+                if norm_item_path:
+                    normalized_to_item[norm_item_path] = item
+
+        if normalized_target in normalized_to_item:
+            return normalized_to_item[normalized_target]
+
+        parent_path = normalized_target
+        while "/" in parent_path:
+            parent_path = parent_path.rsplit("/", 1)[0]
+            if parent_path in normalized_to_item:
+                return normalized_to_item[parent_path]
+
+        return self.model.invisibleRootItem().child(0, 0)
+
+    def validate_against_xsd(self, path_to_xsd, generate_report=False, reset_visuals=True, xml_tree=None):
+        """
+        Перевіряє XML-дерево на відповідність XSD та підсвічує помилки.
+        НЕ змінює XML-структуру/значення.
+        """
+        errors = []
+        active_tree = xml_tree if xml_tree is not None else self.xml_tree
+        if active_tree is None:
+            return ["XML дерево не завантажено."]
+        if not path_to_xsd or not os.path.exists(path_to_xsd):
+            return [f"XSD схему не знайдено: {path_to_xsd}"]
+
+        self.tree_upd = True
+        try:
+            if reset_visuals:
+
+                root_item = self.model.invisibleRootItem().child(0, 0)
+                if root_item:
+                    default_brush = QBrush(Qt.black)
+                    stack = [root_item]
+                    while stack:
+                        curr = stack.pop()
+                        curr.setForeground(default_brush)
+                        curr_path = curr.data(Qt.ItemDataRole.UserRole) or ""
+                        schema_path = re.sub(r"\[\d+\]", "", curr_path)
+                        base_tooltip = self.xsd_descriptions.get(schema_path, "")
+                        curr.setToolTip(base_tooltip)
+                        value_item = curr.parent().child(
+                            curr.row(), 1) if curr.parent() else self.model.item(curr.row(), 1)
+                        if value_item:
+                            value_item.setForeground(default_brush)
+                            value_item.setToolTip(base_tooltip)
+                        for row in range(curr.rowCount() - 1, -1, -1):
+                            child_item = curr.child(row, 0)
+                            if child_item:
+                                stack.append(child_item)
+                self.validation_errors.clear()
+
+            try:
+                schema_doc = etree.parse(path_to_xsd)
+                schema = etree.XMLSchema(schema_doc)
+                is_valid = schema.validate(active_tree)
+            except Exception as e:
+                return [f"Помилка завантаження/перевірки XSD: {e}"]
+
+            if is_valid:
+                return []
+
+            for err in schema.error_log:
+                err_path = getattr(err, "path", "") or ""
+                raw_message = str(getattr(err, "message", str(err)))
+                item = self._find_item_by_xpath_path(err_path)
+
+                item_path = item.data(Qt.ItemDataRole.UserRole) if item else ""
+                schema_path = re.sub(r"\[\d+\]", "", item_path or "")
+
+                err_message = self._translate_xsd_error_message(raw_message, schema_path=schema_path)
+                self._mark_item_as_invalid(item, err_message)
+
+                if generate_report:
+                    readable_path = self._generate_ukr_path(
+                        re.sub(r"\[\d+\]", "", item_path or ""))
+                    if not readable_path:
+                        readable_path = err_path or "XML"
+                    errors.append(f"{readable_path}: {err_message}")
+
+            return errors
+        finally:
+            self.tree_upd = False
+
+    def _translate_xsd_error_message(self, message: str, schema_path: str = "") -> str:
+        """
+        Перекладає типові повідомлення XSD-валідації (lxml) українською.
+
+        Це евристичний переклад: lxml повертає англомовні шаблонні фрази,
+        тож ми покращуємо UX, не змінюючи семантику помилки.
+        """
+        if not message:
+            return message
+
+        msg = str(message)
+
+        def _short_appinfo(text: str) -> str:
+            if text is None:
+                return ""
+            s = str(text).strip()
+            # У XSD часто використовується "⋮" та "↓" як маркери UI.
+            s = s.replace("⋮", "").replace("↓", "").strip()
+            # Приберемо зайві подвійні пробіли після заміни.
+            s = re.sub(r"\s{2,}", " ", s)
+            return s
+
+    def _mark_item_as_invalid(self, item, error_message):
+        """Підсвічує елемент/значення червоним і додає помилку в tooltip."""
+        if not item:
+            return
+
+        error_brush = QBrush(QColor("red"))
+        item.setForeground(error_brush)
+        value_item = item.parent().child(
+            item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+        if value_item:
+            value_item.setForeground(error_brush)
+
+        item_path = item.data(Qt.ItemDataRole.UserRole) or item.text()
+        self.validation_errors.setdefault(item_path, [])
+        if error_message not in self.validation_errors[item_path]:
+            self.validation_errors[item_path].append(error_message)
+
+        schema_path = re.sub(r"\[\d+\]", "", item_path)
+        base_tooltip = self.xsd_descriptions.get(schema_path, "")
+        tooltip_text = base_tooltip
+        if self.validation_errors[item_path]:
+            tooltip_text += "\n\nПОМИЛКИ:\n- " + \
+                "\n- ".join(self.validation_errors[item_path])
+        item.setToolTip(tooltip_text)
+        if value_item:
+            value_item.setToolTip(tooltip_text)
+
+        parent = item.parent()
+        while parent and parent.index().isValid():
+            self.expand(parent.index())
+            parent = parent.parent()
+
+
+    def highlight_xml_errors(self, validation_results):
+        """
+        Підсвічує червоним кольором елементи дерева з помилками валідації XSD,
+        розкриває гілки до цих елементів та додає описання помилок у підказки (tooltips).
+
+        Args:
+            validation_results (list): Список помилок або результатів валідації XSD.
+        """
+        if not validation_results:
+            return
+
+        error_brush = QBrush(QColor("red"))
+
+        for error in validation_results:
+            xpath_path = getattr(error, 'path', None) or getattr(error, 'element_path', '')
+            message = getattr(error, 'message', str(error))
+
+            item = self._find_item_by_xpath_path(xpath_path)
+            if item:
+                # 1. Зафарбовуємо назву елемента та його значення
+                item.setForeground(error_brush)
+                value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+                if value_item:
+                    value_item.setForeground(error_brush)
+
+                # 2. Оновлюємо підказку (tooltip)
+                current_tooltip = item.toolTip() or ""
+                if "ПОМИЛКА XSD:" not in current_tooltip:
+                    new_tooltip = f"{current_tooltip}\n\nПОМИЛКА XSD:\n- {message}".strip()
+                else:
+                    new_tooltip = f"{current_tooltip}\n- {message}".strip()
+
+                item.setToolTip(new_tooltip)
+                if value_item:
+                    value_item.setToolTip(new_tooltip)
+
+                # 3. Розкриваємо батьківські вузли дерева
+                parent = item.parent()
+                while parent and parent.index().isValid():
+                    self.expand(parent.index())
+                    parent = parent.parent()
+
+    def _restriction_code_name(self, code: str) -> str:
+        try:
+            code = str(code or "").strip()
+        except Exception:
+            code = ""
+        if not code:
+            return ""
+        try:
+            flat = getattr(self, "restrictions_all_codes", None) or {}
+            nm = flat.get(code, "")
+            if nm:
+                return str(nm)
+        except Exception:
+            pass
+
+        try:
+            for section in (self.restrictions_data or {}).values():
+                if code in section:
+                    return str(section.get(code) or "")
+        except Exception:
+            pass
+        return ""
+
