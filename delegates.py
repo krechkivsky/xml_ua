@@ -625,7 +625,8 @@ class DispatcherDelegate(QStyledItemDelegate):
             doc_type_delegate=None, 
             land_code_delegate=None, 
             closed_delegate=None,
-            citizenship_delegate=None
+            citizenship_delegate=None,
+            region_delegate=None
             ):
         super().__init__(parent)
 
@@ -637,7 +638,7 @@ class DispatcherDelegate(QStyledItemDelegate):
         self.doc_code_delegate = doc_code_delegate
         self.doc_type_delegate = doc_type_delegate
         self.citizenship_delegate = citizenship_delegate
-
+        self.region_delegate = region_delegate
         self.closed_delegate = closed_delegate
 
     def createEditor(self, parent, option, index):
@@ -664,6 +665,8 @@ class DispatcherDelegate(QStyledItemDelegate):
             return self.closed_delegate.createEditor(parent, option, index)
 
         if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index):return self.citizenship_delegate.createEditor(parent, option, index)
+        if self.region_delegate and self.region_delegate._is_target_element(index):
+            return self.region_delegate.createEditor(parent, option, index)
 
         return super().createEditor(parent, option, index)
 
@@ -686,6 +689,8 @@ class DispatcherDelegate(QStyledItemDelegate):
             return self.closed_delegate.setEditorData(editor, index)
 
         if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setEditorData(editor, index)
+        if self.region_delegate and self.region_delegate._is_target_element(index):
+            return self.region_delegate.setEditorData(editor, index)
 
         return super().setEditorData(editor, index)
 
@@ -708,6 +713,8 @@ class DispatcherDelegate(QStyledItemDelegate):
             return self.closed_delegate.setModelData(editor, model, index)
 
         if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setModelData(editor, model, index)
+        if self.region_delegate and self.region_delegate._is_target_element(index):
+            return self.region_delegate.setModelData(editor, model, index)
 
         return super().setModelData(editor, model, index)
 
@@ -760,10 +767,14 @@ class CitizenshipDelegate(QStyledItemDelegate):
         return {}
 
     def _is_target_element(self, index):
-        """Перевіряє, чи є елемент 'Citizenship'."""
+        """Перевіряє, чи є елемент 'Citizenship' або 'Address/Country'."""
         full_path = index.data(Qt.ItemDataRole.UserRole)
-        return full_path and full_path.endswith("/NaturalPerson/Citizenship")
-
+        if not full_path:
+            return False
+        return (
+            full_path.endswith("/NaturalPerson/Citizenship") or
+            full_path.endswith("/Address/Country")
+        )
     def createEditor(self, parent, option, index):
         """Створює QComboBox редактор, якщо елемент 'Citizenship'."""
         if self._is_target_element(index):
@@ -796,3 +807,53 @@ class CitizenshipDelegate(QStyledItemDelegate):
     def displayText(self, value, locale):
         """Відображає назву країни замість коду."""
         return self.countries.get(str(value), str(value))
+
+class RegionDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента '/Address/Region'.
+    Відображає QComboBox зі списком областей (секція [Region]).
+    Зберігає безпосередньо назву області (значення з [Region]), а не код.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.regions = self._load_regions()
+        # Порядок збережеться таким, як у [Region]
+        self.items = list(self.regions.values())
+
+    def _load_regions(self):
+        """Завантажує список областей з файлу конфігурації (секція [Region])."""
+        if 'Region' in config:
+            return dict(config['Region'])
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент '/Address/Region'."""
+        full_path = index.data(Qt.ItemDataRole.UserRole)
+        return full_path and full_path.endswith("/Address/Region")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор для 'Region'."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює значення випадаючого списку з моделі."""
+        if self._is_target_element(index):
+            text_value = index.model().data(index, Qt.ItemDataRole.EditRole) or ""
+            idx = editor.findText(str(text_value))
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Записує вибране текстове значення області в модель."""
+        if self._is_target_element(index):
+            selected_text = editor.currentText()
+            model.setData(index, selected_text, Qt.ItemDataRole.EditRole)
+        else:
+            super().setModelData(editor, model, index)

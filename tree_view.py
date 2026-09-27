@@ -31,6 +31,7 @@ from .delegates import (
     LandCodeDelegate,
     OwnershipCodeDelegate,
     PurposeDelegate,
+    RegionDelegate,
     StateActTypeDelegate,
 )
 from .validators import validate_element
@@ -122,6 +123,7 @@ class CustomTreeView(QTreeView):
         self.land_code_delegate = LandCodeDelegate(self)
         self.closed_delegate = ClosedDelegate(self)
         self.citizenship_delegate = CitizenshipDelegate(self)
+        self.region_delegate = RegionDelegate(self)
 
         self.dispatcher_delegate = DispatcherDelegate(
             parent=self,
@@ -133,7 +135,8 @@ class CustomTreeView(QTreeView):
             doc_type_delegate=self.doc_type_delegate,
             land_code_delegate=self.land_code_delegate,
             closed_delegate=self.closed_delegate,
-            citizenship_delegate=self.citizenship_delegate
+            citizenship_delegate=self.citizenship_delegate,
+            region_delegate=self.region_delegate
         )
 
         self.doc_type_delegate.documentationTypeChanged.connect(
@@ -794,10 +797,16 @@ class CustomTreeView(QTreeView):
             self.select_restriction_code(item)
             return True
 
-        elif schema_item_path and schema_item_path.endswith("/NaturalPerson/Citizenship"):
+        elif schema_item_path and (
+            schema_item_path.endswith("/NaturalPerson/Citizenship") or
+            schema_item_path.endswith("/Address/Country")            
+            ):
             self.handle_citizenship_edit(index)
             return True
-
+        elif schema_item_path and schema_item_path.endswith("/Address/Region"):
+            self.handle_region_edit(index)
+            return True
+        
         return False
 
     def handle_land_category_edit(self, index: QModelIndex):
@@ -1338,37 +1347,10 @@ class CustomTreeView(QTreeView):
             if new_date_str != current_value:
                 item.setText(new_date_str)
 
-    def handle_region_edit(self, item):
-        """Відкриває діалог вибору регіону та оновлює значення."""
-        if 'Region' not in config:
-            QMessageBox.warning(
-                self, "Помилка", "Секція [Region] не знайдена у файлі конфігурації.")
-            return
-
-        region_dict = dict(config['Region'])
-
-        sorted_regions = sorted(region_dict.values())
-
-        current_text = item.text()
-
-        current_index = -1
-        if current_text in sorted_regions:
-            current_index = sorted_regions.index(current_text)
-
-        selected_region, ok = QInputDialog.getItem(self, "Вибір регіону",
-                                                   "Виберіть регіон:", sorted_regions,
-                                                   current_index, False)
-
-        if ok and selected_region:
-
-            new_name = selected_region
-            if new_name != current_text:
-
-                item.setText(new_name)
-
     def handle_citizenship_edit(self, index: QModelIndex):
         """
-        Відкриває діалог з випадаючим списком для вибору громадянства (країни).
+        Відкриває діалог з випадаючим списком для вибору країни (Громадянство / Адреса).
+        Порядок країн зберігається таким, як у xml_ua.ini.
         """
         countries = getattr(self.citizenship_delegate, "countries", {}) or {}
         if not countries:
@@ -1377,29 +1359,85 @@ class CustomTreeView(QTreeView):
             )
             return
 
-        def _key_sort(k: str):
+        items = list(countries.items())
+        names = list(countries.values())
+
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
+        default_idx = 0
+        if current_code:
+            current_name = countries.get(current_code, "")
+            if current_name:
+                try:
+                    default_idx = names.index(current_name)
+                except ValueError:
+                    default_idx = 0
+
+        # Динамічний заголовок діалогу залежно від шляху елемента
+        schema_item_path = index.data(Qt.ItemDataRole.UserRole) or ""
+        if schema_item_path.endswith("/Address/Country"):
+            dialog_title = "Країна адреси"
+        else:
+            dialog_title = "Громадянство"
+
+        selection, ok = QInputDialog.getItem(
+            self,
+            dialog_title,
+            "Виберіть країну:",
+            names,
+            default_idx,
+            False,
+        )
+        if not ok or not selection:
+            return
+
+        code = None
+        try:
+            code = self.citizenship_delegate.reverse_countries.get(selection)
+        except Exception:
+            code = None
+
+        if not code:
+            for k, v in items:
+                if v == selection:
+                    code = k
+                    break
+        if not code:
+            return
+
+        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
+        try:
+            it = self.model.itemFromIndex(index)
+            if it:
+                it.setToolTip(str(selection))
+        except Exception:
+            pass
+
+    def handle_region_edit(self, index: QModelIndex):
+        """
+        Відкриває діалог з випадаючим списком для вибору області (/Address/Region).
+        Записує в модель безпосередньо назву області (наприклад, 'Львівська область').
+        """
+        regions = getattr(self.region_delegate, "regions", {}) or {}
+        if not regions:
+            QMessageBox.warning(
+                self, "Помилка", "Секція [Region] не знайдена або порожня у файлі конфігурації."
+            )
+            return
+
+        names = list(regions.values())
+        current_value = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
+
+        default_idx = 0
+        if current_value and current_value in names:
             try:
-                return (0, int(str(k).strip()))
-            except Exception:
-                return (1, str(k))
-
-        items = [(k, countries[k]) for k in sorted(countries.keys(), key=_key_sort)]
-        names = [v for _, v in items]
-
-        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
-        default_idx = 0
-        if current_code:
-            current_name = countries.get(current_code, "")
-            if current_name:
-                try:
-                    default_idx = names.index(current_name)
-                except ValueError:
-                    default_idx = 0
+                default_idx = names.index(current_value)
+            except ValueError:
+                default_idx = 0
 
         selection, ok = QInputDialog.getItem(
             self,
-            "Громадянство",
-            "Виберіть країну:",
+            "Область",
+            "Виберіть область:",
             names,
             default_idx,
             False,
@@ -1407,20 +1445,8 @@ class CustomTreeView(QTreeView):
         if not ok or not selection:
             return
 
-        code = None
-        try:
-            code = self.citizenship_delegate.reverse_countries.get(selection)
-        except Exception:
-            code = None
-        if not code:
-            for k, v in items:
-                if v == selection:
-                    code = k
-                    break
-        if not code:
-            return
-
-        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
+        # У модель зберігаємо безпосередньо обраний текст області
+        self.model.setData(index, str(selection), Qt.ItemDataRole.EditRole)
         try:
             it = self.model.itemFromIndex(index)
             if it:
@@ -1428,64 +1454,7 @@ class CustomTreeView(QTreeView):
         except Exception:
             pass
 
-    def handle_citizenship_edit(self, index: QModelIndex):
-        """
-        Відкриває діалог з випадаючим списком для вибору громадянства (країни).
-        Порядок країн зберігається таким, як у xml_ua.ini (без сортування).
-        """
-        countries = getattr(self.citizenship_delegate, "countries", {}) or {}
-        if not countries:
-            QMessageBox.warning(
-                self, "Помилка", "Секція [Countries] не знайдена або порожня у файлі конфігурації."
-            )
-            return
 
-        # Беріть список ключів/значень напряму без sorted()
-        items = list(countries.items())      # список туплів (код, назва)
-        names = list(countries.values())     # список назв країн у порядку з .ini файлу
-
-        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
-        default_idx = 0
-        if current_code:
-            current_name = countries.get(current_code, "")
-            if current_name:
-                try:
-                    default_idx = names.index(current_name)
-                except ValueError:
-                    default_idx = 0
-
-        selection, ok = QInputDialog.getItem(
-            self,
-            "Громадянство",
-            "Виберіть країну:",
-            names,
-            default_idx,
-            False,
-        )
-        if not ok or not selection:
-            return
-
-        code = None
-        try:
-            code = self.citizenship_delegate.reverse_countries.get(selection)
-        except Exception:
-            code = None
-            
-        if not code:
-            for k, v in items:
-                if v == selection:
-                    code = k
-                    break
-        if not code:
-            return
-
-        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
-        try:
-            it = self.model.itemFromIndex(index)
-            if it:
-                it.setToolTip(str(selection))
-        except Exception:
-            pass
 
     def rebuild_tree_view(self):
         """
