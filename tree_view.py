@@ -1281,6 +1281,7 @@ class CustomTreeView(QTreeView):
         try:
             reasons = dict(config["ReasonActDoc"]) if "ReasonActDoc" in config else {}
         except Exception:
+            log_calls(logFile, "Помилка створення словника ReasonActDoc")
             reasons = {}
 
         if not reasons:
@@ -1329,6 +1330,7 @@ class CustomTreeView(QTreeView):
                 it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
         except Exception:
+            log_calls(logFile, "Помилка роботи з текстовим полем.")
             pass
 
         self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
@@ -1346,7 +1348,7 @@ class CustomTreeView(QTreeView):
 
         dialog = DateInputDialog(default_date=default_date, parent=self)
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             new_date_str = dialog.get_date()
 
             if new_date_str != current_value:
