@@ -2209,7 +2209,7 @@ class CustomTreeView(QTreeView):
         Loads an XML file into a tree view and validates it against an XSD schema.
         """
 
-        log_calls(logFile, f"xml_path={xml_path}\ntree={tree}")
+        # log_calls(logFile, f"xml_path={xml_path}\ntree={tree}")
 
         self.tree_row = 0
         try:
@@ -2815,6 +2815,7 @@ class CustomTreeView(QTreeView):
                 schema_path = re.sub(r"\[\d+\]", "", item_path or "")
 
                 err_message = self._translate_xsd_error_message(raw_message, schema_path=schema_path)
+                log_calls(logFile, f"err_message={err_message}")
                 self._mark_item_as_invalid(item, err_message)
 
                 if generate_report:
@@ -2850,10 +2851,105 @@ class CustomTreeView(QTreeView):
             s = re.sub(r"\s{2,}", " ", s)
             return s
 
+        def _appinfo_for_tag(tag_name: str) -> str:
+            """
+            Повертає український appinfo для елемента XSD за його ім'ям.
+            Спочатку пробує знайти за контекстним шляхом (schema_path), потім — глобально.
+            """
+            if not tag_name:
+                return ""
+
+            # 1) Точний контекст (якщо schema_path вже вказує на цей елемент)
+            if schema_path:
+                if schema_path.endswith(f"/{tag_name}") or schema_path == tag_name:
+                    label = self.xsd_appinfo.get(schema_path, "")
+                    if label:
+                        return _short_appinfo(label)
+
+                parent_path = schema_path.rsplit("/", 1)[0] if "/" in schema_path else ""
+                if parent_path:
+                    label = self.xsd_appinfo.get(f"{parent_path}/{tag_name}", "")
+                    if label:
+                        return _short_appinfo(label)
+
+            # 2) Глобальний пошук по xsd_appinfo (перший збіг)
+            try:
+                suffix = f"/{tag_name}"
+                for k, v in self.xsd_appinfo.items():
+                    if k == tag_name or str(k).endswith(suffix):
+                        if v:
+                            return _short_appinfo(v)
+            except Exception:
+                log_calls(logFile, "Помилка: Глобальний пошук по xsd_appinfo (перший збіг)")
+
+            return ""
+
+        replacements = {
+            "Element ": "Елемент ",
+            "attribute ": "атрибут ",
+            "The attribute ": "Атрибут ",
+            "is not allowed.": "не дозволено.",
+            "This element is not expected.": "Цей елемент не очікується.",
+            "Missing child element(s).": "Відсутній дочірній елемент(и).",
+            "Expected is": "Очікується",
+            "Expected one of": "Очікується один із",
+            "The value ": "Значення ",
+            "is not accepted by the pattern": "не відповідає шаблону",
+            "fails to satisfy the fixed value constraint": "не відповідає фіксованому значенню",
+            "is not a valid value": "є некоректним значенням",
+        }
+        for src, dst in replacements.items():
+            msg = msg.replace(src, dst)
+
+        # Підміна назв елементів на український appinfo
+        # 1) Element 'TagName'
+        def _replace_element_name(match):
+            tag_name = match.group(1)
+            label = _appinfo_for_tag(tag_name)
+            return f"Елемент '{label or tag_name}'"
+
+        try:
+            msg = re.sub(r"Елемент '([^']+)'", _replace_element_name, msg)
+        except Exception:
+            log_calls(logFile, "Помилка: Підміна назв елементів на український appinfo")
+
+        # 2) Expected is ( A ) / Expected one of ( A, B )
+        def _replace_expected_list(match):
+            inner = match.group(1)
+            tokens = [t.strip() for t in re.split(r"[,\s]+", inner) if t.strip()]
+            # lxml може писати імена з комами, інколи з кількома пробілами
+            mapped = []
+            for tok in tokens:
+                # пропускаємо службові символи/дужки, якщо раптом потрапили
+                clean = tok.strip("()")
+                if not clean:
+                    continue
+                label = _appinfo_for_tag(clean)
+                mapped.append(label or clean)
+            return "(" + ", ".join(mapped) + ")"
+
+        try:
+            msg = re.sub(r"\(\s*([A-Za-z0-9_,\s]+?)\s*\)", _replace_expected_list, msg)
+        except Exception:
+            log_calls(logFile, "Error: Expected is ( A ) / Expected one of ( A, B )")
+
+        try:
+            msg = re.sub(
+                r"The attribute '([^']+)' is not allowed\.",
+                r"Атрибут '\1' не дозволено.",
+                msg,
+            )
+        except Exception:
+            log_calls(logFile, "Помилка: The attribute not allowed")
+
+        return msg
+
+
     def _mark_item_as_invalid(self, item, error_message):
         """Підсвічує елемент/значення червоним і додає помилку в tooltip."""
         if not item:
             return
+        log_calls(logFile,f"item={item}\nerror_message={error_message}")
 
         error_brush = QBrush(QColor("red"))
         item.setForeground(error_brush)
@@ -2947,4 +3043,63 @@ class CustomTreeView(QTreeView):
         except Exception:
             pass
         return ""
+
+    def sort_xml_tree_by_xsd(self):
+        """
+        Впорядковує дочірні елементи XML-дерева згідно з порядком children у xsd_schema.
+        Повертає True, якщо були внесені зміни.
+        """
+        if self.xml_tree is None:
+            return False
+        root = self.xml_tree.getroot()
+        if root is None or not self.xsd_schema:
+            return False
+
+        def _lname(node):
+            try:
+                return etree.QName(node).localname
+            except Exception:
+                return node.tag
+
+        def _reorder(element, schema_path):
+            changed_local = False
+
+            for child in list(element):
+                child_schema_path = f"{schema_path}/{_lname(child)}" if schema_path else _lname(child)
+                if _reorder(child, child_schema_path):
+                    changed_local = True
+
+            schema = self.xsd_schema.get(schema_path, {})
+            children_schema = schema.get("children", [])
+            expected_order = [child.get("name") for child in children_schema if child.get("name")]
+            if not expected_order:
+                return changed_local
+
+            children = list(element)
+            buckets = {}
+            for child in children:
+                buckets.setdefault(_lname(child), []).append(child)
+
+            ordered = []
+            used_ids = set()
+            for tag_name in expected_order:
+                for child in buckets.get(tag_name, []):
+                    ordered.append(child)
+                    used_ids.add(id(child))
+
+            for child in children:
+                if id(child) not in used_ids:
+                    ordered.append(child)
+
+            if len(ordered) == len(children) and any(ordered[i] is not children[i] for i in range(len(children))):
+                for child in children:
+                    element.remove(child)
+                for child in ordered:
+                    element.append(child)
+                changed_local = True
+
+            return changed_local
+
+        root_schema_path = _lname(root)
+        return _reorder(root, root_schema_path)
 

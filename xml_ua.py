@@ -1900,12 +1900,12 @@ class xml_ua:
         """
         Обробник сигналу про додавання шарів до проекту.  Підключає сигнали лише до нових шарів.
         """
-        if LOG:
-            log_calls(logFile, f"[SIGNAL] layersAdded: count={len(layers)}")
+        # if LOG:
+        #     log_calls(logFile, f"[SIGNAL] layersAdded: count={len(layers)}")
         for layer in layers:
             if isinstance(layer, QgsVectorLayer):
-                if LOG:
-                    log_calls(logFile, f"[SIGNAL] connect layer signals: '{layer.name()}' ({layer.id()})")
+                # if LOG:
+                #     log_calls(logFile, f"[SIGNAL] connect layer signals: '{layer.name()}' ({layer.id()})")
 
                 layer.featureAdded.connect(
                     lambda fid, l=layer: self.on_feature_added(l, fid))

@@ -378,8 +378,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self, "Помилка", "Не знайдено дерево XML для перевірки.")
             return
 
-        log_calls(
-            logFile, f"Запуск повної валідації для файлу: {self.current_xml.path}")
+        # log_calls(
+        #     logFile, f"Запуск повної валідації для файлу: {self.current_xml.path}")
 
         message_bar = self.iface.messageBar()
         progress_message = message_bar.createMessage(
@@ -692,7 +692,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 try:
                     report_text = _area_checks.build_area_err_report(xml_path=xml_path, result=result)
                     report_path = _area_checks.write_area_err_report(xml_path=xml_path, report_text=report_text)
-                    log_calls(logFile, f"Створено звіт area_err: {report_path}")
+                    # log_calls(logFile, f"Створено звіт area_err: {report_path}")
                 except Exception as e:
                     log_calls(logFile, f"Помилка створення звіту area_err: {e}")
                     report_path = ""
@@ -799,8 +799,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             from .common import sort_children_in_parcel_info
             was_reordered = sort_children_in_parcel_info(parcel_info_element)
             if was_reordered:
-                log_calls(
-                    logFile, "Порядок елементів у ParcelInfo було виправлено згідно зі схемою XSD.")
+                # log_calls(
+                #     logFile, "Порядок елементів у ParcelInfo було виправлено згідно зі схемою XSD.")
 
                 self.mark_as_changed()
 
@@ -933,18 +933,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             try:
                 report_text = build_proximity_report(xml_path=xml_path, result=result)
                 report_path = write_proximity_report(xml_path=xml_path, report_text=report_text)
-                log_calls(logFile, f"Створено звіт proximity: {report_path}")
+                # log_calls(logFile, f"Створено звіт proximity: {report_path}")
             except Exception as e:
                 log_calls(logFile, f"Помилка створення звіту proximity: {e}")
                 report_path = ""
 
             close_cnt = len(result.close_hits)
             collinear_cnt = len(result.near_line_hits)
-            log_calls(
-                logFile,
-                f"Перевірка близьких/створних точок завершена за {result.elapsed_sec:.2f}с: "
-                f"близьких={close_cnt}, створних={collinear_cnt} (поріг {result.threshold_m}м)."
-            )
+            # log_calls(
+            #     logFile,
+            #     f"Перевірка близьких/створних точок завершена за {result.elapsed_sec:.2f}с: "
+            #     f"близьких={close_cnt}, створних={collinear_cnt} (поріг {result.threshold_m}м)."
+            # )
 
             if close_cnt or collinear_cnt:
                 close_preview = ", ".join(h.uidp for h in result.close_hits[:20])
