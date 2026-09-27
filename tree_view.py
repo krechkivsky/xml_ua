@@ -23,6 +23,7 @@ from .common import config, connector, log_calls, log_msg, logFile
 from .date_dialog import DateInputDialog
 from .delegates import (
     CategoryDelegate,
+    CitizenshipDelegate,
     ClosedDelegate,
     DispatcherDelegate,
     DocumentationTypeDelegate,
@@ -120,6 +121,7 @@ class CustomTreeView(QTreeView):
         self.doc_type_delegate = DocumentationTypeDelegate(self)
         self.land_code_delegate = LandCodeDelegate(self)
         self.closed_delegate = ClosedDelegate(self)
+        self.citizenship_delegate = CitizenshipDelegate(self)
 
         self.dispatcher_delegate = DispatcherDelegate(
             parent=self,
@@ -130,7 +132,8 @@ class CustomTreeView(QTreeView):
             doc_code_delegate=self.doc_code_delegate,
             doc_type_delegate=self.doc_type_delegate,
             land_code_delegate=self.land_code_delegate,
-            closed_delegate=self.closed_delegate
+            closed_delegate=self.closed_delegate,
+            citizenship_delegate=self.citizenship_delegate
         )
 
         self.doc_type_delegate.documentationTypeChanged.connect(
@@ -269,29 +272,6 @@ class CustomTreeView(QTreeView):
                     self.restrictions_data[section_code][code] = name
         except Exception as e:
             log_msg(logFile, f"Помилка при читанні restriction.ini: {e}")
-
-    def _restriction_code_name(self, code: str) -> str:
-        try:
-            code = str(code or "").strip()
-        except Exception:
-            code = ""
-        if not code:
-            return ""
-        try:
-            flat = getattr(self, "restrictions_all_codes", None) or {}
-            nm = flat.get(code, "")
-            if nm:
-                return str(nm)
-        except Exception:
-            pass
-
-        try:
-            for section in (self.restrictions_data or {}).values():
-                if code in section:
-                    return str(section.get(code) or "")
-        except Exception:
-            pass
-        return ""
 
     def handle_restriction_code_menu(self, point, item):
         """Обробляє контекстне меню для вибору коду обмеження."""
@@ -812,6 +792,10 @@ class CustomTreeView(QTreeView):
         elif schema_item_path and schema_item_path.endswith("/RestrictionInfo/RestrictionCode"):
 
             self.select_restriction_code(item)
+            return True
+
+        elif schema_item_path and schema_item_path.endswith("/NaturalPerson/Citizenship"):
+            self.handle_citizenship_edit(index)
             return True
 
         return False
@@ -1381,6 +1365,127 @@ class CustomTreeView(QTreeView):
             if new_name != current_text:
 
                 item.setText(new_name)
+
+    def handle_citizenship_edit(self, index: QModelIndex):
+        """
+        Відкриває діалог з випадаючим списком для вибору громадянства (країни).
+        """
+        countries = getattr(self.citizenship_delegate, "countries", {}) or {}
+        if not countries:
+            QMessageBox.warning(
+                self, "Помилка", "Секція [Countries] не знайдена або порожня у файлі конфігурації."
+            )
+            return
+
+        def _key_sort(k: str):
+            try:
+                return (0, int(str(k).strip()))
+            except Exception:
+                return (1, str(k))
+
+        items = [(k, countries[k]) for k in sorted(countries.keys(), key=_key_sort)]
+        names = [v for _, v in items]
+
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
+        default_idx = 0
+        if current_code:
+            current_name = countries.get(current_code, "")
+            if current_name:
+                try:
+                    default_idx = names.index(current_name)
+                except ValueError:
+                    default_idx = 0
+
+        selection, ok = QInputDialog.getItem(
+            self,
+            "Громадянство",
+            "Виберіть країну:",
+            names,
+            default_idx,
+            False,
+        )
+        if not ok or not selection:
+            return
+
+        code = None
+        try:
+            code = self.citizenship_delegate.reverse_countries.get(selection)
+        except Exception:
+            code = None
+        if not code:
+            for k, v in items:
+                if v == selection:
+                    code = k
+                    break
+        if not code:
+            return
+
+        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
+        try:
+            it = self.model.itemFromIndex(index)
+            if it:
+                it.setToolTip(str(selection))
+        except Exception:
+            pass
+
+    def handle_citizenship_edit(self, index: QModelIndex):
+        """
+        Відкриває діалог з випадаючим списком для вибору громадянства (країни).
+        Порядок країн зберігається таким, як у xml_ua.ini (без сортування).
+        """
+        countries = getattr(self.citizenship_delegate, "countries", {}) or {}
+        if not countries:
+            QMessageBox.warning(
+                self, "Помилка", "Секція [Countries] не знайдена або порожня у файлі конфігурації."
+            )
+            return
+
+        # Беріть список ключів/значень напряму без sorted()
+        items = list(countries.items())      # список туплів (код, назва)
+        names = list(countries.values())     # список назв країн у порядку з .ini файлу
+
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
+        default_idx = 0
+        if current_code:
+            current_name = countries.get(current_code, "")
+            if current_name:
+                try:
+                    default_idx = names.index(current_name)
+                except ValueError:
+                    default_idx = 0
+
+        selection, ok = QInputDialog.getItem(
+            self,
+            "Громадянство",
+            "Виберіть країну:",
+            names,
+            default_idx,
+            False,
+        )
+        if not ok or not selection:
+            return
+
+        code = None
+        try:
+            code = self.citizenship_delegate.reverse_countries.get(selection)
+        except Exception:
+            code = None
+            
+        if not code:
+            for k, v in items:
+                if v == selection:
+                    code = k
+                    break
+        if not code:
+            return
+
+        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
+        try:
+            it = self.model.itemFromIndex(index)
+            if it:
+                it.setToolTip(str(selection))
+        except Exception:
+            pass
 
     def rebuild_tree_view(self):
         """

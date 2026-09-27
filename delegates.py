@@ -614,7 +614,19 @@ class DispatcherDelegate(QStyledItemDelegate):
     залежно від типу редагованого елемента.
     """
 
-    def __init__(self, parent=None, state_act_delegate=None, category_delegate=None, purpose_delegate=None, ownership_delegate=None, doc_code_delegate=None, doc_type_delegate=None, land_code_delegate=None, closed_delegate=None):
+    def __init__(
+            self, 
+            parent=None, 
+            state_act_delegate=None, 
+            category_delegate=None, 
+            purpose_delegate=None, 
+            ownership_delegate=None, 
+            doc_code_delegate=None, 
+            doc_type_delegate=None, 
+            land_code_delegate=None, 
+            closed_delegate=None,
+            citizenship_delegate=None
+            ):
         super().__init__(parent)
 
         self.state_act_delegate = state_act_delegate
@@ -624,6 +636,7 @@ class DispatcherDelegate(QStyledItemDelegate):
         self.land_code_delegate = land_code_delegate
         self.doc_code_delegate = doc_code_delegate
         self.doc_type_delegate = doc_type_delegate
+        self.citizenship_delegate = citizenship_delegate
 
         self.closed_delegate = closed_delegate
 
@@ -649,6 +662,9 @@ class DispatcherDelegate(QStyledItemDelegate):
             return self.doc_type_delegate.createEditor(parent, option, index)
         if self.closed_delegate and self.closed_delegate._is_target_element(index):
             return self.closed_delegate.createEditor(parent, option, index)
+
+        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index):return self.citizenship_delegate.createEditor(parent, option, index)
+
         return super().createEditor(parent, option, index)
 
     def setEditorData(self, editor, index):
@@ -668,6 +684,9 @@ class DispatcherDelegate(QStyledItemDelegate):
             return self.doc_type_delegate.setEditorData(editor, index)
         if self.closed_delegate and self.closed_delegate._is_target_element(index):
             return self.closed_delegate.setEditorData(editor, index)
+
+        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setEditorData(editor, index)
+
         return super().setEditorData(editor, index)
 
     def setModelData(self, editor, model, index):
@@ -687,6 +706,9 @@ class DispatcherDelegate(QStyledItemDelegate):
             return self.doc_type_delegate.setModelData(editor, model, index)
         if self.closed_delegate and self.closed_delegate._is_target_element(index):
             return self.closed_delegate.setModelData(editor, model, index)
+
+        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setModelData(editor, model, index)
+
         return super().setModelData(editor, model, index)
 
     def displayText(self, value, locale):
@@ -717,3 +739,60 @@ class DispatcherDelegate(QStyledItemDelegate):
             elif self.closed_delegate and self.closed_delegate._is_target_element(index):
                 option.text = self.closed_delegate.displayText(
                     option.text, option.locale)
+
+class CitizenshipDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента 'Citizenship'.
+    Відображає QComboBox з країнами (громадянство).
+    Зберігає код країни (ключ з [Countries]), але показує назву.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.countries = self._load_countries()
+        self.items = list(self.countries.values())
+        self.reverse_countries = {v: k for k, v in self.countries.items()}
+
+    def _load_countries(self):
+        """Завантажує список країн з файлу конфігурації (секція [Countries])."""
+        if 'Countries' in config:
+            return dict(config['Countries'])
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент 'Citizenship'."""
+        full_path = index.data(Qt.ItemDataRole.UserRole)
+        return full_path and full_path.endswith("/NaturalPerson/Citizenship")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор, якщо елемент 'Citizenship'."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює дані редактора з моделі."""
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
+            text_value = self.countries.get(code, "")
+            idx = editor.findText(text_value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює дані моделі з редактора."""
+        if self._is_target_element(index):
+            selected_index = editor.currentIndex()
+            if selected_index != -1:
+                code = list(self.countries.keys())[selected_index]
+                model.setData(index, code, Qt.ItemDataRole.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+    def displayText(self, value, locale):
+        """Відображає назву країни замість коду."""
+        return self.countries.get(str(value), str(value))

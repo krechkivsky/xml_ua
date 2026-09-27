@@ -1,5 +1,3 @@
-
-
 import configparser
 import inspect
 import os
@@ -17,16 +15,12 @@ logFile.write(
     f"## Plugin reloaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 logFile.flush()
 
-
 try:
     from qgis.utils import iface  # Імпортуємо iface
 
     if iface:  # Перевіряємо, чи iface доступний
-
         main_window = iface.mainWindow()
-
         if main_window:
-
             for widget in main_window.findChildren(QDockWidget):
 
                 if widget.windowTitle() == "xml_ua" and widget.isVisible():
@@ -36,8 +30,7 @@ try:
 except Exception as e:
     logFile.write(
         f"WARNING: Не вдалося приховати старий віджет під час перезавантаження: {e}\n")
-
-
+    
 ini_path = os.path.dirname(__file__) + "/templates/xml_ua.ini"
 docs_path = os.path.dirname(__file__) + "/templates/docs_list.ini"
 fields_path = os.path.dirname(__file__) + "/templates/field_dicts.ini"
@@ -45,10 +38,8 @@ xsd_path = os.path.dirname(__file__) + "/templates/UAXML.xsd"
 xml_template = os.path.dirname(__file__) + "/templates/template.xml"
 xml_file_name = ""
 
-
 BLACKLIST = type, ModuleType, FunctionType
 PARCEL_MARGIN_FACTOR = 1.10
-
 
 def parse_float(value, default=None):
     """
@@ -79,7 +70,6 @@ def parse_float(value, default=None):
         return float(s)
     except ValueError:
         return default
-
 
 def _normalize_number_text_with_comma(value: str) -> str | None:
     """
@@ -125,7 +115,6 @@ def _normalize_number_text_with_comma(value: str) -> str | None:
         return None
 
     return normalized
-
 
 def normalize_decimal_commas_in_tree(xml_tree, xpaths=None):
     """
@@ -231,7 +220,6 @@ def ensure_object_layer_fields(layer):
     except Exception:
         pass
 
-
 def next_object_id_in_container(parent, child_tag: str) -> str:
     """
     Returns the next available positive integer object_id (as text) within a container element.
@@ -261,7 +249,6 @@ def next_object_id_in_container(parent, child_tag: str) -> str:
         next_id += 1
     return str(next_id)
 
-
 def size(obj):
     """sum size of object & members."""
     if isinstance(obj, BLACKLIST):
@@ -279,7 +266,6 @@ def size(obj):
                 need_referents.append(obj)
         objects = get_referents(*need_referents)
     return size
-
 
 class Connections(QObject):
     """
@@ -403,9 +389,7 @@ class Connections(QObject):
             result += f"{i + 1}. {sender_name}, '{signal_name}', {slot_name}\n"
         return result
 
-
 connector = Connections()
-
 
 def get_object_name_from_frame(obj, frame):
     """
@@ -418,10 +402,8 @@ def get_object_name_from_frame(obj, frame):
             return name
     return None
 
-
 def caller(i: int):
     return inspect.stack()[i].function
-
 
 def log_msg(logFile, msg=""):
     """ """
@@ -430,25 +412,6 @@ def log_msg(logFile, msg=""):
 
     logFile.write(f"\n##### [{caller(2)}():]({filename}#L{lineno}) {msg}")
     logFile.flush()
-
-
-def get_call_stack(i: int):
-    """Отримує стек викликів у вигляді рядка у зворотному порядку."""
-    stack = inspect.stack()
-    result = ""
-
-    i = 0
-    for frame_info in reversed(stack[2:]):
-        i += 1
-        frame = frame_info.frame
-        filename = os.path.basename(frame.f_code.co_filename)
-        lineno = frame.f_lineno
-        spaces = ' ' * (24 - len(filename))
-        func_name = frame.f_code.co_name
-        if filename != "<string>":
-            result += f"\n [{i}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
-
-    return result
 
 def get_call_stack(i: int):
     """Отримує стек викликів у вигляді рядка у зворотному порядку,
@@ -488,7 +451,6 @@ def log_calls(logFile, msg: str = "") -> None:
 
     logFile.write(log_message)
     logFile.flush()
-
 
 def geometry_to_string(geometry):
     """
@@ -555,11 +517,9 @@ def geometry_to_string(geometry):
 
     return result_string.strip() + "\n"
 
-
 class CaseSensitiveConfigParser(configparser.ConfigParser):
     def optionxform(self, optionstr):
         return optionstr
-
 
 config = CaseSensitiveConfigParser(strict=False)
 config.read(ini_path, encoding="utf-8")
@@ -575,7 +535,6 @@ metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/Software",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/SoftwareVersion"]
 
-
 category_raw = {
     "100": "Землі сільськогосподарського призначення",
     "200": "Землі житлової та громадської забудови",
@@ -588,12 +547,10 @@ category_raw = {
     "900": "Землі промисловості, транспорту, електронних комунікацій, енергетики,оборони та іншого призначення"
 }
 
-
 category_map = {
 
     f"{code} {label}": code for code, label in category_raw.items()
 }
-
 
 purpose_raw = {
     "01.00": "Категорія: землі сільськогосподарського призначення",
@@ -764,11 +721,9 @@ purpose_raw = {
     "19.00": "Категорія: Для 16.00-18.00 та природно-заповідного фонду",
 }
 
-
 purpose_map = {
     f"{code} {label}": code for code, label in purpose_raw.items()
 }
-
 
 code_raw = {
     "100": "Приватна власність",
@@ -779,7 +734,6 @@ code_raw = {
 code_map = {
     f"{code} {label}": code for code, label in code_raw.items()
 }
-
 
 parcel_field2path_dict = {
     "ParcelID": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID",
@@ -807,7 +761,6 @@ parcel_field2path_dict = {
     "Code": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/OwnershipInfo/Code"
 }
 
-
 area_determination_map = {
     "<ExhangeFileCoordinates/>": "За координатами обмінного файлу",
     "<DocExch/>": "Згідно із правовстановлювальним документом",
@@ -819,9 +772,7 @@ area_determination_map = {
     "<Calculation><CoordinateSystem><SC63><C/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-C",
     "<Calculation><CoordinateSystem><SC63><P/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-P",
     "<Calculation><CoordinateSystem><SC63><T/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-T",
-
 }
-
 
 def insert_element_in_order(parent_element, new_element):
     """
@@ -865,7 +816,6 @@ def insert_element_in_order(parent_element, new_element):
         insert_before_element.addprevious(new_element)
     else:
         parent_element.append(new_element)
-
 
 def sort_children_in_parcel_info(parcel_info_element):
     """

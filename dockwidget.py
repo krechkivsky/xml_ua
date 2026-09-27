@@ -185,55 +185,35 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def __init__(self, parent=None, iface=None, plugin=None):
 
         super().__init__(parent)
-
         self.iface = iface
-
         self.plugin = plugin
-
         self.setupUi(self)
         self.parent = parent
-
         self.resize(400, self.height())
-
         self.opened_xmls = []
-
         self.full_xml_file_name = None
         self.layers_obj = None
         self.full_xml_file_name = ""
-
         self._is_closing = False
 
         self.tabWidget.setMovable(True)  # Дозволяємо переміщення вкладок
-
         self.tabWidget.setTabsClosable(False)
-
         while self.tabWidget.count() > 0:
             self.tabWidget.removeTab(0)
-
         self.setWindowTitle("xml_ua")
 
         self.current_xml = None
-
-
-
         self._suppress_layer_to_xml_sync = False
-
-
-
         self._suppress_close_on_layer_remove = False
-
         connector.connect(self.tabWidget, "currentChanged",
                           self.on_tab_changed)
 
         self.connect_layer_tree_signals()
-
         connector.connect(QgsProject.instance(),
                           "layerWillBeRemoved", self.on_layer_will_be_removed)
 
         self.save_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton)
-
         self.tab_save_buttons = {}
-
         self.running_tasks = []
 
         self.LAYER_NAME_TO_XML_CONTAINER_PATH = {
@@ -243,7 +223,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             "Оренда": ".//ParcelInfo/Leases",
             "Угіддя": ".//ParcelInfo/LandsParcel"
         }
-
         self.XML_INFO_TAG_TO_LAYER_NAME = {
             "AdjacentUnitInfo": "Суміжники",
             "RestrictionInfo": "Обмеження",
@@ -567,6 +546,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             log_calls(logFile, f"Помилка впорядкування за XSD: {e}")
             QMessageBox.critical(
                 self, "Помилка", f"Не вдалося впорядкувати структуру за XSD:\n{e}")
+
     def process_action_open(self):
         """
         Handles the action of opening an XML file.
