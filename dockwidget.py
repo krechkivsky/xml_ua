@@ -1374,7 +1374,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def process_action_close_xml(self, xml_to_close=None, group_already_removed=False, force_close=False):
         """Закриває вказаний XML-файл та пов'язану з ним групу шарів."""
 
-        log_calls(logFile, "")
+        # log_calls(logFile, "")
         if self._is_closing:
             return
         self._is_closing = True
@@ -1415,8 +1415,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 try:
                     if xml_to_close.backup_path and os.path.exists(xml_to_close.backup_path):
                         os.remove(xml_to_close.backup_path)
-                        log_calls(
-                            logFile, f"Резервну копію '{xml_to_close.backup_path}' видалено, оскільки файл не було змінено.")
+                        #  log_calls(
+                        #     logFile, f"Резервну копію '{xml_to_close.backup_path}' видалено, оскільки файл не було змінено.")
                         self.iface.messageBar().pushMessage("Інфо",
                                                             f"Резервну копію для '{os.path.basename(xml_to_close.path)}' видалено.", level=Qgis.Info, duration=3)
                 except (OSError, TypeError) as e:
@@ -1431,8 +1431,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             if xml_to_close in self.opened_xmls:
                 self.opened_xmls.remove(xml_to_close)
-                log_calls(
-                    logFile, f"Файл '{xml_to_close.path}' видалено зі списку відкритих.")
+                # log_calls(
+                #     logFile, f"Файл '{xml_to_close.path}' видалено зі списку відкритих.")
 
             layers_root = QgsProject.instance().layerTreeRoot()
             group_to_process = layers_root.findGroup(xml_to_close.group_name)
@@ -1446,13 +1446,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     xml_to_close.group_name)
                 if group_to_remove:
                     layers_root.removeChildNode(group_to_remove)
-                    log_calls(
-                        logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
+                    # log_calls(
+                    #     logFile, f"Групу '{xml_to_close.group_name}' та її шари видалено.")
 
             if tab_index_to_remove != -1:
                 self.tabWidget.removeTab(tab_index_to_remove)
-                log_calls(
-                    logFile, f"Вкладку для групи '{xml_to_close.group_name}' видалено.")
+                # log_calls(
+                #     logFile, f"Вкладку для групи '{xml_to_close.group_name}' видалено.")
 
             if not self.opened_xmls:
                 self.current_xml = None
@@ -1460,8 +1460,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.update_all_actions_state(is_file_open=False)
                 if self.tabWidget.count() == 0:
                     self.hide()
-                    log_calls(
-                        logFile, "Останню вкладку закрито. Віджет приховано.")
+                    # log_calls(
+                    #     logFile, "Останню вкладку закрито. Віджет приховано.")
 
         finally:
             self._is_closing = False
@@ -1761,8 +1761,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         feature_to_delete_object_id = xml_element_to_delete.get("object_id")
 
         if not feature_to_delete_object_id:
-            log_calls(
-                logFile, f"Елемент '{item_tag}' не має атрибута 'object_id'. Неможливо видалити об'єкт QGIS.")
+            # log_calls(
+            #     logFile, f"Елемент '{item_tag}' не має атрибута 'object_id'. Неможливо видалити об'єкт QGIS.")
             return
 
         log_calls(
@@ -3767,8 +3767,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         except Exception:
             pass
 
-        log_calls(
-            logFile, f"Шар '{layer.name()}' не має прив'язаного xml_data.")
+        # log_calls(
+        #     logFile, f"Шар '{layer.name()}' не має прив'язаного xml_data.")
         return None
 
     def recalculate_parcel_area(self, tree, xml_data_obj=None, trigger="", notify=False):
@@ -3874,7 +3874,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         old_group_name = str(getattr(xml_data_obj, "group_name", "") or "")
-        log_calls(logFile, f"Перестворення шарів після збереження: група '{old_group_name}'.")
+        # log_calls(logFile, f"Перестворення шарів після збереження: група '{old_group_name}'.")
 
         prev_suppress = getattr(self, "_suppress_close_on_layer_remove", False)
         self._suppress_close_on_layer_remove = True

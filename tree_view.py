@@ -1645,8 +1645,8 @@ class CustomTreeView(QTreeView):
                                                      f"Ви намагаєтеся видалити обов'язковий єдиний елемент '{item.text()}'.\n\n"
                                                      "Це може призвести до невідповідності файлу схемі XSD. "
                                                      "Ви впевнені, що хочете продовжити?",
-                                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                        if reply == QMessageBox.No:
+                                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                        if reply == QMessageBox.StandardButton.No:
                             log_msg(
                                 logFile, f"Видалення обов'язкового елемента '{item.text()}' скасовано користувачем.")
                             return  # Скасовуємо видалення

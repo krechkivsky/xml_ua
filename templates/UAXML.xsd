@@ -2969,7 +2969,8 @@
 			<xsd:sequence>
 				<xsd:element ref="ParcelLocationInfo"/>
 				<xsd:element ref="CategoryPurposeInfo"/>
-				<xsd:element ref="OwnershipInfo" minOccurs="0"/>
+				<!-- В оригіналі було ref="OwnershipInfo" minOccurs="0" -->
+				<xsd:element ref="OwnershipInfo" minOccurs="1"/>
 				<xsd:element ref="ParcelMetricInfo"/>
 				<xsd:element name="Proprietors" minOccurs="0">
 					<xsd:annotation>

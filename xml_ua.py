@@ -657,7 +657,7 @@ class xml_ua:
         Returns:
             None
         """
-        log_calls(logFile, "Запуск плагіна.")
+        # log_calls(logFile, "Запуск плагіна.")
 
         if not QgsProject.instance().fileName():
 
