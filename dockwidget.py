@@ -1732,7 +1732,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 from .topology import GeometryProcessor
                 processor = GeometryProcessor(xml_data.tree)
-                processor.cleanup_geometry([element_to_delete])
+                # processor.cleanup_geometry([element_to_delete])
+                processor.cleanup_and_renumber_geometry()
                 log_calls(
                     logFile, f"Виконано очищення геометрії після видалення розділу '{layer_name}'.")
 
