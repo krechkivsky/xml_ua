@@ -626,7 +626,8 @@ class DispatcherDelegate(QStyledItemDelegate):
             land_code_delegate=None, 
             closed_delegate=None,
             citizenship_delegate=None,
-            region_delegate=None
+            region_delegate=None,
+            proprietor_code_delegate=None
             ):
         super().__init__(parent)
 
@@ -640,6 +641,7 @@ class DispatcherDelegate(QStyledItemDelegate):
         self.citizenship_delegate = citizenship_delegate
         self.region_delegate = region_delegate
         self.closed_delegate = closed_delegate
+        self.proprietor_code_delegate = proprietor_code_delegate
 
     def createEditor(self, parent, option, index):
         if self.state_act_delegate and self.state_act_delegate._is_target_element(index):
@@ -664,9 +666,12 @@ class DispatcherDelegate(QStyledItemDelegate):
         if self.closed_delegate and self.closed_delegate._is_target_element(index):
             return self.closed_delegate.createEditor(parent, option, index)
 
-        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index):return self.citizenship_delegate.createEditor(parent, option, index)
+        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index):
+            return self.citizenship_delegate.createEditor(parent, option, index)
         if self.region_delegate and self.region_delegate._is_target_element(index):
             return self.region_delegate.createEditor(parent, option, index)
+        if self.proprietor_code_delegate and self.proprietor_code_delegate._is_target_element(index):
+            return self.proprietor_code_delegate.createEditor(parent, option, index)
 
         return super().createEditor(parent, option, index)
 
@@ -691,7 +696,9 @@ class DispatcherDelegate(QStyledItemDelegate):
         if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setEditorData(editor, index)
         if self.region_delegate and self.region_delegate._is_target_element(index):
             return self.region_delegate.setEditorData(editor, index)
-
+        if self.proprietor_code_delegate and self.proprietor_code_delegate._is_target_element(index):
+            return self.proprietor_code_delegate.setEditorData(editor, index)
+        
         return super().setEditorData(editor, index)
 
     def setModelData(self, editor, model, index):
@@ -715,7 +722,9 @@ class DispatcherDelegate(QStyledItemDelegate):
         if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setModelData(editor, model, index)
         if self.region_delegate and self.region_delegate._is_target_element(index):
             return self.region_delegate.setModelData(editor, model, index)
-
+        if self.proprietor_code_delegate and self.proprietor_code_delegate._is_target_element(index):
+            return self.proprietor_code_delegate.setModelData(editor, model, index)
+        
         return super().setModelData(editor, model, index)
 
     def displayText(self, value, locale):
@@ -857,3 +866,60 @@ class RegionDelegate(QStyledItemDelegate):
             model.setData(index, selected_text, Qt.ItemDataRole.EditRole)
         else:
             super().setModelData(editor, model, index)
+
+class ProprietorCodeDelegate(QStyledItemDelegate):
+    """
+    Делегат для редагування елемента '/ProprietorInfo/ProprietorCode'.
+    Відображає QComboBox з назвами з секції [ProprietorCode].
+    Зберігає код власника (ключ з [ProprietorCode]), але показує назву.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.proprietor_codes = self._load_proprietor_codes()
+        self.items = list(self.proprietor_codes.values())
+        self.reverse_codes = {v: k for k, v in self.proprietor_codes.items()}
+
+    def _load_proprietor_codes(self):
+        """Завантажує список з секції [ProprietorCode] файлу конфігурації."""
+        if 'ProprietorCode' in config:
+            return dict(config['ProprietorCode'])
+        return {}
+
+    def _is_target_element(self, index):
+        """Перевіряє, чи є елемент '/ProprietorInfo/ProprietorCode'."""
+        full_path = index.data(Qt.ItemDataRole.UserRole)
+        return full_path and full_path.endswith("/ProprietorInfo/ProprietorCode")
+
+    def createEditor(self, parent, option, index):
+        """Створює QComboBox редактор."""
+        if self._is_target_element(index):
+            editor = QComboBox(parent)
+            editor.addItems(self.items)
+            return editor
+        return super().createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        """Встановлює значення редактора з моделі (за кодом шукає текстову назву)."""
+        if self._is_target_element(index):
+            code = index.model().data(index, Qt.ItemDataRole.EditRole)
+            text_value = self.proprietor_codes.get(str(code), "")
+            idx = editor.findText(text_value)
+            if idx != -1:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        """Встановлює код в модель за вибраним текстовим значенням у комбобоксі."""
+        if self._is_target_element(index):
+            selected_index = editor.currentIndex()
+            if selected_index != -1:
+                code = list(self.proprietor_codes.keys())[selected_index]
+                model.setData(index, str(code), Qt.ItemDataRole.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+    def displayText(self, value, locale):
+        """Відображає назву з [ProprietorCode] замість коду."""
+        return self.proprietor_codes.get(str(value), str(value))

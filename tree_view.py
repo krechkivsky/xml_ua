@@ -30,6 +30,7 @@ from .delegates import (
     DocumentCodeDelegate,
     LandCodeDelegate,
     OwnershipCodeDelegate,
+    ProprietorCodeDelegate,
     PurposeDelegate,
     RegionDelegate,
     StateActTypeDelegate,
@@ -124,6 +125,7 @@ class CustomTreeView(QTreeView):
         self.closed_delegate = ClosedDelegate(self)
         self.citizenship_delegate = CitizenshipDelegate(self)
         self.region_delegate = RegionDelegate(self)
+        self.proprietor_code_delegate = ProprietorCodeDelegate(self)
 
         self.dispatcher_delegate = DispatcherDelegate(
             parent=self,
@@ -136,7 +138,8 @@ class CustomTreeView(QTreeView):
             land_code_delegate=self.land_code_delegate,
             closed_delegate=self.closed_delegate,
             citizenship_delegate=self.citizenship_delegate,
-            region_delegate=self.region_delegate
+            region_delegate=self.region_delegate,
+            proprietor_code_delegate=self.proprietor_code_delegate
         )
 
         self.doc_type_delegate.documentationTypeChanged.connect(
@@ -793,7 +796,6 @@ class CustomTreeView(QTreeView):
             self.handle_reason_act_doc_edit(index)
             return True
         elif schema_item_path and schema_item_path.endswith("/RestrictionInfo/RestrictionCode"):
-
             self.select_restriction_code(item)
             return True
 
@@ -806,7 +808,11 @@ class CustomTreeView(QTreeView):
         elif schema_item_path and schema_item_path.endswith("/Address/Region"):
             self.handle_region_edit(index)
             return True
-        
+        elif schema_item_path and schema_item_path.endswith("/ProprietorInfo/ProprietorCode"):
+            self.handle_proprietor_code_edit(index)
+            return True
+
+
         return False
 
     def handle_land_category_edit(self, index: QModelIndex):
@@ -1447,6 +1453,64 @@ class CustomTreeView(QTreeView):
 
         # У модель зберігаємо безпосередньо обраний текст області
         self.model.setData(index, str(selection), Qt.ItemDataRole.EditRole)
+        try:
+            it = self.model.itemFromIndex(index)
+            if it:
+                it.setToolTip(str(selection))
+        except Exception:
+            pass
+
+    def handle_proprietor_code_edit(self, index: QModelIndex):
+        """
+        Відкриває діалог з випадаючим списком для вибору шифру рядка власника (/ProprietorInfo/ProprietorCode).
+        Записує в модель код (ключ з [ProprietorCode]), відображає назву.
+        """
+        proprietors = getattr(self.proprietor_code_delegate, "proprietor_codes", {}) or {}
+        if not proprietors:
+            QMessageBox.warning(
+                self, "Помилка", "Секція [ProprietorCode] не знайдена або порожня у файлі конфігурації."
+            )
+            return
+
+        items = list(proprietors.items())
+        names = list(proprietors.values())
+
+        current_code = str(self.model.data(index, Qt.ItemDataRole.EditRole) or "").strip()
+        default_idx = 0
+        if current_code:
+            current_name = proprietors.get(current_code, "")
+            if current_name:
+                try:
+                    default_idx = names.index(current_name)
+                except ValueError:
+                    default_idx = 0
+
+        selection, ok = QInputDialog.getItem(
+            self,
+            "Шифр рядка власника",
+            "Виберіть категорію власника:",
+            names,
+            default_idx,
+            False,
+        )
+        if not ok or not selection:
+            return
+
+        code = None
+        try:
+            code = self.proprietor_code_delegate.reverse_codes.get(selection)
+        except Exception:
+            code = None
+
+        if not code:
+            for k, v in items:
+                if v == selection:
+                    code = k
+                    break
+        if not code:
+            return
+
+        self.model.setData(index, str(code), Qt.ItemDataRole.EditRole)
         try:
             it = self.model.itemFromIndex(index)
             if it:
