@@ -2510,13 +2510,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def handle_committed_features_added(self, layer, added_features):
         """
-        Обробляє додавання об'єктів після commit.
+        Обробляє додавання об'єктів після commit з захистом від дублювання.
         """
         xml_data = self.ensure_visible_for_layer(layer)
-        if not xml_data:
-            return
-
-        if not added_features:
+        if not xml_data or not added_features:
             return
 
         layer_name = layer.name()
@@ -2527,15 +2524,15 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if self.current_xml != xml_data:
             self.current_xml = xml_data
 
-        self._signal_log(
-            f"[SIGNAL] committedFeaturesAdded start: layer='{layer_name}', count={len(added_features)}"
-        )
+        prev_suppress = getattr(self, "_suppress_layer_to_xml_sync", False)
+        self._suppress_layer_to_xml_sync = True
 
         layer_field_names = set(layer.fields().names())
         object_id_idx = layer.fields().indexFromName("object_id")
         object_shape_idx = layer.fields().indexFromName("object_shape")
         pending_attr_updates = {}
 
+        # --- Допоміжні функції ---
         def _safe_text(value, default_text=" "):
             if value is None:
                 return default_text
@@ -2546,9 +2543,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if field_name not in layer_field_names:
                 return None
             try:
-                return qgs_feature.attribute(field_name)
-            except KeyError:
-                return None
+                val = qgs_feature.attribute(field_name)
+                return None if val == NULL else val
             except Exception:
                 return None
 
@@ -2563,17 +2559,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return f"{(geom.area() / 10000.0):.4f}"
 
         def _append_shape_info(obj_id_text, obj_shape):
+            obj_id_str = str(obj_id_text).strip()
             for si in xml_data.shapes:
-                if si.layer_id == layer.id() and si.object_id == obj_id_text:
+                if si.layer_id == layer.id() and str(si.object_id).strip() == obj_id_str:
                     return
-            xml_data.shapes.append(ShapeInfo(layer.id(), obj_id_text, obj_shape))
+            xml_data.shapes.append(ShapeInfo(layer.id(), obj_id_str, obj_shape))
 
         def _stage_linkage_fields(feature_id, obj_id_text, obj_shape_text):
             if obj_id_text is None and obj_shape_text is None:
                 return
 
             updates = {}
-
             if object_id_idx != -1 and obj_id_text is not None:
                 try:
                     updates[object_id_idx] = int(str(obj_id_text).strip())
@@ -2586,35 +2582,56 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if updates:
                 pending_attr_updates[feature_id] = updates
 
-        changed = False
-
-        for feature in added_features:
-            if not isinstance(feature, QgsFeature):
-                continue
-            geometry = feature.geometry()
-            if not geometry or geometry.isNull():
-                continue
-
+        try:
+            self._signal_log(f"[SIGNAL] committedFeaturesAdded start: layer='{layer_name}', count={len(added_features)}")
+            changed = False
             processor = GeometryProcessor(xml_data.tree)
 
-            try:
+            for feature in added_features:
+                if not isinstance(feature, QgsFeature):
+                    continue
+                geometry = feature.geometry()
+                if not geometry or geometry.isNull():
+                    continue
+
+                # 1. ПЕРЕВІРКА: Якщо у фічі вже є object_id, і він ВЖЕ є у XML — пропускаємо!
+                existing_obj_id = _try_attribute(feature, "object_id")
+                if existing_obj_id is not None:
+                    obj_id_str = str(existing_obj_id).strip()
+                    if obj_id_str and xml_data.tree.find(f".//*[@object_id='{obj_id_str}']") is not None:
+                        continue
+
+                # --- Логіка для шару "Угіддя" ---
                 if layer_name == "Угіддя":
                     if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
                         continue
+                    
                     externals, _, _, object_shape = processor.process_new_geometry(geometry)
                     if externals is None:
                         continue
 
+                    # 2. ПЕРЕВІРКА: Перевірка на існування такого ж object_shape в XML
+                    if xml_data.tree.find(f".//LandParcelInfo[MetricInfo/Space/National/object_shape='{object_shape}']") is not None:
+                        continue
+
+                    # 3. ПЕРЕВІРКА: Перевірка у локальному списку shapes
+                    if any(si.layer_id == layer.id() and si.object_shape == object_shape for si in xml_data.shapes):
+                        continue
+
                     land_code = _safe_text(_try_attribute(feature, "LandCode"))
                     size_ha = float(_area_ha_text(geometry))
+                    
+                    # Створення нового запису
                     object_id = processor.add_land_parcel_info(externals, land_code, size_ha, object_shape)
                     _append_shape_info(object_id, object_shape)
                     _stage_linkage_fields(feature.id(), object_id, object_shape)
                     changed = True
 
+                # --- Логіка для шару "Оренда" ---
                 elif layer_name == "Оренда":
                     if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
                         continue
+
                     object_id, object_shape = processor.process_lease_geometry(geometry)
 
                     lease_info = xml_data.tree.find(f".//Leases/LeaseInfo[@object_id='{object_id}']")
@@ -2623,12 +2640,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         lease_info = lease_candidates[-1] if lease_candidates else None
                     if lease_info is None:
                         continue
+
                     lease_info.set("object_id", str(object_id))
 
                     lease_agreement = lease_info.find("LeaseAgreement")
                     if lease_agreement is not None:
                         _set_text(lease_agreement, "Area", _area_ha_text(geometry), default_text="0.0000")
                         _set_text(lease_agreement, "RegistrationDate", _try_attribute(feature, "RegistrationDate"), default_text="1900-01-01")
+                        
                         lease_term = lease_agreement.find("LeaseTerm")
                         if lease_term is None:
                             lease_term = etree.SubElement(lease_agreement, "LeaseTerm")
@@ -2638,135 +2657,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     _stage_linkage_fields(feature.id(), object_id, object_shape)
                     changed = True
 
-                elif layer_name == "Суборенда":
-                    if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
-                        continue
-                    object_id, object_shape = processor.process_sublease_geometry(geometry)
-                    sublease_info = xml_data.tree.find(f".//Subleases/SubleaseInfo[@object_id='{object_id}']")
-                    if sublease_info is None:
-                        continue
+            # Застосування оновлень атрибутів
+            if pending_attr_updates:
+                layer.dataProvider().changeAttributeValues(pending_attr_updates)
 
-                    _set_text(sublease_info, "Area", _area_ha_text(geometry), default_text="0.0000")
-                    _set_text(sublease_info, "RegistrationDate", _try_attribute(feature, "RegistrationDate"), default_text="1900-01-01")
+            if changed:
+                self.mark_xml_data_as_changed(xml_data)
+                xml_data.tree_view.update_view_from_tree()
 
-                    _append_shape_info(str(object_id), object_shape)
-                    _stage_linkage_fields(feature.id(), object_id, object_shape)
-                    changed = True
-
-                elif layer_name == "Обмеження":
-                    if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
-                        continue
-                    object_id, object_shape = processor.process_restriction_geometry(geometry)
-                    restriction_info = xml_data.tree.find(f".//Restrictions/RestrictionInfo[@object_id='{object_id}']")
-                    if restriction_info is None:
-                        continue
-
-                    _set_text(restriction_info, "RestrictionCode", _try_attribute(feature, "RestrictionCode"))
-                    _set_text(restriction_info, "RestrictionName", _try_attribute(feature, "RestrictionName"))
-
-                    term = restriction_info.find("RestrictionTerm")
-                    if term is None:
-                        term = etree.SubElement(restriction_info, "RestrictionTerm")
-                    time_el = term.find("Time")
-                    if time_el is None:
-                        time_el = etree.SubElement(term, "Time")
-                    _set_text(time_el, "StartDate", _try_attribute(feature, "StartDate"), default_text="1900-01-01")
-                    _set_text(time_el, "ExpirationDate", _try_attribute(feature, "ExpirationDate"), default_text="1900-01-01")
-
-                    _append_shape_info(str(object_id), object_shape)
-                    _stage_linkage_fields(feature.id(), object_id, object_shape)
-                    changed = True
-
-                elif layer_name == "Суміжники":
-                    if layer.geometryType() != QgsWkbTypes.LineGeometry:
-                        continue
-
-                    before_ids = {id(elem) for elem in xml_data.tree.findall(".//AdjacentUnits/AdjacentUnitInfo")}
-                    processor.process_adjacent_unit_geometry(geometry)
-                    adj_candidates = xml_data.tree.findall(".//AdjacentUnits/AdjacentUnitInfo")
-                    new_adj = next((elem for elem in adj_candidates if id(elem) not in before_ids), None)
-                    if new_adj is None:
-
-                        continue
-
-                    object_id = str(new_adj.get("object_id") or "").strip()
-                    if not object_id.isdigit():
-                        adjacent_units_container = xml_data.tree.find(".//AdjacentUnits")
-                        object_id = next_object_id_in_container(adjacent_units_container, "AdjacentUnitInfo")
-                        new_adj.set("object_id", object_id)
-
-                    cadastral_number = _safe_text(_try_attribute(feature, "CadastralNumber"), default_text="")
-                    proprietor = _safe_text(_try_attribute(feature, "Proprietor"))
-
-                    cn_el = new_adj.find("CadastralNumber")
-                    if cn_el is None:
-                        cn_el = etree.SubElement(new_adj, "CadastralNumber")
-                    cn_el.text = cadastral_number
-
-                    proprietor_el = new_adj.find("Proprietor")
-                    if proprietor_el is None:
-                        proprietor_el = etree.SubElement(new_adj, "Proprietor")
-                    for child in list(proprietor_el):
-                        proprietor_el.remove(child)
-                    legal_entity = etree.SubElement(proprietor_el, "LegalEntity")
-                    etree.SubElement(legal_entity, "Name").text = proprietor
-
-                    lines_el = new_adj.find(".//AdjacentBoundary/Lines")
-                    object_shape = processor._get_polyline_object_shape(lines_el) if lines_el is not None else ""
-
-                    _append_shape_info(str(object_id), object_shape)
-                    _stage_linkage_fields(feature.id(), object_id, object_shape)
-                    changed = True
-
-            except ValueError as e:
-                log_calls(logFile, f"committedFeaturesAdded ValueError ({layer_name}): {e}")
-                continue
-            except Exception as e:
-                log_calls(logFile, f"committedFeaturesAdded error ({layer_name}): {e}")
-                continue
-
-        if not changed:
-            self._signal_log(
-                f"[SIGNAL] committedFeaturesAdded no XML changes: layer='{layer_name}'"
-            )
-            return
-
-        if pending_attr_updates and (object_id_idx != -1 or object_shape_idx != -1):
-            started_editing = False
-            try:
-                if layer.isEditable():
-                    for fid, updates in pending_attr_updates.items():
-                        for idx, value in updates.items():
-                            layer.changeAttributeValue(fid, idx, value)
-                else:
-                    started_editing = bool(layer.startEditing())
-                    if started_editing:
-                        for fid, updates in pending_attr_updates.items():
-                            for idx, value in updates.items():
-                                layer.changeAttributeValue(fid, idx, value)
-                        layer.commitChanges()
-            except Exception as e:
-                log_calls(
-                    logFile,
-                    f"committedFeaturesAdded: failed to update object_id/object_shape in layer '{layer_name}': {e}",
-                )
-                if started_editing:
-                    try:
-                        if layer.isEditable():
-                            layer.rollBack()
-                    except Exception:
-                        pass
-
-        try:
-            GeometryProcessor(xml_data.tree).cleanup_and_renumber_geometry()
-        except Exception as e:
-            log_calls(logFile, f"Помилка cleanup_and_renumber_geometry після додавання: {e}")
-
-        xml_data.tree_view.rebuild_tree_view()
-        self.mark_xml_data_as_changed(xml_data)
-        self._signal_log(
-            f"[SIGNAL] committedFeaturesAdded done: layer='{layer_name}', redraw_current_group skipped for safety"
-        )
+        finally:
+            self._suppress_layer_to_xml_sync = prev_suppress
 
     def handle_committed_attribute_values_changed(self, layer, changed_attrs):
         """
