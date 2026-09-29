@@ -2544,7 +2544,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 return None
             try:
                 val = qgs_feature.attribute(field_name)
-                return None if val == NULL else val
+                return None if val == None else val
             except Exception:
                 return None
 
