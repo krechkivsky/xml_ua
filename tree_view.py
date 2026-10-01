@@ -1595,7 +1595,12 @@ class CustomTreeView(QTreeView):
 
         parent_item.appendRow([name_item, value_item])
 
-        if child_tag in ("Urban", "Rural"):
+        parent_value_item = parent_item.parent().child(parent_item.row(), 1) if parent_item.parent() else None
+        if parent_value_item is not None:
+            parent_value_item.setEditable(False)
+
+        child_schema = self.xsd_schema.get(f"{schema_parent_path}/{child_tag}", {})
+        if child_tag in ("Urban", "Rural") or child_schema.get('complex'):
             value_item.setEditable(False)
         else:
             value_item.setEditable(True)
@@ -2240,7 +2245,8 @@ class CustomTreeView(QTreeView):
             'name': tag_name,
             'minOccurs': element.get('minOccurs', '1'),
             'maxOccurs': element.get('maxOccurs', '1'),
-            'children': []
+            'children': [],
+            'complex': False,
 
         }
 
@@ -2263,6 +2269,9 @@ class CustomTreeView(QTreeView):
             complex_type = complex_type[0] if complex_type else None
 
         if complex_type is not None:
+            # An element with a complex XSD type is a structural node even
+            # while its XML instance has no children yet.
+            element_info['complex'] = True
 
             def _append_group_children(group_node, in_choice=False):
                 """
@@ -2442,13 +2451,15 @@ class CustomTreeView(QTreeView):
                 pass
 
         is_leaf = len(element) == 0
+        element_schema = self.xsd_schema.get(schema_path, {})
+        is_complex_type = bool(element_schema.get('complex'))
         is_empty_marker = element.tag in ("Urban", "Rural")
-        if is_state_act_type or is_category or is_purpose or is_ownership_code or is_doc_type or is_land_code or is_closed or schema_path.endswith("DocumentList"):
+        if not is_complex_type and (is_state_act_type or is_category or is_purpose or is_ownership_code or is_doc_type or is_land_code or is_closed or schema_path.endswith("DocumentList")):
             value_item.setEditable(True)
         elif is_empty_marker:
             value_item.setEditable(False)
         else:
-            value_item.setEditable(is_leaf)
+            value_item.setEditable(is_leaf and not is_complex_type)
 
         value_item.setData(full_path, Qt.ItemDataRole.UserRole)
         value_item.setData(element, Qt.ItemDataRole.UserRole + 10)
