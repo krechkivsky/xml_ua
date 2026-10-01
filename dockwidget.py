@@ -321,6 +321,39 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         return
 
+    def schedule_tree_validation(self, tree_view):
+        """Debounce automatic validation after a tree is built or edited."""
+        if tree_view is None or tree_view.xml_tree is None:
+            return
+
+        timer = getattr(tree_view, "_validation_timer", None)
+        if timer is None:
+            timer = QTimer(tree_view)
+            timer.setSingleShot(True)
+            timer.timeout.connect(
+                lambda view=tree_view: self._validate_tree_silently(view)
+            )
+            tree_view._validation_timer = timer
+        timer.start(300)
+
+    def _validate_tree_silently(self, tree_view):
+        """Refresh validation marks without showing dialogs or writing reports."""
+        if tree_view is None or tree_view.xml_tree is None:
+            return
+
+        try:
+            tree_view._validate_and_color_tree()
+            xsd_tree = copy.deepcopy(tree_view.xml_tree)
+            self._remove_object_id_attributes_from_tree(xsd_tree)
+            tree_view.validate_against_xsd(
+                xsd_path,
+                generate_report=False,
+                reset_visuals=False,
+                xml_tree=xsd_tree,
+            )
+        except Exception as e:
+            log_calls(logFile, f"Automatic XML validation failed: {e}")
+
     def _remove_object_id_attributes_from_tree(self, xml_tree):
         """Видаляє технічні object_id з XML-дерева. Повертає кількість видалених атрибутів."""
         if xml_tree is None:

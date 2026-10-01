@@ -81,6 +81,10 @@ class CustomTreeView(QTreeView):
         super().__init__(parent)
 
         self.parent = parent
+        if parent and hasattr(parent, "schedule_tree_validation"):
+            self.dataChangedInTree.connect(
+                lambda _path, _value, tree=self: parent.schedule_tree_validation(tree)
+            )
         self.tree_upd = False   # Флаг для запобігання циклічним змінам
         self.xml_tree = None
         self.xsd_appinfo = {}
@@ -2404,6 +2408,9 @@ class CustomTreeView(QTreeView):
                     )
 
             build_tree(root, self.model.invisibleRootItem())
+
+            if self.parent and hasattr(self.parent, "schedule_tree_validation"):
+                self.parent.schedule_tree_validation(self)
 
         except Exception as e:
             log_msg(logFile, f"Помилка при завантаженні XML: {e}")
