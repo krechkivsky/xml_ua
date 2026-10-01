@@ -31,85 +31,6 @@ class AdjacentUnits:
         self.xml_data = xml_data
         self.xml_ua_layers = xml_ua_layers_instance
 
-    def _set_fp_tp(self, line_elem, fp_val, tp_val):
-        """Гарантовано створює або оновлює теги FP та TP в дереві XML."""
-        if line_elem is None:
-            return
-
-        fp_elem = line_elem.find("FP")
-        if fp_elem is None:
-            fp_elem = ET.SubElement(line_elem, "FP")
-        fp_elem.text = str(fp_val) if fp_val is not None else ""
-
-        tp_elem = line_elem.find("TP")
-        if tp_elem is None:
-            tp_elem = ET.SubElement(line_elem, "TP")
-        tp_elem.text = str(tp_val) if tp_val is not None else ""
-
-    def _get_polylines_map(self):
-        """Повертає словник {ULID: [список_точок]} з MetricInfo."""
-        polylines = {}
-        for pl in self.root.findall(".//MetricInfo/Polyline/PL"):
-            ulid = pl.findtext("ULID")
-            pts = [p.text for p in pl.findall("Points/P") if p.text]
-            if ulid:
-                polylines[ulid] = pts
-        return polylines
-
-    def _get_parcel_ordered_points(self):
-        """Отримує послідовну межу точок (UIDP) Ділянки для перевірки напрямку обходу."""
-        polylines = self._get_polylines_map()
-
-        boundary_lines_ulids = [
-            ln.findtext("ULID")
-            for ln in self.root.findall(".//ParcelMetricInfo/Externals/Boundary/Lines/Line")
-            if ln.findtext("ULID")
-        ]
-
-        ordered_uidp = []
-        if boundary_lines_ulids:
-            first = boundary_lines_ulids[0]
-            ordered_uidp.extend(polylines.get(first, []))
-            for ulid in boundary_lines_ulids[1:]:
-                pts = polylines.get(ulid, [])
-                if not pts:
-                    continue
-                if ordered_uidp and pts[0] == ordered_uidp[-1]:
-                    ordered_uidp.extend(pts[1:])
-                elif ordered_uidp and pts[-1] == ordered_uidp[-1]:
-                    ordered_uidp.extend(list(reversed(pts[:-1])))
-                else:
-                    ordered_uidp.extend(pts)
-        return ordered_uidp
-
-    def _should_invert_adjacent(self, adj_pts, parcel_pts):
-        """Перевіряє, чи напрямок обходу Суміжника протилежний Ділянці."""
-        if not parcel_pts or len(adj_pts) < 2:
-            return False
-
-        circular_parcel = parcel_pts + parcel_pts
-
-        def is_sublist(sub, main):
-            n = len(sub)
-            for i in range(len(main) - n + 1):
-                if main[i:i + n] == sub:
-                    return True
-            return False
-
-        if is_sublist(adj_pts, circular_parcel):
-            return False
-        if is_sublist(list(reversed(adj_pts)), circular_parcel):
-            return True
-
-        indices = [parcel_pts.index(p) for p in adj_pts if p in parcel_pts]
-        if len(indices) >= 2:
-            diffs = [(indices[i + 1] - indices[i]) % len(parcel_pts) for i in range(len(indices) - 1)]
-            avg_diff = sum(diffs) / len(diffs)
-            if avg_diff > len(parcel_pts) / 2:
-                return True
-
-        return False
-
     def add_adjacents_layer(self):
         """Створює та заповнює шар 'Суміжники' згідно з алгоритмом обходу."""
         parcel_info = self.root.find(".//ParcelInfo")
@@ -151,9 +72,6 @@ class AdjacentUnits:
                 used_object_ids.add(int(obj_id_text))
         next_object_id = 1
 
-        parcel_pts = self._get_parcel_ordered_points()
-        polylines = self._get_polylines_map()
-
         for adjacent in adjacents_parent.findall(".//AdjacentUnitInfo"):
             object_id_text = str(adjacent.get("object_id") or "").strip()
             boundary_lines = adjacent.find(".//AdjacentBoundary/Lines")
@@ -162,43 +80,14 @@ class AdjacentUnits:
                     from .topology import GeometryProcessor
                     processor = GeometryProcessor(self.root.getroottree())
 
-                    # 1. Обчислюємо object_shape Суміжника
+                    # object_shape та напрямок визначені до створення
+                    # AdjacentUnitInfo. Тут XML тільки читаємо для побудови шару.
                     object_shape = processor._get_polyline_object_shape(boundary_lines)
-                    adj_pts = object_shape.split('-') if object_shape else []
+                    boundary_coords = self.xml_ua_layers.lines_element2polyline(
+                        boundary_lines
+                    )
 
-                    # 2. Перевіряємо напрям обходу відносно Ділянки
-                    should_invert = self._should_invert_adjacent(adj_pts, parcel_pts)
-
-                    boundary_coords = self.xml_ua_layers.lines_element2polyline(boundary_lines)
-                    lines_list = list(boundary_lines.findall("Line"))
-
-                    # 3. Якщо напрям протилежний — інвертуємо Суміжник і його object_shape
-                    if should_invert:
-                        adj_pts = list(reversed(adj_pts))
-                        object_shape = "-".join(adj_pts)
-                        if boundary_coords:
-                            boundary_coords = list(reversed(boundary_coords))
-
-                        if lines_list:
-                            for line_elem in lines_list:
-                                boundary_lines.remove(line_elem)
-                            for line_elem in reversed(lines_list):
-                                boundary_lines.append(line_elem)
-                            lines_list = list(reversed(lines_list))
-
-                    # 4. FP/TP обчислюємо з object_shape / точок поліліній та записуємо в XML
-                    if len(lines_list) == 1 and adj_pts:
-                        self._set_fp_tp(lines_list[0], adj_pts[0], adj_pts[-1])
-                    elif len(lines_list) > 1:
-                        for line_elem in lines_list:
-                            ulid = line_elem.findtext("ULID")
-                            pts = polylines.get(ulid, [])
-                            if pts:
-                                f_pt = pts[-1] if should_invert else pts[0]
-                                t_pt = pts[0] if should_invert else pts[-1]
-                                self._set_fp_tp(line_elem, f_pt, t_pt)
-
-                    # 5. Перевірка на дублікати та додавання до дерева XML і карти QGIS
+                    # Перевірка на дублікати та додавання до шару QGIS.
                     normalized_shape = "-".join(sorted(object_shape.split('-')))
                     if normalized_shape in existing_shapes_in_layer:
                         iface.messageBar().pushMessage(

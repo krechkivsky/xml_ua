@@ -437,9 +437,11 @@ class GeometryProcessor:
 
         adj_boundary = etree.SubElement(adj_unit_info, "AdjacentBoundary")
         lines = etree.SubElement(adj_boundary, "Lines")
-        for ulid in line_ulids:
+        for i, ulid in enumerate(line_ulids):
             line_el = etree.SubElement(lines, "Line")
             etree.SubElement(line_el, "ULID").text = ulid
+            etree.SubElement(line_el, "FP").text = point_uidps[i]
+            etree.SubElement(line_el, "TP").text = point_uidps[i + 1]
 
         etree.SubElement(adj_boundary, "Closed").text = "false"
 
@@ -778,13 +780,19 @@ class GeometryProcessor:
 
         if old_uidp_to_new:
             updated_p_refs = 0
-            for p_ref in self.root.xpath(".//Polyline/PL/Points/P"):
+            for p_ref in self.root.xpath(
+                ".//Polyline/PL/Points/P | "
+                ".//AdjacentBoundary/Lines/Line/FP | "
+                ".//AdjacentBoundary/Lines/Line/TP"
+            ):
                 old_ref = p_ref.text
                 if old_ref in old_uidp_to_new:
                     p_ref.text = old_uidp_to_new[old_ref]
                     updated_p_refs += 1
             log_calls(
-                logFile, f"Оновлено {updated_p_refs} посилань на вузли в полілініях.")
+                logFile,
+                f"Оновлено {updated_p_refs} посилань на вузли в полілініях та FP/TP."
+            )
 
         if old_ulid_to_new:
             updated_ulid_refs = 0

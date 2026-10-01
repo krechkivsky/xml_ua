@@ -3092,6 +3092,71 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(
             logFile, f"Обмеження додано до XML для групи '{self.current_xml.group_name}'.")
 
+    def _get_parcel_ordered_points_for_adjacent(self, tree):
+        """
+        Повертає UIDP межі Ділянки в її послідовності обходу.
+
+        Закриваюча повторна точка (перша == остання), якщо вона є,
+        вилучається: для визначення напрямку потрібен саме кільцевий
+        порядок вершин Ділянки.
+        """
+        processor = GeometryProcessor(tree)
+        boundary_lines = tree.find(
+            ".//ParcelMetricInfo/Externals/Boundary/Lines"
+        )
+        if boundary_lines is None:
+            return []
+
+        object_shape = processor._get_polyline_object_shape(boundary_lines)
+        parcel_pts = [p for p in object_shape.split("-") if p]
+
+        if len(parcel_pts) > 1 and parcel_pts[0] == parcel_pts[-1]:
+            parcel_pts.pop()
+
+        return parcel_pts
+
+    def _should_invert_adjacent(self, adj_pts, parcel_pts):
+        """
+        Перевіряє напрямок Суміжника за внутрішніми точками,
+        що спільні з межею Ділянки.
+
+        Точки-«вуса», які не належать межі Ділянки, не беруть участі
+        у визначенні напрямку, але при інверсії повертається вся
+        геометрія Суміжника разом із ними.
+        """
+        if len(adj_pts) < 2 or len(parcel_pts) < 2:
+            return False
+
+        parcel_index = {uidp: i for i, uidp in enumerate(parcel_pts)}
+        common_pts = [uidp for uidp in adj_pts if uidp in parcel_index]
+
+        if len(common_pts) < 2:
+            return False
+
+        indices = [parcel_index[uidp] for uidp in common_pts]
+        if len(set(indices)) < 2:
+            return False
+
+        n = len(parcel_pts)
+
+        def cyclic_forward_span(values):
+            total = 0
+            prev = values[0]
+            for current in values[1:]:
+                step = (current - prev) % n
+                total += step
+                prev = current
+            return total
+
+        forward_span = cyclic_forward_span(indices)
+        backward_indices = [(-idx) % n for idx in indices]
+        backward_span = cyclic_forward_span(backward_indices)
+
+        if forward_span == backward_span:
+            return False
+
+        return backward_span < forward_span
+
     def add_adjacent_unit(self):
         """
         Додає нового суміжника на основі виділеного на карті полілінійного об'єкта.
@@ -3144,15 +3209,68 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self, "Помилка додавання суміжника", "Вибраний об'єкт не є полілінією.")
             return
 
-        polyline_points = geom.asPolyline()
+        if geom.wkbType() == QgsWkbTypes.MultiLineString:
+            multi_polyline = geom.asMultiPolyline()
+            polyline_points = multi_polyline[0] if multi_polyline else []
+        else:
+            polyline_points = geom.asPolyline()
 
-        temp_processor = GeometryProcessor(self.current_xml.tree)
-        shape_uidps = []
-        for i, p in enumerate(polyline_points):
-            uidp = temp_processor._get_or_create_point(p)
-            shape_uidps.append(uidp)
+        if len(polyline_points) < 2:
+            QMessageBox.warning(
+                self,
+                "Помилка додавання суміжника",
+                "Не вдалося отримати послідовність точок виділеної лінії."
+            )
+            return
+
+        # Попередній розрахунок виконуємо на копії дерева, щоб не створювати
+        # PointInfo у реальному XML до визначення напрямку.
+        preview_tree = copy.deepcopy(self.current_xml.tree)
+        preview_processor = GeometryProcessor(preview_tree)
+        shape_uidps = [
+            preview_processor._get_or_create_point(p)
+            for p in polyline_points
+        ]
         object_shape = "-".join(shape_uidps)
-        log_calls(logFile, f"Додавання нового суміжника: '{object_shape}'")
+
+        log_calls(
+            logFile,
+            f"Початковий object_shape Суміжника: '{object_shape}'"
+        )
+
+        # Напрямок визначаємо ДО фактичного додавання Суміжника в XML.
+        parcel_pts = self._get_parcel_ordered_points_for_adjacent(
+            self.current_xml.tree
+        )
+        should_invert = self._should_invert_adjacent(
+            shape_uidps, parcel_pts
+        )
+
+        parcel_set = set(parcel_pts)
+        log_calls(
+            logFile,
+            f"Точки межі Ділянки для перевірки: {parcel_pts}"
+        )
+        log_calls(
+            logFile,
+            f"Спільні внутрішні точки Суміжника: "
+            f"{[p for p in shape_uidps if p in parcel_set]}"
+        )
+        log_calls(
+            logFile,
+            f"Напрямок Суміжника протилежний напрямку Ділянки: {should_invert}"
+        )
+
+        if should_invert:
+            polyline_points = list(reversed(polyline_points))
+            shape_uidps = list(reversed(shape_uidps))
+            object_shape = "-".join(shape_uidps)
+            geom = QgsGeometry.fromPolylineXY(polyline_points)
+
+            log_calls(
+                logFile,
+                f"Суміжник інвертовано. Новий object_shape: '{object_shape}'"
+            )
 
         adj_units_before = self.current_xml.tree.find(".//AdjacentUnits")
         if adj_units_before is None:
