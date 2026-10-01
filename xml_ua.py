@@ -570,8 +570,8 @@ class xml_ua:
 
     def on_committed_attribute_values_changed(self, layer_id, changed_attrs):
         """Обробляє зміну атрибутів після commit у підтримуваних XML-шарах."""
-        if LOG:
-            log_calls(logFile, f"[SIGNAL] committedAttributeValuesChanges: layer_id={layer_id}, changed_features={len(changed_attrs)}")
+
+        log_calls(logFile, f"[SIGNAL] committedAttributeValuesChanges: layer_id={layer_id}, changed_features={len(changed_attrs)}")
         layer = QgsProject.instance().mapLayer(layer_id)
         if not layer or not self.dockwidget:
             return
