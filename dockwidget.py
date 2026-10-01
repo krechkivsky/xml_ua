@@ -429,8 +429,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         f.write("="*50 + "\n")
                         for i, error in enumerate(errors_list, 1):
                             f.write(f"{i}. {error}\n")
-                            self.iface.messageBar().pushMessage(
-                                f"Помилка валідації #{i}", error, level=Qgis.Warning, duration=0)
                 except Exception as e:
                     log_calls(
                         logFile, f"Не вдалося зберегти звіт про помилки: {e}")
