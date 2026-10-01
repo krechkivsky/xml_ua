@@ -1539,6 +1539,23 @@ class CustomTreeView(QTreeView):
 
         self.restore_expanded_indexes(expanded_list)
 
+    def _normalize_fixed_empty_elements(self, root):
+        """Remove whitespace text from elements whose XSD fixed value is empty."""
+        def normalize(element, parent_schema_path=""):
+            if not isinstance(element.tag, str):
+                return
+            local_name = etree.QName(element).localname
+            schema_path = f"{parent_schema_path}/{local_name}" if parent_schema_path else local_name
+            element_schema = self.xsd_schema.get(schema_path, {})
+            if (element_schema.get('fixed') == "" and element.text is not None
+                    and not element.text.strip()):
+                element.text = None
+            for child in element:
+                normalize(child, schema_path)
+
+        if root is not None:
+            normalize(root)
+
     def add_child_element(self, parent_item, child_tag):
         """Додає дочірній елемент в XML та в дерево GUI."""
 
@@ -1585,9 +1602,12 @@ class CustomTreeView(QTreeView):
     def _create_and_add_element(self, parent_item, parent_xml_element, child_tag, parent_path, schema_parent_path):
         """Створює XML та GUI елементи і додає їх до батьківських."""
 
+        child_schema = self.xsd_schema.get(f"{schema_parent_path}/{child_tag}", {})
         new_xml_element = etree.Element(child_tag)
         if child_tag in ("Urban", "Rural"):
             new_xml_element.text = None
+        elif 'fixed' in child_schema:
+            new_xml_element.text = child_schema['fixed'] or None
         else:
             new_xml_element.text = " "  # Додаємо пробіл, щоб тег не був самозакриваючим
         parent_xml_element.append(new_xml_element)
@@ -1603,8 +1623,8 @@ class CustomTreeView(QTreeView):
         if parent_value_item is not None:
             parent_value_item.setEditable(False)
 
-        child_schema = self.xsd_schema.get(f"{schema_parent_path}/{child_tag}", {})
-        if child_tag in ("Urban", "Rural") or child_schema.get('complex'):
+        if (child_tag in ("Urban", "Rural") or child_schema.get('complex')
+                or 'fixed' in child_schema):
             value_item.setEditable(False)
         else:
             value_item.setEditable(True)
@@ -2253,6 +2273,8 @@ class CustomTreeView(QTreeView):
             'complex': False,
 
         }
+        if 'fixed' in element.attrib:
+            element_info['fixed'] = element.get('fixed')
 
         annotation = element.find('xsd:annotation', ns)
         if annotation is not None:
@@ -2378,6 +2400,7 @@ class CustomTreeView(QTreeView):
             self.model.removeRows(0, self.model.rowCount())
 
             root = self.xml_tree.getroot()
+            self._normalize_fixed_empty_elements(root)
         
             def build_tree(xml_node, parent_qt_item, parent_full_path="", parent_schema_path=""):
 
@@ -2460,10 +2483,11 @@ class CustomTreeView(QTreeView):
         is_leaf = len(element) == 0
         element_schema = self.xsd_schema.get(schema_path, {})
         is_complex_type = bool(element_schema.get('complex'))
+        is_fixed_value = 'fixed' in element_schema
         is_empty_marker = element.tag in ("Urban", "Rural")
         if not is_complex_type and (is_state_act_type or is_category or is_purpose or is_ownership_code or is_doc_type or is_land_code or is_closed or schema_path.endswith("DocumentList")):
             value_item.setEditable(True)
-        elif is_empty_marker:
+        elif is_empty_marker or is_fixed_value:
             value_item.setEditable(False)
         else:
             value_item.setEditable(is_leaf and not is_complex_type)
