@@ -86,6 +86,7 @@ class CustomTreeView(QTreeView):
                 lambda _path, _value, tree=self: parent.schedule_tree_validation(tree)
             )
         self.tree_upd = False   # Флаг для запобігання циклічним змінам
+        self._validating_tree = False
         self.xml_tree = None
         self.xsd_appinfo = {}
         self.xsd_descriptions = {}
@@ -189,7 +190,7 @@ class CustomTreeView(QTreeView):
         - Автоматично сигналом `self.model.itemChanged` при будь-якій зміні даних в моделі.
         """
 
-        if self.tree_upd:
+        if self.tree_upd or self._validating_tree:
             return
 
 
@@ -238,6 +239,14 @@ class CustomTreeView(QTreeView):
 
             if xml_element is not None:
                 xml_element.text = str(value) if value is not None else ""
+                owner = None
+                if self.parent and hasattr(self.parent, "_xml_data_for_tree"):
+                    owner = self.parent._xml_data_for_tree(self)
+                rollback_tree = getattr(owner, "temp_tree_state", None) if owner else None
+                if rollback_tree is not None:
+                    rollback_matches = rollback_tree.xpath(f"/{full_path}")
+                    if rollback_matches:
+                        rollback_matches[0].text = str(value) if value is not None else ""
                 return
 
             xpath_expression = f"/{full_path}"

@@ -342,6 +342,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if tree_view is None or tree_view.xml_tree is None:
             return
 
+        if getattr(tree_view, "_validating_tree", False):
+            return
+
+        tree_view._validating_tree = True
         try:
             tree_view._validate_and_color_tree()
             xsd_tree = copy.deepcopy(tree_view.xml_tree)
@@ -377,6 +381,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             tree_view.apply_proximity_errors()
         except Exception as e:
             log_calls(logFile, f"Automatic XML validation failed: {e}")
+        finally:
+            tree_view._validating_tree = False
 
     def _run_proximity_check_for_tree(self, tree_view):
         """Run proximity checks and color affected point nodes, without reports."""
@@ -938,8 +944,15 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         except Exception:
             pass
 
-        self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin,
-                                      xml_data=self.current_xml, context="open")  # Pass self.plugin
+        previous_layer_sync_suppression = self._suppress_layer_to_xml_sync
+        self._suppress_layer_to_xml_sync = True
+        try:
+            self.layers_obj = xmlUaLayers(
+                xml_path, new_xml_data.tree, plugin=self.plugin,
+                xml_data=new_xml_data, context="open")
+        finally:
+            self._suppress_layer_to_xml_sync = previous_layer_sync_suppression
+        self.current_xml = new_xml_data
         self.current_xml.group_name = self.layers_obj.group.name()
         self.current_xml.layers_obj = self.layers_obj  # type: ignore
         self.schedule_tree_validation(tree_view)
@@ -1099,8 +1112,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         self.load_data(xml_path, tree=tree)
 
-        self.layers_obj = xmlUaLayers(
-            xml_path, self.current_xml.tree, plugin=self.plugin, xml_data=self.current_xml, context="new")
+        new_xml_data = self.current_xml
+        previous_layer_sync_suppression = self._suppress_layer_to_xml_sync
+        self._suppress_layer_to_xml_sync = True
+        try:
+            self.layers_obj = xmlUaLayers(
+                xml_path, new_xml_data.tree, plugin=self.plugin,
+                xml_data=new_xml_data, context="new")
+        finally:
+            self._suppress_layer_to_xml_sync = previous_layer_sync_suppression
+        self.current_xml = new_xml_data
         self.current_xml.group_name = self.layers_obj.group.name()
         self.current_xml.layers_obj = self.layers_obj  # type: ignore
         self.schedule_tree_validation(tree_view)
@@ -1156,6 +1177,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def update_tab_save_button_state(self, index, is_enabled):
         """Робить кнопку збереження на вкладці активною або неактивною."""
+        if index < 0 or index >= self.tabWidget.count():
+            return
+        if index not in self.tab_save_buttons:
+            self.update_tab_indices()
         button = self.tab_save_buttons.get(index)
         if button:
             button.setEnabled(is_enabled)
@@ -1551,6 +1576,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         border: none; background: transparent; padding: 0px;
                     }
                 """)
+                save_button.setProperty("xmlUaSaveButton", True)
                 self.tab_save_buttons[i] = save_button  # Зберігаємо посилання
 
                 close_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DockWidgetCloseButton)
@@ -1571,12 +1597,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     }
                 """)
 
+                tab_page = self.tabWidget.widget(i)
                 save_button.clicked.connect(
-                    lambda _, button=save_button: self.on_custom_tab_save_button_clicked(
-                        self._tab_index_for_button(button)))
+                    lambda _, page=tab_page: self.on_custom_tab_save_button_clicked(
+                        self.tabWidget.indexOf(page)))
                 close_button.clicked.connect(
-                    lambda _, button=close_button: self.close_tab(
-                        self._tab_index_for_button(button)))
+                    lambda _, page=tab_page: self.close_tab(
+                        self.tabWidget.indexOf(page)))
 
                 buttons_layout.addWidget(save_button)
                 buttons_layout.addWidget(close_button)
@@ -1585,14 +1612,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 tab_bar.setTabButton(i, QTabBar.ButtonPosition.RightSide, buttons_widget)
 
         self.update_tab_indices()
-
-    def _tab_index_for_button(self, button):
-        tab_bar = self.tabWidget.tabBar()
-        for index in range(self.tabWidget.count()):
-            container = tab_bar.tabButton(index, QTabBar.ButtonPosition.RightSide)
-            if container is not None and (container is button or container.isAncestorOf(button)):
-                return index
-        return -1
 
     def on_layer_will_be_removed(self, layer_id):
         """
@@ -1920,6 +1939,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         for index in range(self.tabWidget.count()):
             container = tab_bar.tabButton(index, QTabBar.ButtonPosition.RightSide)
             buttons = container.findChildren(QPushButton) if container else []
+            buttons = [button for button in buttons
+                       if button.property("xmlUaSaveButton") is True]
             if buttons:
                 remapped[index] = buttons[0]
         self.tab_save_buttons = remapped
@@ -2169,17 +2190,24 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.iface.messageBar().pushMessage(
                     "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
 
-            xml_to_save.changed = False
-
-            if self.update_tab_style_by_group_name(xml_to_save.group_name, is_changed=False):
-                if xml_to_save == self.current_xml:
-                    self.update_changed_actions_state(is_changed=False)
-            self.update_window_title(xml_to_save.path)
-
             try:
                 self.recreate_layers_for_xml_data(xml_to_save)
             except Exception as e:
-                log_calls(logFile, f"Помилка перестворення шарів після збереження: {e}")
+                log_calls(logFile, f"Layer recreation after save failed: {e}")
+
+            # Rebuild layers can emit editing signals; only set the saved state
+            # after this technical refresh has finished.
+            xml_to_save.changed = False
+            tab_index = next(
+                (i for i in range(self.tabWidget.count())
+                 if self.get_xml_data_for_tab_index(i) is xml_to_save),
+                -1,
+            )
+            if tab_index >= 0:
+                self.update_tab_save_button_state(tab_index, is_enabled=False)
+            if xml_to_save is self.current_xml:
+                self.update_changed_actions_state(is_changed=False)
+            self.update_window_title(xml_to_save.path)
         except Exception as e:
             log_calls(
                 logFile, f"Помилка при збереженні файлу '{xml_to_save.path}': {e}")
@@ -3532,6 +3560,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         Обробляє сигнал editingStopped для шарів, що редагуються.
         Запитує користувача про збереження змін і виконує збереження/перемалювання.
         """
+        if getattr(self, "_suppress_layer_to_xml_sync", False):
+            return
+
         committed = not layer.isModified()
         log_calls(
             logFile, f"Зупинено редагування шару '{layer.name()}', committed: {committed}")
@@ -3541,11 +3572,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         self.ensure_visible_for_xml_data(xml_data)
-
-        if not hasattr(xml_data, 'temp_tree_state') or xml_data.temp_tree_state is None:
-            xml_data.temp_tree_state = etree.parse(xml_data.path)
-            log_calls(
-                logFile, "Створено тимчасовий стан дерева (temp_tree_state) для відстеження змін геометрії.")
+        edit_start_state = xml_data.temp_tree_state
 
         if committed:
             try:
@@ -3555,7 +3582,19 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     trigger=f"завершення редагування шару '{layer.name()}'",
                     notify=(layer.name() == "Ділянка")
                 )
-                self.mark_xml_data_as_changed(xml_data)
+                comparison_state = edit_start_state
+                if comparison_state is None:
+                    try:
+                        comparison_state = etree.parse(xml_data.path)
+                    except Exception:
+                        comparison_state = None
+                changed_during_edit = bool(
+                    comparison_state is not None
+                    and etree.tostring(comparison_state.getroot())
+                    != etree.tostring(xml_data.tree.getroot())
+                )
+                if changed_during_edit:
+                    self.mark_xml_data_as_changed(xml_data)
             except Exception as e:
                 log_calls(logFile, f"Помилка при синхронізації після commit: {e}")
                 self.iface.messageBar().pushMessage(
@@ -3567,6 +3606,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             if hasattr(xml_data, 'temp_tree_state') and xml_data.temp_tree_state is not None:  # noqa
                 xml_data.tree = xml_data.temp_tree_state  # Revert to the state before editing
+                if xml_data.tree_view is not None:
+                    xml_data.tree_view.xml_tree = xml_data.tree
 
                 self.redraw_layers(xml_data)
 
@@ -3576,13 +3617,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 if shape_info.layer_id == layer.id():
                     shape_info.delete = False
 
-        if not committed:
-            xml_data.changed = False
-            self.update_tab_style_by_group_name(xml_data.group_name, is_changed=False)
-            if self.current_xml and self.current_xml.group_name == xml_data.group_name:
-                self.update_changed_actions_state(is_changed=False)
-
         xml_data.temp_tree_state = None
+
+    def on_layer_editing_started(self, layer):
+        """Capture this document's in-memory XML before QGIS layer edits begin."""
+        if getattr(self, "_suppress_layer_to_xml_sync", False):
+            return
+        xml_data = self.find_xml_data_for_layer(layer)
+        if not xml_data or xml_data.tree is None:
+            return
+        xml_data.temp_tree_state = copy.deepcopy(xml_data.tree)
 
     def format_shape_info(self, si):
         """
@@ -3918,6 +3962,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         prev_suppress = getattr(self, "_suppress_close_on_layer_remove", False)
         self._suppress_close_on_layer_remove = True
+        prev_layer_sync_suppress = getattr(self, "_suppress_layer_to_xml_sync", False)
+        self._suppress_layer_to_xml_sync = True
         try:
             layers_root = QgsProject.instance().layerTreeRoot()
             group = layers_root.findGroup(old_group_name) if old_group_name else None
@@ -3964,6 +4010,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             )
         finally:
             self._suppress_close_on_layer_remove = prev_suppress
+            self._suppress_layer_to_xml_sync = prev_layer_sync_suppress
 
         try:
             xml_data_obj.layers_obj = new_layers_obj  # type: ignore

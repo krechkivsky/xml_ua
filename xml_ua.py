@@ -530,6 +530,9 @@ class xml_ua:
         Передає керування док-віджету, коли об'єкт видаляється в режимі редагування.
         """
 
+        if self.dockwidget and getattr(self.dockwidget, "_suppress_layer_to_xml_sync", False):
+            return
+
         if LOG:
             log_calls(logFile, f"[SIGNAL] featureDeleted: layer='{layer.name()}', feature_id={feature_id}")
         if not self.dockwidget:
@@ -542,6 +545,8 @@ class xml_ua:
 
     def on_committed_features_removed(self, layer_id, feature_ids):
         """Передає керування док-віджету після видалення об'єктів."""
+        if self.dockwidget and getattr(self.dockwidget, "_suppress_layer_to_xml_sync", False):
+            return
         if LOG:
             log_calls(logFile, f"[SIGNAL] committedFeaturesRemoved: layer_id={layer_id}, count={len(feature_ids)}")
         layer = QgsProject.instance().mapLayer(layer_id)
@@ -557,6 +562,8 @@ class xml_ua:
 
     def on_committed_features_added(self, layer_id, added_features):
         """Обробляє додавання об'єктів після commit у підтримуваних XML-шарах."""
+        if self.dockwidget and getattr(self.dockwidget, "_suppress_layer_to_xml_sync", False):
+            return
         if LOG:
             log_calls(logFile, f"[SIGNAL] committedFeaturesAdded: layer_id={layer_id}, count={len(added_features)}")
         layer = QgsProject.instance().mapLayer(layer_id)
@@ -570,6 +577,8 @@ class xml_ua:
 
     def on_committed_attribute_values_changed(self, layer_id, changed_attrs):
         """Обробляє зміну атрибутів після commit у підтримуваних XML-шарах."""
+        if self.dockwidget and getattr(self.dockwidget, "_suppress_layer_to_xml_sync", False):
+            return
 
         log_calls(logFile, f"[SIGNAL] committedAttributeValuesChanges: layer_id={layer_id}, changed_features={len(changed_attrs)}")
         layer = QgsProject.instance().mapLayer(layer_id)
@@ -1009,6 +1018,8 @@ class xml_ua:
         for layer_id, layer in project.mapLayers().items():
             if layer.name() == "Вузли":
 
+                layer.editingStarted.connect(
+                    lambda l=layer: self.dockwidget.on_layer_editing_started(l))
                 layer.editingStopped.connect(
                     lambda l=layer: self.dockwidget.on_layer_editing_stopped(l))
 
@@ -1927,6 +1938,8 @@ class xml_ua:
                     try:
 
                         layer.editingStarted.connect(lambda l=layer: log_calls(logFile, f"Користувач ввімкнув режим редагування шару: '{l.name()}'"))  # noqa
+                        layer.editingStarted.connect(
+                            lambda l=layer: self.dockwidget.on_layer_editing_started(l))
                         layer.editingStopped.connect(
                             lambda l=layer: self.dockwidget.on_layer_editing_stopped(l))
                     except Exception as e:
