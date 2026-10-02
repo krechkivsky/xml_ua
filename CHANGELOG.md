@@ -1,6 +1,9 @@
 # Журнал змін
 
 
+## v0.9.7 (2026-10-02)
+- **Fixed:** Removed insecure standard-library XML parser fallbacks; XML handling now consistently uses lxml.
+
 ## v0.9.6 (2026-10-02)
 - **Нове:** сумісність з ПЗ без автокорекції напряму обходу.
 - **Нове:** автокорекція напряму обходу контурів.

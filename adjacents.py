@@ -1,9 +1,6 @@
 import os
 
-try:
-    from lxml import etree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
+from lxml import etree as ET
 
 from qgis.core import (
     Qgis,

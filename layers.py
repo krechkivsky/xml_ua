@@ -1,7 +1,6 @@
 
 
 import os
-import xml.etree.ElementTree as ET
 
 from lxml import etree as ET
 from qgis.core import QgsLayerTreeLayer, QgsPointXY, QgsProject
