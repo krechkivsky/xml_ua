@@ -362,6 +362,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     adjacent_layer=getattr(adjacent_handler, "layer", None),
                 )
                 tree_view.mark_adjacent_coverage_errors(result["errors"])
+
+                from .land_coverage import check_land_coverage
+
+                lands_handler = getattr(layers_obj, "lands_handler", None)
+                land_result = check_land_coverage(
+                    tree_view.xml_tree,
+                    lands_layer=getattr(lands_handler, "layer", None),
+                )
+                tree_view.mark_land_coverage_errors(
+                    land_result["land_errors"], land_result["block_errors"]
+                )
             tree_view.apply_proximity_errors()
         except Exception as e:
             log_calls(logFile, f"Automatic XML validation failed: {e}")
@@ -504,7 +515,20 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             )
             adjacent_errors = adjacent_result["errors"]
             tree_view.mark_adjacent_coverage_errors(adjacent_errors)
-            errors_list = xsd_errors + local_errors + adjacent_errors
+
+            from .land_coverage import check_land_coverage
+
+            layers_obj = getattr(self.current_xml, "layers_obj", None)
+            lands_handler = getattr(layers_obj, "lands_handler", None)
+            land_result = check_land_coverage(
+                self.current_xml.tree,
+                lands_layer=getattr(lands_handler, "layer", None),
+            )
+            land_errors = land_result["errors"]
+            tree_view.mark_land_coverage_errors(
+                land_result["land_errors"], land_result["block_errors"]
+            )
+            errors_list = xsd_errors + local_errors + adjacent_errors + land_errors
 
             if errors_list:
                 report_path = os.path.join(os.path.dirname(

@@ -3202,6 +3202,42 @@ class CustomTreeView(QTreeView):
         for error in errors:
             self._mark_item_as_invalid(target, error)
 
+    def mark_land_coverage_errors(self, land_errors, block_errors):
+        """Attach land polygon errors to the affected items and LandsParcel block."""
+        block_item = None
+        parcel_item = None
+        for item in self._iter_name_items() or ():
+            element = item.data(Qt.ItemDataRole.UserRole + 10)
+            if element is None:
+                continue
+            local_name = etree.QName(element).localname
+            if local_name == "LandsParcel" and block_item is None:
+                block_item = item
+            elif local_name == "ParcelInfo" and parcel_item is None:
+                parcel_item = item
+
+        land_items = []
+        if block_item is not None:
+            stack = [block_item]
+            while stack:
+                item = stack.pop()
+                element = item.data(Qt.ItemDataRole.UserRole + 10)
+                if element is not None and etree.QName(element).localname == "LandParcelInfo":
+                    land_items.append(item)
+                for row in range(item.rowCount() - 1, -1, -1):
+                    child = item.child(row, 0)
+                    if child is not None:
+                        stack.append(child)
+
+        for index, messages in land_errors.items():
+            if 1 <= index <= len(land_items):
+                for message in messages:
+                    self._mark_item_as_invalid(land_items[index - 1], message)
+
+        block_item = block_item or parcel_item
+        for message in block_errors:
+            self._mark_item_as_invalid(block_item, message)
+
 
     def highlight_xml_errors(self, validation_results):
         """

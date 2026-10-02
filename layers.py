@@ -115,7 +115,7 @@ class xmlUaLayers:
         self.lines_handler.read_lines()
         self.qgisLines = self.lines_handler.qgis_lines  # Keep for other methods
 
-        lands_handler = None
+        self.lands_handler = None
         leases_handler = None
         self.subleases_handler = None
         restrictions_handler = None
@@ -150,10 +150,10 @@ class xmlUaLayers:
                                          self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
         parcel_handler.add_parcel_layer()
 
-        lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir,
-                                     self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
+        self.lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir,
+                                          self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
         if self.root.find(".//LandsParcel") is not None:
-            lands_handler.add_lands_layer()
+            self.lands_handler.add_lands_layer()
 
         leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir,
                                 self.linesToCoordinates, self, xml_data=self.xml_data)  # Оренда
@@ -177,7 +177,7 @@ class xmlUaLayers:
 
         all_handlers = [
             self.points_handler, self.control_points_handler, self.lines_handler, quarter_handler, zone_handler,
-            parcel_handler, lands_handler, leases_handler, self.subleases_handler,
+            parcel_handler, self.lands_handler, leases_handler, self.subleases_handler,
             restrictions_handler, self.adjacents_handler
         ]
 
