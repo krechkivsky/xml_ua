@@ -777,7 +777,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     pass
 
             report_path = ""
-            if result.any_issue:
+            if False and result.any_issue:
                 try:
                     report_text = _area_checks.build_area_err_report(xml_path=xml_path, result=result)
                     report_path = _area_checks.write_area_err_report(xml_path=xml_path, report_text=report_text)
@@ -852,7 +852,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         body,
                     )
 
-            _show_area_err_dialog()
+            # Findings are displayed in the live tree.
 
             if report_path:
                 self.iface.messageBar().pushMessage(
@@ -869,17 +869,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         )
         was_object_ids_cleaned = removed_object_ids > 0
         if was_object_ids_cleaned:
-            log_calls(
-                logFile,
-                f"Під час відкриття XML прибрано зайві атрибути object_id: {removed_object_ids}"
-            )
-            self.iface.messageBar().pushMessage(
-                "XML-UA",
-                f"Під час відкриття прибрано зайві атрибути object_id ({removed_object_ids}). Збережіть файл для фіксації виправлення.",
-                level=Qgis.Warning,
-                duration=7
-            )
-
             self.load_data(xml_path, tree=self.current_xml.tree)
 
         was_reordered = False
@@ -893,12 +882,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 self.mark_as_changed()
 
-                QMessageBox.information(
-                    self,
-                    "Автоматичне виправлення",
-                    "Порядок елементів у файлі було автоматично виправлено для відповідності схемі XSD.\n\n"
-                    "Будь ласка, збережіть файл, щоб застосувати зміни."
-                )
+
 
         was_renumbered = False
         try:
@@ -913,38 +897,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             processor = GeometryProcessor(self.current_xml.tree)
             was_renumbered = processor.cleanup_and_renumber_geometry()
             if was_renumbered:
-                log_calls(
-                    logFile, "Порушення послідовності нумерації геометрії було виправлено.")
                 self.mark_as_changed()
 
-                try:
-                    after_numbering = snapshot_geometry_numbering(self.current_xml.tree)
-                    report_text = build_geometry_numbering_report(
-                        xml_path=xml_path,
-                        before=before_numbering,
-                        after=after_numbering,
-                    )
-                    report_path = write_numbering_report(
-                        xml_path=xml_path,
-                        report_text=report_text,
-                    )
-                    log_calls(
-                        logFile,
-                        f"Створено звіт про нумерацію вузлів/ліній: {report_path}"
-                    )
-                except Exception as e:
-                    log_calls(
-                        logFile,
-                        f"Помилка створення звіту про нумерацію: {e}"
-                    )
-        except Exception as e:
-            log_calls(
-                logFile, f"Помилка під час перевірки та перенумерації геометрії: {e}")
-            QMessageBox.warning(
-                self,
-                "Помилка перенумерації",
-                f"Під час автоматичного виправлення нумерації геометрії сталася помилка:\n\n{e}"
-            )
+        except Exception:
+            pass
 
         try:
             points = self.current_xml.tree.findall(".//PointInfo/Point")
@@ -962,100 +918,24 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 counts[pn] = counts.get(pn, 0) + 1
             duplicate_pn = [pn for pn, c in counts.items() if c > 1]
 
-            if empty_pn > 0 or duplicate_pn:
-                self.iface.messageBar().pushMessage(
-                    "XML-UA",
-                    f"PN: порожніх={empty_pn}, неунікальних={len(duplicate_pn)} (це не критично).",
-                    level=Qgis.Warning,
-                    duration=10,
-                )
-        except Exception as e:
-            log_calls(logFile, f"Помилка перевірки PN при відкритті XML: {e}")
+            # PN diagnostics are displayed by live tree validation.
+        except Exception:
+            pass
 
         try:
             from .proximity_checks import (
                 run_proximity_checks,
             )
 
-            message_bar = self.iface.messageBar()
-            progress_message = message_bar.createMessage(
-                "XML-UA",
-                "Перевірка близьких і створних точок..."
-            )
-            progress_bar = QProgressBar()
-            progress_bar.setRange(0, 100)
-            progress_bar.setValue(0)
-            progress_bar.setMaximumWidth(220)
-            progress_message.layout().addWidget(progress_bar)
-            message_bar.pushWidget(progress_message, Qgis.Info)
-
-            simulated_progress = {"value": 0}
-            simulated_timer = QTimer(self)
-
-            def tick_progress():
-                if simulated_progress["value"] < 95:
-                    simulated_progress["value"] += 1
-                    progress_bar.setValue(simulated_progress["value"])
-
-            simulated_timer.timeout.connect(tick_progress)
-            simulated_timer.start(120)
-
-            def set_progress(value: int):
-                clamped = max(0, min(100, int(value)))
-                if clamped > simulated_progress["value"]:
-                    simulated_progress["value"] = clamped
-                progress_bar.setValue(simulated_progress["value"])
-                QApplication.processEvents()
-
             result = run_proximity_checks(
-                xml_tree=self.current_xml.tree,
-                threshold_m=0.3,
-                progress=set_progress,
+                xml_tree=self.current_xml.tree, threshold_m=0.3,
             )
-
-            set_progress(100)
-            simulated_timer.stop()
-            message_bar.popWidget(progress_message)
-
             proximity_uidps = {hit.uidp for hit in result.close_hits}
             proximity_uidps.update(hit.uidp for hit in result.near_line_hits)
             tree_view.mark_proximity_errors(proximity_uidps)
 
-            close_cnt = len(result.close_hits)
-            collinear_cnt = len(result.near_line_hits)
-            # log_calls(
-            #     logFile,
-            #     f"Перевірка близьких/створних точок завершена за {result.elapsed_sec:.2f}с: "
-            #     f"близьких={close_cnt}, створних={collinear_cnt} (поріг {result.threshold_m}м)."
-            # )
-
-            if close_cnt or collinear_cnt:
-                close_preview = ", ".join(h.uidp for h in result.close_hits[:20])
-                collinear_preview = ", ".join(h.uidp for h in result.near_line_hits[:20])
-                details = []
-                if close_cnt:
-                    details.append(
-                        f"близькі={close_cnt}" + (f" (UIDP: {close_preview}{' …' if close_cnt > 20 else ''})" if close_preview else "")
-                    )
-                if collinear_cnt:
-                    details.append(
-                        f"створні={collinear_cnt}" + (f" (UIDP: {collinear_preview}{' …' if collinear_cnt > 20 else ''})" if collinear_preview else "")
-                    )
-                self.iface.messageBar().pushMessage(
-                    "XML-UA",
-                    "Проблемні точки: " + "; ".join(details),
-                    level=Qgis.Warning,
-                    duration=10,
-                )
-            else:
-                self.iface.messageBar().pushMessage(
-                    "XML-UA",
-                    "Перевірка близьких/створних точок: проблем не знайдено.",
-                    level=Qgis.Success,
-                    duration=5,
-                )
-        except Exception as e:
-            log_calls(logFile, f"Помилка перевірки близьких/створних точок при відкритті XML: {e}")
+        except Exception:
+            pass
 
         self.layers_obj = xmlUaLayers(xml_path, self.current_xml.tree, plugin=self.plugin,
                                       xml_data=self.current_xml, context="open")  # Pass self.plugin
