@@ -196,7 +196,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.full_xml_file_name = ""
         self._is_closing = False
 
-        self.tabWidget.setMovable(True)  # Дозволяємо переміщення вкладок
+        self.tabWidget.setMovable(True)
+        self.tabWidget.tabBar().tabMoved.connect(self.update_tab_indices)  # Дозволяємо переміщення вкладок
         self.tabWidget.setTabsClosable(False)
         while self.tabWidget.count() > 0:
             self.tabWidget.removeTab(0)
@@ -1170,19 +1171,25 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         return False
 
-    def mark_as_changed(self):
-        """
-        Позначає поточний XML-файл як змінений і оновлює заголовок вікна.
-        """
-        if self.current_xml and not self.current_xml.changed:
+    def mark_as_changed(self, tree_view=None):
+        """Mark the owning XML document as modified."""
+        xml_data_obj = self._xml_data_for_tree(tree_view) if tree_view is not None else self.current_xml
+        if not xml_data_obj:
+            return
 
-            self.current_xml.changed = True
+        xml_data_obj.changed = True
+        xml_data_obj.was_ever_changed = True
 
-            self.current_xml.was_ever_changed = True  # Фіксуємо, що зміни були
+        tab_index = -1
+        for index in range(self.tabWidget.count()):
+            tab = self.tabWidget.widget(index)
+            if tab is not None and tab.findChild(CustomTreeView) is getattr(xml_data_obj, "tree_view", None):
+                tab_index = index
+                break
+        if tab_index >= 0:
+            self.update_tab_save_button_state(tab_index, is_enabled=True)
 
-            self.update_tab_style_by_group_name(
-                self.current_xml.group_name, is_changed=True)
-
+        if xml_data_obj is self.current_xml:
             self.update_changed_actions_state(is_changed=True)
 
     def process_action_save(self):
@@ -1439,6 +1446,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             if tab_index_to_remove != -1:
                 self.tabWidget.removeTab(tab_index_to_remove)
+                self.update_tab_indices()
                 # log_calls(
                 #     logFile, f"Вкладку для групи '{xml_to_close.group_name}' видалено.")
 
@@ -1564,15 +1572,27 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 """)
 
                 save_button.clicked.connect(
-                    lambda _, index=i: self.on_custom_tab_save_button_clicked(index))
+                    lambda _, button=save_button: self.on_custom_tab_save_button_clicked(
+                        self._tab_index_for_button(button)))
                 close_button.clicked.connect(
-                    lambda _, index=i: self.close_tab(index))
+                    lambda _, button=close_button: self.close_tab(
+                        self._tab_index_for_button(button)))
 
                 buttons_layout.addWidget(save_button)
                 buttons_layout.addWidget(close_button)
                 buttons_widget.setLayout(buttons_layout)
 
                 tab_bar.setTabButton(i, QTabBar.ButtonPosition.RightSide, buttons_widget)
+
+        self.update_tab_indices()
+
+    def _tab_index_for_button(self, button):
+        tab_bar = self.tabWidget.tabBar()
+        for index in range(self.tabWidget.count()):
+            container = tab_bar.tabButton(index, QTabBar.ButtonPosition.RightSide)
+            if container is not None and (container is button or container.isAncestorOf(button)):
+                return index
+        return -1
 
     def on_layer_will_be_removed(self, layer_id):
         """
@@ -1866,6 +1886,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.current_xml = xml_data
             self.update_all_actions_state(is_file_open=True)
             self.update_changed_actions_state(is_changed=xml_data.changed)
+            self.update_tab_save_button_state(index, is_enabled=xml_data.changed)
             layers_root = QgsProject.instance().layerTreeRoot()
             group = layers_root.findGroup(xml_data.group_name)
             if group:
@@ -1892,10 +1913,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if not is_file_open:
                 self.update_changed_actions_state(False)
 
-    def update_tab_indices(self):
-        """ 
-        Оновлює індекси вкладок після закриття.
-        """
+    def update_tab_indices(self, *_args):
+        """Reindex save buttons after tabs are moved."""
+        tab_bar = self.tabWidget.tabBar()
+        remapped = {}
+        for index in range(self.tabWidget.count()):
+            container = tab_bar.tabButton(index, QTabBar.ButtonPosition.RightSide)
+            buttons = container.findChildren(QPushButton) if container else []
+            if buttons:
+                remapped[index] = buttons[0]
+        self.tab_save_buttons = remapped
 
     def generate_layers_obj_name(self, base_name):
         """
@@ -2013,6 +2040,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """Повертає об'єкт xml_data для вкладки за її індексом."""
         if index < 0 or index >= self.tabWidget.count():
             return None
+
+        tab = self.tabWidget.widget(index)
+        tree_view = tab.findChild(CustomTreeView) if tab is not None else None
+        xml_data_obj = self._xml_data_for_tree(tree_view) if tree_view is not None else None
+        if xml_data_obj is not None:
+            return xml_data_obj
 
         tab_name = self.tabWidget.tabText(index)
         tab_tooltip = self.tabWidget.tabToolTip(index)

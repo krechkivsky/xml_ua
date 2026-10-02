@@ -578,7 +578,7 @@ class CustomTreeView(QTreeView):
         """Позначає поточний XML-файл як змінений."""
 
         if self.parent and hasattr(self.parent, 'mark_as_changed'):
-            self.parent.mark_as_changed()
+            self.parent.mark_as_changed(self)
 
     def get_expanded_indexes(self, index, expanded_list):
         """
@@ -1629,7 +1629,7 @@ class CustomTreeView(QTreeView):
         else:
             value_item.setEditable(True)
 
-        self.parent.mark_as_changed()
+        self.parent.mark_as_changed(self)
         self.expand(parent_item.index())
         try:
 
@@ -1729,7 +1729,7 @@ class CustomTreeView(QTreeView):
                 self.parent.current_xml.tree)  # type: ignore
             processor.cleanup_and_renumber_geometry()
 
-        self.parent.mark_as_changed()
+        self.parent.mark_as_changed(self)
         try:
 
             self.dataChangedInTree.emit(item_path, "")
