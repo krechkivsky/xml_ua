@@ -351,8 +351,46 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 reset_visuals=False,
                 xml_tree=xsd_tree,
             )
+            xml_data_obj = self._xml_data_for_tree(tree_view)
+            layers_obj = getattr(xml_data_obj, "layers_obj", None) if xml_data_obj else None
+            if layers_obj is not None:
+                from .adjacent_coverage import check_adjacent_coverage
+
+                adjacent_handler = getattr(layers_obj, "adjacents_handler", None)
+                result = check_adjacent_coverage(
+                    tree_view.xml_tree,
+                    adjacent_layer=getattr(adjacent_handler, "layer", None),
+                )
+                tree_view.mark_adjacent_coverage_errors(result["errors"])
+            tree_view.apply_proximity_errors()
         except Exception as e:
             log_calls(logFile, f"Automatic XML validation failed: {e}")
+
+    def _run_proximity_check_for_tree(self, tree_view):
+        """Run proximity checks and color affected point nodes, without reports."""
+        if tree_view is None or tree_view.xml_tree is None:
+            return
+        try:
+            from .proximity_checks import run_proximity_checks
+
+            result = run_proximity_checks(
+                xml_tree=tree_view.xml_tree,
+                threshold_m=0.3,
+            )
+            uidps = {hit.uidp for hit in result.close_hits}
+            uidps.update(hit.uidp for hit in result.near_line_hits)
+            tree_view.mark_proximity_errors(uidps)
+        except Exception as e:
+            log_calls(logFile, f"Automatic proximity check failed: {e}")
+
+    def _xml_data_for_tree(self, tree_view):
+        for xml_data_obj in getattr(self, "opened_xmls", []):
+            if getattr(xml_data_obj, "tree_view", None) is tree_view:
+                return xml_data_obj
+        current = getattr(self, "current_xml", None)
+        if getattr(current, "tree_view", None) is tree_view:
+            return current
+        return None
 
     def _remove_object_id_attributes_from_tree(self, xml_tree):
         """Видаляє технічні object_id з XML-дерева. Повертає кількість видалених атрибутів."""
@@ -450,7 +488,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 xsd_path, generate_report=True, reset_visuals=False, xml_tree=xsd_tree
             )
             set_progress(80)
-            errors_list = xsd_errors + local_errors
+            adjacent_layer = None
+            try:
+                layers_obj = getattr(self.current_xml, "layers_obj", None)
+                adjacent_handler = getattr(layers_obj, "adjacents_handler", None)
+                adjacent_layer = getattr(adjacent_handler, "layer", None)
+            except Exception:
+                adjacent_layer = None
+
+            from .adjacent_coverage import check_adjacent_coverage
+
+            adjacent_result = check_adjacent_coverage(
+                self.current_xml.tree,
+                adjacent_layer=adjacent_layer,
+            )
+            adjacent_errors = adjacent_result["errors"]
+            tree_view.mark_adjacent_coverage_errors(adjacent_errors)
+            errors_list = xsd_errors + local_errors + adjacent_errors
 
             if errors_list:
                 report_path = os.path.join(os.path.dirname(
@@ -896,9 +950,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         try:
             from .proximity_checks import (
-                build_proximity_report,
                 run_proximity_checks,
-                write_proximity_report,
             )
 
             message_bar = self.iface.messageBar()
@@ -941,13 +993,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             simulated_timer.stop()
             message_bar.popWidget(progress_message)
 
-            try:
-                report_text = build_proximity_report(xml_path=xml_path, result=result)
-                report_path = write_proximity_report(xml_path=xml_path, report_text=report_text)
-                # log_calls(logFile, f"Створено звіт proximity: {report_path}")
-            except Exception as e:
-                log_calls(logFile, f"Помилка створення звіту proximity: {e}")
-                report_path = ""
+            proximity_uidps = {hit.uidp for hit in result.close_hits}
+            proximity_uidps.update(hit.uidp for hit in result.near_line_hits)
+            tree_view.mark_proximity_errors(proximity_uidps)
 
             close_cnt = len(result.close_hits)
             collinear_cnt = len(result.near_line_hits)
@@ -971,14 +1019,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     )
                 self.iface.messageBar().pushMessage(
                     "XML-UA",
-                    "Проблемні точки: " + "; ".join(details) + (f". Звіт: {os.path.basename(report_path)}" if report_path else ""),
+                    "Проблемні точки: " + "; ".join(details),
                     level=Qgis.Warning,
                     duration=10,
                 )
             else:
                 self.iface.messageBar().pushMessage(
                     "XML-UA",
-                    "Перевірка близьких/створних точок: проблем не знайдено." + (f" Звіт: {os.path.basename(report_path)}" if report_path else ""),
+                    "Перевірка близьких/створних точок: проблем не знайдено.",
                     level=Qgis.Success,
                     duration=5,
                 )
@@ -989,6 +1037,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                                       xml_data=self.current_xml, context="open")  # Pass self.plugin
         self.current_xml.group_name = self.layers_obj.group.name()
         self.current_xml.layers_obj = self.layers_obj  # type: ignore
+        self.schedule_tree_validation(tree_view)
 
         self.tabWidget.setTabText(index, self.current_xml.group_name)
         self.tabWidget.setTabToolTip(index, xml_path)
@@ -1149,6 +1198,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             xml_path, self.current_xml.tree, plugin=self.plugin, xml_data=self.current_xml, context="new")
         self.current_xml.group_name = self.layers_obj.group.name()
         self.current_xml.layers_obj = self.layers_obj  # type: ignore
+        self.schedule_tree_validation(tree_view)
 
         self.tabWidget.setTabText(index, self.current_xml.group_name)
         self.tabWidget.setTabToolTip(index, xml_path)
@@ -1166,6 +1216,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         tree_view.setColumnWidth(0, 300)
 
         QTimer.singleShot(0, tree_view.expand_initial_elements)
+        QTimer.singleShot(
+            0, lambda view=tree_view: self._run_proximity_check_for_tree(view)
+        )
 
         log_calls(
             logFile, f"Стан shapes після створення нового файлу:\n{self.plugin.shapes_state_string()}")

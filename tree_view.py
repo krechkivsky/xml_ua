@@ -3160,6 +3160,48 @@ class CustomTreeView(QTreeView):
             self.expand(parent.index())
             parent = parent.parent()
 
+    def mark_proximity_errors(self, uidps):
+        """Mark point nodes reported by the proximity check as invalid."""
+        self._proximity_error_uidps = {
+            str(uidp).strip() for uidp in uidps if uidp is not None
+        }
+        self.apply_proximity_errors()
+
+    def apply_proximity_errors(self):
+        """Reapply proximity marks after other validation refreshes the tree."""
+        uidps = getattr(self, "_proximity_error_uidps", set())
+        if not uidps:
+            return
+
+        error_message = "Вузол подвоєний або надто близький до іншого."
+        for item in self._iter_name_items() or ():
+            element = item.data(Qt.ItemDataRole.UserRole + 10)
+            if element is None or etree.QName(element).localname != "Point":
+                continue
+            uidp = element.findtext("UIDP")
+            if uidp is not None and str(uidp).strip() in uidps:
+                self._mark_item_as_invalid(item, error_message)
+
+    def mark_adjacent_coverage_errors(self, errors):
+        """Attach perimeter coverage errors to the AdjacentUnits tree node."""
+        if not errors:
+            return
+
+        target = None
+        for item in self._iter_name_items() or ():
+            element = item.data(Qt.ItemDataRole.UserRole + 10)
+            if element is not None and etree.QName(element).localname == "AdjacentUnits":
+                target = item
+                break
+        if target is None:
+            for item in self._iter_name_items() or ():
+                element = item.data(Qt.ItemDataRole.UserRole + 10)
+                if element is not None and etree.QName(element).localname == "ParcelInfo":
+                    target = item
+                    break
+        for error in errors:
+            self._mark_item_as_invalid(target, error)
+
 
     def highlight_xml_errors(self, validation_results):
         """
