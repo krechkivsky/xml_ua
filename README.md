@@ -7,8 +7,9 @@ Designed to simplify XML creation for both beginners and GIS professionals.
 
 ## Features
 
-- Generate valid cadastral XML files from GIS layers  
-- Detect topological errors in existing XML files  
+- Generate valid cadastral XML files  
+- Interactive detection of topological, syntactic, and semantic errors and generation of suggestions for their correction
+- Automatic correction of contour traversal direction 
 - Step-by-step guidance for beginners  
 - Advanced features for professionals
 
@@ -24,8 +25,9 @@ Designed to simplify XML creation for both beginners and GIS professionals.
 
 ## Dependencies
 
-If some optional libraries are missing, see the step-by-step guide:
-- INSTALL_DEPS.md
+Optional libraries are checked on the plugin's first start. If any are missing,
+the plugin displays manual installation instructions and commands for the QGIS
+Python environment. The plugin does not install or run third-party code.
 
 ---
 

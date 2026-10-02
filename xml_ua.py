@@ -857,7 +857,6 @@ class xml_ua:
 
     def _missing_optional_dependencies(self):
         deps = [
-            ("xmlschema", "xmlschema"),
             ("docxtpl", "docxtpl"),
             ("pymorphy3", "pymorphy3"),
             ("pymorphy3_dicts_uk", "pymorphy3-dicts-uk"),
@@ -872,68 +871,54 @@ class xml_ua:
         return missing
 
     def _maybe_prompt_missing_dependencies(self):
+        settings = QSettings()
+        prompt_key = "xml_ua/missing_dependency_instruction_shown"
+        shown_before = settings.value(prompt_key, False)
+        if isinstance(shown_before, str):
+            shown_before = shown_before.strip().lower() in ("1", "true", "yes", "on")
+        if shown_before:
+            return
+
         missing = self._missing_optional_dependencies()
         if not missing:
             return
 
-        cmd_lines = [
-            "pip install --upgrade xmlschema",
-            "pip install --upgrade docxtpl",
-            "pip install --upgrade pymorphy3",
-            "pip install --upgrade pymorphy3-dicts-uk",
-        ]
-        commands = "\r\n".join(cmd_lines) + "\r\n"
+        commands = "\r\n".join(
+            f"python.exe -m pip install --upgrade {package}" for package in missing
+        ) + "\r\n"
 
-        confirmed_installed = False
-        while True:
-            msg = QMessageBox(self.iface.mainWindow())
-            msg.setIcon(QMessageBox.Icon.Warning)
-            msg.setWindowTitle("xml-ua: Відсутні бібліотеки для генерування землевпорядної документації")
-            msg.setText(
-                "Для генерування землевпорядної документації потрібно інсталювати додаткові бібліотеки.\n"
-                "Відкрийте папку, куди був встановлений QGIS 4.XX.XX, як правило, це:\n"
-                "C:\\Program Files\\QGIS 4.XX.XX\n"
-                "Відкрийте вікно терміналу QGIS, виконавши OSGeo4W.bat, який знаходиться у папці QGIS. \n"
-                "У чорному вікні терміналу QGIS введіть команди:\n\n"
-                f"{commands}\n\n"
-                "Або скопіюйте їх кнопкою і вставте в термінал QGIS.\n"
-                "Дочекайтесь інсталяції бібліотек.\n"
-                "Після встановлення бібліотек увімкніть плагін на вкладці встановлених плагінів."
-            )
-            checkbox = None
+        msg = QMessageBox(self.iface.mainWindow())
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("xml-ua: потрібні додаткові бібліотеки")
+        msg.setText(
+            "Для деяких функцій xml-ua не знайдено потрібні Python-бібліотеки:\n"
+            + "\n".join(f"• {package}" for package in missing)
+        )
+        msg.setInformativeText(
+            "Плагін не встановлює та не запускає сторонній код автоматично. "
+            "Для ручного встановлення відкрийте OSGeo4W Shell, що постачається "
+            "з вашою інсталяцією QGIS, виконайте наведені команди й перезапустіть QGIS."
+        )
+        msg.setDetailedText(commands)
+        copy_btn = msg.addButton(
+            "Скопіювати команди", QMessageBox.ButtonRole.ActionRole
+        )
+        msg.addButton("Закрити", QMessageBox.ButtonRole.AcceptRole)
+        msg.setDefaultButton(copy_btn)
+        msg.exec()
+        settings.setValue(prompt_key, True)
+
+        if msg.clickedButton() == copy_btn:
             try:
-                from qgis.PyQt.QtWidgets import QCheckBox
-                checkbox = QCheckBox("Я встановив(ла) бібліотеки")
-                checkbox.setChecked(confirmed_installed)
-                msg.setCheckBox(checkbox)
+                from qgis.PyQt.QtWidgets import QApplication
+
+                QApplication.clipboard().setText(commands)
+                self.iface.messageBar().pushMessage(
+                    "xml-ua", "Команди встановлення скопійовано в буфер обміну.",
+                    level=Qgis.Info, duration=5,
+                )
             except Exception:
-                checkbox = None
-            copy_btn = msg.addButton("Скопіювати команди", QMessageBox.ButtonRole.ActionRole)
-            close_btn = msg.addButton("Закрити", QMessageBox.ButtonRole.AcceptRole)
-            if checkbox is not None:
-                def _update_close_state():
-                    enabled = checkbox.isChecked()
-                    close_btn.setEnabled(enabled)
-                    msg.setEscapeButton(close_btn if enabled else copy_btn)
-                _update_close_state()
-                checkbox.stateChanged.connect(lambda _state: _update_close_state())
-            else:
-                close_btn.setEnabled(True)
-            msg.setDefaultButton(copy_btn)
-            if checkbox is None:
-                msg.setEscapeButton(copy_btn if not confirmed_installed else close_btn)
-            copy_btn.setFocus()
-            msg.exec()
-            if checkbox is not None:
-                confirmed_installed = checkbox.isChecked()
-            if msg.clickedButton() == copy_btn:
-                try:
-                    from qgis.PyQt.QtWidgets import QApplication
-                    QApplication.clipboard().setText(commands)
-                except Exception:
-                    pass
-                continue
-            break
+                pass
 
     def initGui(self):
         """Створює меню та панель інструментів після запуску QGIS."""

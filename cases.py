@@ -1,8 +1,6 @@
 import inspect
 import re
 
-import pymorphy3
-
 from .common import log_calls, logFile
 
 if not hasattr(inspect, 'getargspec'):
@@ -13,19 +11,17 @@ if not hasattr(inspect, 'getargspec'):
 
 
 try:
+    import pymorphy3
 
     morph = pymorphy3.MorphAnalyzer(lang='uk')
-    # Перевірка наявності бібліотеки
     PYMORPHY3_AVAILABLE = True
-except ImportError:
-    log_calls(logFile, f"Бібліотека pymorphy3 недоступна")
+except Exception as exc:
+    morph = None
     PYMORPHY3_AVAILABLE = False
-
-    def log_pymorphy_error():
-        from .common import log_calls, logFile
-        log_calls(logFile, "ПОМИЛКА: Бібліотека 'pymorphy3' або словники 'pymorphy2-dicts-uk' не встановлені. Функції відмінювання не працюватимуть.")
-        log_calls(logFile, "Виконайте 'pip install pymorphy3 pymorphy3-dicts-uk' у вашому середовищі Python для QGIS.")
-    log_pymorphy_error()
+    log_calls(
+        logFile,
+        f"pymorphy3 недоступна; відмінювання вимкнено: {exc}",
+    )
 
 
 def bornPIB(full_name_str: str) -> str:
