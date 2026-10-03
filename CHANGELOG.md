@@ -1,7 +1,8 @@
 # Журнал змін
 
 
-## v0.9.8 (2026-10-02)
+## v0.9.9 (2026-10-03)
+- **Security:** Issues raised by security scanners have been fixed.
 - **Security:** Open generated DOCX files through the operating system instead of launching Word with `subprocess`.
 
 ## v0.9.7 (2026-10-02)
