@@ -81,7 +81,9 @@ class BoundaryAgreementCreator:
         parent_group, act_group, extent = prep
 
         if extent is None:
-            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Не вдалося визначити екстент для розрахунку масштабу.")
+            QMessageBox.warning(
+                self.iface.mainWindow(), "Помилка", "Не вдалося визначити екстент для розрахунку масштабу."
+            )
             return None
 
         scale_calc = compute_map_scale(extent=extent, map_side_mm=MAP_SIDE_MM, margin_factor=PARCEL_MARGIN_FACTOR)
@@ -194,7 +196,9 @@ class BoundaryAgreementCreator:
         root = project.layerTreeRoot()
         xml_group = root.findGroup(group_name)
         if not xml_group:
-            QMessageBox.warning(self.iface.mainWindow(), "Помилка", f"Не вдалося знайти групу '{group_name}' у дереві шарів.")
+            QMessageBox.warning(
+                self.iface.mainWindow(), "Помилка", f"Не вдалося знайти групу '{group_name}' у дереві шарів."
+            )
             return None
 
         # Перевіримо, що активний/виділений шар — "Ділянка" у цій групі (як для плану)
@@ -215,6 +219,7 @@ class BoundaryAgreementCreator:
         # Видалити старі групи акту (та їхні шари) — аналогічно до плану
         existing_groups = self._collect_groups_named(xml_group, "Акт погодження меж")
         if existing_groups:
+
             def _depth(node):
                 d = 0
                 p = node.parent()
@@ -368,7 +373,9 @@ class BoundaryAgreementCreator:
             _attach_layer(act_group, duplicated)
 
         # Суміжники (дублікат оригінального шару)
-        self._create_adjacent_parcels_layer(act_group, group_name, attach_layer=_attach_layer, register_layer=_register_layer)
+        self._create_adjacent_parcels_layer(
+            act_group, group_name, attach_layer=_attach_layer, register_layer=_register_layer
+        )
 
         # Полілінії — memory, відфільтровані по ULID межі ділянки (як у плані)
         self._create_boundary_lines_layer(
@@ -376,7 +383,9 @@ class BoundaryAgreementCreator:
         )
 
         # Вузли ділянки (memory)
-        self._create_parcel_nodes_layer(act_group, group_name, attach_layer=_attach_layer, register_layer=_register_layer)
+        self._create_parcel_nodes_layer(
+            act_group, group_name, attach_layer=_attach_layer, register_layer=_register_layer
+        )
 
         # Вузли суміжників (літерація)
         if xml_tree is not None and xml_root is not None:
@@ -452,9 +461,11 @@ class BoundaryAgreementCreator:
 
         parcel_ulids = []
         try:
-            parcel_info_path = f".//{{{namespace}}}CadastralZoneInfo/{{{namespace}}}CadastralQuarters/{{{namespace}}}CadastralQuarterInfo/{{{namespace}}}Parcels/{{{namespace}}}ParcelInfo"
+            parcel_info_path = (f".//{{{namespace}}}CadastralZoneInfo/{{{namespace}}}CadastralQuarters/"
+                                f"{{{namespace}}}CadastralQuarterInfo/{{{namespace}}}Parcels/{{{namespace}}}ParcelInfo")
             for parcel_info in xml_root.findall(parcel_info_path):
-                parcel_metric_info_path = f"./{{{namespace}}}ParcelMetricInfo/{{{namespace}}}Externals/{{{namespace}}}Boundary/{{{namespace}}}Lines/{{{namespace}}}Line"
+                parcel_metric_info_path = (f"./{{{namespace}}}ParcelMetricInfo/{{{namespace}}}Externals/"
+                                           f"{{{namespace}}}Boundary/{{{namespace}}}Lines/{{{namespace}}}Line")
                 for line in parcel_info.findall(parcel_metric_info_path):
                     ulid_elem = line.find(f"./{{{namespace}}}ULID")
                     if ulid_elem is not None and ulid_elem.text:
@@ -617,7 +628,11 @@ class BoundaryAgreementCreator:
                 for line in lines_container.findall(f"{ns_prefix}Line", namespaces=ns_map):
                     ulid = line.findtext(f"{ns_prefix}ULID", namespaces=ns_map)
                     line_data = next(
-                        (item for item in self.plugin.dockwidget.layers_obj.lines_handler.xml_lines if item["ULID"] == ulid),
+                        (
+                            item
+                            for item in self.plugin.dockwidget.layers_obj.lines_handler.xml_lines
+                            if item["ULID"] == ulid
+                        ),
                         None,
                     )
                     if line_data and len(line_data["Points"]) == 2:

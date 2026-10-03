@@ -1,4 +1,5 @@
 """Geometry and completeness checks for land parcels."""
+
 from __future__ import annotations
 
 from collections import Counter, defaultdict, deque
@@ -9,7 +10,7 @@ from qgis.core import QgsGeometry, QgsPointXY
 from .topology import GeometryProcessor
 
 
-AREA_TOLERANCE_M2 = 0.1 
+AREA_TOLERANCE_M2 = 0.1
 GEOMETRY_EPSILON_M2 = 1e-9
 
 
@@ -33,10 +34,7 @@ def _ring(lines, processor):
 def _geometry_from_externals(externals, processor):
     if externals is None:
         return QgsGeometry(), ""
-    shells = [
-        ring for boundary in externals.findall("Boundary")
-        if (ring := _ring(boundary.find("Lines"), processor))
-    ]
+    shells = [ring for boundary in externals.findall("Boundary") if (ring := _ring(boundary.find("Lines"), processor))]
     if not shells:
         return QgsGeometry(), processor.get_object_shape_from_externals(externals)
 
@@ -51,8 +49,7 @@ def _geometry_from_externals(externals, processor):
             # A vertex is more reliable than the centroid for concave holes.
             point = QgsGeometry.fromPointXY(hole[0])
             owner = next(
-                (i for i, shell_geometry in enumerate(shell_geometries)
-                 if shell_geometry.contains(point)),
+                (i for i, shell_geometry in enumerate(shell_geometries) if shell_geometry.contains(point)),
                 None,
             )
             if owner is not None:

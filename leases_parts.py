@@ -97,9 +97,7 @@ class LeasesPartsTable:
             return []
 
         try:
-            infos = xml_root.xpath(
-                "//*[local-name()='Leases']/*[local-name()='LeaseInfo']"
-            )
+            infos = xml_root.xpath("//*[local-name()='Leases']/*[local-name()='LeaseInfo']")
         except Exception:
             try:
                 infos = xml_root.findall(".//Leases/LeaseInfo")
@@ -201,7 +199,9 @@ class LeasesPartsTable:
         tr_head = f"height:{float(header_row_h_mm):.2f}mm;"
         tr_body = f"height:{float(body_row_h_mm):.2f}mm;"
         th_style = f"font-weight:normal; padding:0 2px; {tr_head} text-align:center;"
-        td_style = f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        td_style = (
+            f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        )
         td_style_last = f"text-align:left; padding:0 2px; {tr_body} white-space:normal;"
 
         colgroup = "\n".join([f"<col style='width:{w:.2f}mm;'>" for w in widths])
@@ -237,7 +237,7 @@ class LeasesPartsTable:
             <colgroup>
               {colgroup}
             </colgroup>
-            {''.join(rows_html)}
+            {"".join(rows_html)}
           </table>
         </div>
         """

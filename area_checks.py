@@ -9,7 +9,6 @@ from typing import Iterable
 from common import log_msg, logFile
 
 
-
 def _parse_float(value, default=None):
     """
     Локальний парсер float для значень з XML.
@@ -80,7 +79,7 @@ def _find_decimal_comma_numbers_in_tree(xml_tree, numeric_names=None, limit: int
     try:
         root = xml_tree.getroot()
     except Exception as e:
-        log_msg(logFile,f"Error while getting root {e}")
+        log_msg(logFile, f"Error while getting root {e}")
         return []
     if root is None:
         return []
@@ -90,7 +89,7 @@ def _find_decimal_comma_numbers_in_tree(xml_tree, numeric_names=None, limit: int
         try:
             txt = el.text
         except Exception as e:
-            log_msg(logFile,f"Error while getting element text {e}")
+            log_msg(logFile, f"Error while getting element text {e}")
             continue
         if txt is None:
             continue
@@ -108,7 +107,7 @@ def _normalize_decimal_commas_in_tree(xml_tree, numeric_names=None):
     try:
         root = xml_tree.getroot()
     except Exception as e:
-        log_msg(logFile,f"Error while getting root {e}")
+        log_msg(logFile, f"Error while getting root {e}")
         return []
     if root is None:
         return []
@@ -118,7 +117,7 @@ def _normalize_decimal_commas_in_tree(xml_tree, numeric_names=None):
         try:
             old = el.text
         except Exception as e:
-            log_msg(logFile,f"Error while getting element text {e}")
+            log_msg(logFile, f"Error while getting element text {e}")
             continue
         if old is None:
             continue
@@ -128,7 +127,7 @@ def _normalize_decimal_commas_in_tree(xml_tree, numeric_names=None):
         try:
             el.text = new
         except Exception as e:
-            log_msg(logFile,f"Error while setting element text {e}")
+            log_msg(logFile, f"Error while setting element text {e}")
             continue
         changes.append({"tag": getattr(el, "tag", ""), "old": str(old), "new": str(new)})
     return changes
@@ -197,7 +196,10 @@ def _ring_area_m2(coords: list[tuple[float, float]]) -> float:
     return abs(area) / 2.0
 
 
-def _chain_lines_to_ring(ulids: Iterable[str], ulid_to_coords: dict[str, list[tuple[float, float]]]) -> list[tuple[float, float]] | None:
+def _chain_lines_to_ring(
+    ulids: Iterable[str],
+    ulid_to_coords: dict[str, list[tuple[float, float]]],
+) -> list[tuple[float, float]] | None:
     ulids = [u for u in ulids if u in ulid_to_coords]
     if not ulids:
         return None
@@ -279,7 +281,10 @@ def run_area_checks_and_fix_tree(
         if parcel_area_xml_ha is None:
             parcel_area_fixed = False
         else:
-            if round(parcel_area_xml_ha, threshold_round_digits) != round(parcel_area_computed_ha, threshold_round_digits):
+            area_xml = round(parcel_area_xml_ha, threshold_round_digits)
+            area_comp = round(parcel_area_computed_ha, threshold_round_digits)
+
+            if area_xml != area_comp:
                 # Оновлюємо всі ParcelMetricInfo/Area/Size незалежно від namespace
                 try:
                     for size_el in xml_tree.xpath(
@@ -288,7 +293,7 @@ def run_area_checks_and_fix_tree(
                         try:
                             size_el.text = parcel_area_new_text
                         except Exception as e:
-                            log_msg(logFile,f"{e}")
+                            log_msg(logFile, f"{e}")
                             pass
                     parcel_area_fixed = True
                 except Exception:
@@ -416,14 +421,15 @@ def run_area_checks_and_fix_tree(
                 old_val = _parse_float(old_text, default=None) if old_text else None
                 same = False
                 if old_val is not None:
-                    same = (round(float(old_val), threshold_round_digits) == round(float(new_val), threshold_round_digits))
+                    same = (round(float(old_val), threshold_round_digits)
+                            == round(float(new_val), threshold_round_digits))
 
                 if not same:
                     try:
                         size_el.text = new_text
                         updated_any = True
-                    except Exception:
-                        log_msg(logFile,f"Error: {e}")
+                    except Exception as e:
+                        log_msg(logFile, f"Error: {e}")
                         pass
 
             if updated_any:
@@ -529,7 +535,11 @@ def build_area_err_report(*, xml_path: str, result: AreaChecksResult) -> str:
     out.append("")
 
     out.append("4) Юридичний баланс площ (q4)")
-    if result.lands_sum_computed_q4_ha is None or result.balance_ref_parcel_q4_ha is None or result.balance_diff_q4_ha is None:
+    if (
+        result.lands_sum_computed_q4_ha is None
+        or result.balance_ref_parcel_q4_ha is None
+        or result.balance_diff_q4_ha is None
+    ):
         out.append("  - Не вдалося обчислити баланс (немає даних для порівняння).")
     else:
         out.append(f"  - Сума угідь (обчислена, q4): {result.lands_sum_computed_q4_ha}")

@@ -1,8 +1,7 @@
-
-
 """
 Custom delegates for editing data in tree/table views.
 """
+
 import re
 
 from lxml import etree
@@ -61,7 +60,6 @@ class StateActTypeDelegate(QStyledItemDelegate):
             value = index.model().data(index, Qt.ItemDataRole.EditRole)
 
             try:
-
                 idx = int(value) - 1
                 if 0 <= idx < len(self.items):
                     editor.setCurrentIndex(idx)
@@ -75,7 +73,6 @@ class StateActTypeDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         """Sets the model's data from the editor."""
         if self._is_target_element(index):
-
             value = str(editor.currentIndex() + 1)
             model.setData(index, value, Qt.ItemDataRole.EditRole)
         else:
@@ -116,9 +113,8 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
 
     def _load_doc_types(self):
         """Завантажує типи документації з файлу конфігурації."""
-        if 'DocumentationTypes' in config_docs:
-
-            return dict(sorted(config_docs['DocumentationTypes'].items()))
+        if "DocumentationTypes" in config_docs:
+            return dict(sorted(config_docs["DocumentationTypes"].items()))
         return {}
 
     def _is_target_element(self, index):
@@ -148,12 +144,9 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         """Встановлює дані моделі з редактора."""
         if self._is_target_element(index):
-
             text_value = editor.currentText()
             code = self.reverse_doc_types.get(text_value)
             if code:
-
-
                 model.setData(index, code, Qt.ItemDataRole.EditRole)
 
                 self.documentationTypeChanged.emit(code, index)
@@ -176,18 +169,18 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
         if section_name in config_docs:
             new_doc_codes = list(config_docs[section_name].keys())
         else:
-
             return
 
         model = tree_view.model
         doc_type_item = model.itemFromIndex(index)
         tech_doc_info_item = doc_type_item.parent()
-        if not tech_doc_info_item or not tech_doc_info_item.data(Qt.ItemDataRole.UserRole).endswith("TechnicalDocumentationInfo"):
+        if not tech_doc_info_item or not tech_doc_info_item.data(Qt.ItemDataRole.UserRole).endswith(
+            "TechnicalDocumentationInfo"
+        ):
             return
 
         tech_doc_info_path = tech_doc_info_item.data(Qt.ItemDataRole.UserRole)
-        tech_doc_info_xml_element = tree_view._find_xml_element_by_path(
-            tech_doc_info_path)
+        tech_doc_info_xml_element = tree_view._find_xml_element_by_path(tech_doc_info_path)
         if tech_doc_info_xml_element is None:
             return
 
@@ -195,9 +188,7 @@ class DocumentationTypeDelegate(QStyledItemDelegate):
             tech_doc_info_xml_element.remove(xml_child)
 
         for doc_code in new_doc_codes:
-
-            new_xml_elem = etree.SubElement(
-                tech_doc_info_xml_element, "DocumentList")
+            new_xml_elem = etree.SubElement(tech_doc_info_xml_element, "DocumentList")
             new_xml_elem.text = doc_code
 
         tree_view.rebuild_tree_view()
@@ -224,13 +215,12 @@ class CategoryDelegate(QStyledItemDelegate):
 
         self.items = list(self.category_types.values())
 
-        self.reverse_category_types = {
-            v: k for k, v in self.category_types.items()}
+        self.reverse_category_types = {v: k for k, v in self.category_types.items()}
 
     def _load_categories(self):
         """Завантажує категорії з файлу конфігурації."""
-        if 'LandCategories' in config:
-            return dict(config['LandCategories'])
+        if "LandCategories" in config:
+            return dict(config["LandCategories"])
         return {}
 
     def _is_target_element(self, index):
@@ -260,7 +250,6 @@ class CategoryDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         """Встановлює дані моделі з редактора."""
         if self._is_target_element(index):
-
             selected_index = editor.currentIndex()
             if selected_index != -1:
                 code = list(self.category_types.keys())[selected_index]
@@ -283,15 +272,14 @@ class PurposeDelegate(QStyledItemDelegate):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.chapters = self._load_data('LandPurposeChapters')
-        self.subchapters = self._load_data('LandPurposeSubchapters')
+        self.chapters = self._load_data("LandPurposeChapters")
+        self.subchapters = self._load_data("LandPurposeSubchapters")
 
         self.all_purposes = {**self.chapters, **self.subchapters}
 
     def _load_data(self, section):
         """Завантажує дані з вказаної секції конфігураційного файлу."""
         if section in config:
-
             return dict(sorted(config[section].items()))
         return {}
 
@@ -307,35 +295,33 @@ class PurposeDelegate(QStyledItemDelegate):
         if not self._is_target_element(index):
             return super().createEditor(parent, option, index)
 
-        chapter_items = [f"{code} - {name}" for code,
-                         name in self.chapters.items()]
-        chapter_selection, ok1 = QInputDialog.getItem(parent, "Вибір цільового призначення (Крок 1/2)",
-                                                      "Виберіть розділ:", chapter_items, 0, False)
+        chapter_items = [f"{code} - {name}" for code, name in self.chapters.items()]
+        chapter_selection, ok1 = QInputDialog.getItem(
+            parent, "Вибір цільового призначення (Крок 1/2)", "Виберіть розділ:", chapter_items, 0, False
+        )
 
         if not ok1 or not chapter_selection:
             return None  # Користувач скасував вибір
 
-        selected_chapter_code = chapter_selection.split(' - ')[0]
+        selected_chapter_code = chapter_selection.split(" - ")[0]
 
         subchapter_items = {
-            code: name for code, name in self.subchapters.items()
-            if code.startswith(selected_chapter_code + '.')
+            code: name for code, name in self.subchapters.items() if code.startswith(selected_chapter_code + ".")
         }
 
         if not subchapter_items:
-            QMessageBox.information(
-                parent, "Інформація", "Для вибраного розділу немає підрозділів.")
+            QMessageBox.information(parent, "Інформація", "Для вибраного розділу немає підрозділів.")
             return None
 
-        subchapter_display_items = [
-            f"{code} - {name}" for code, name in subchapter_items.items()]
-        subchapter_selection, ok2 = QInputDialog.getItem(parent, "Вибір цільового призначення (Крок 2/2)",
-                                                         "Виберіть підрозділ:", subchapter_display_items, 0, False)
+        subchapter_display_items = [f"{code} - {name}" for code, name in subchapter_items.items()]
+        subchapter_selection, ok2 = QInputDialog.getItem(
+            parent, "Вибір цільового призначення (Крок 2/2)", "Виберіть підрозділ:", subchapter_display_items, 0, False
+        )
 
         if not ok2 or not subchapter_selection:
             return None  # Користувач скасував вибір
 
-        selected_subchapter_code = subchapter_selection.split(' - ')[0]
+        selected_subchapter_code = subchapter_selection.split(" - ")[0]
 
         self.selected_code = selected_subchapter_code
 
@@ -343,7 +329,7 @@ class PurposeDelegate(QStyledItemDelegate):
 
     def setModelData(self, editor, model, index):
         """Встановлює дані моделі з вибраного значення."""
-        if self._is_target_element(index) and hasattr(self, 'selected_code'):
+        if self._is_target_element(index) and hasattr(self, "selected_code"):
             model.setData(index, self.selected_code, Qt.ItemDataRole.EditRole)
             del self.selected_code  # Очищуємо тимчасове значення
         else:
@@ -374,13 +360,12 @@ class OwnershipCodeDelegate(QStyledItemDelegate):
 
         self.items = list(self.ownership_forms.values())
 
-        self.reverse_ownership_forms = {
-            v: k for k, v in self.ownership_forms.items()}
+        self.reverse_ownership_forms = {v: k for k, v in self.ownership_forms.items()}
 
     def _load_forms(self):
         """Завантажує форми власності з файлу конфігурації."""
-        if 'OwnershipForms' in config:
-            return dict(config['OwnershipForms'])
+        if "OwnershipForms" in config:
+            return dict(config["OwnershipForms"])
         return {}
 
     def _is_target_element(self, index):
@@ -410,7 +395,6 @@ class OwnershipCodeDelegate(QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         """Встановлює дані моделі з редактора."""
         if self._is_target_element(index):
-
             selected_index = editor.currentIndex()
             if selected_index != -1:
                 code = list(self.ownership_forms.keys())[selected_index]
@@ -435,18 +419,16 @@ class LandCodeDelegate(QStyledItemDelegate):
         super().__init__(parent)
         self.land_codes = self._load_land_codes()
 
-        self.items = [f"{code} - {name}" for code,
-                      name in self.land_codes.items()]
+        self.items = [f"{code} - {name}" for code, name in self.land_codes.items()]
 
-        self.reverse_land_codes = {
-            f"{code} - {name}": code for code, name in self.land_codes.items()}
+        self.reverse_land_codes = {f"{code} - {name}": code for code, name in self.land_codes.items()}
 
     def _load_land_codes(self):
         """Завантажує коди угідь з файлу конфігурації."""
-        if 'LandCodes' in config:
-            return dict(sorted(config['LandCodes'].items()))
-        if 'LandsCode' in config:
-            return dict(sorted(config['LandsCode'].items()))
+        if "LandCodes" in config:
+            return dict(sorted(config["LandCodes"].items()))
+        if "LandsCode" in config:
+            return dict(sorted(config["LandsCode"].items()))
         return {}
 
     def _is_target_element(self, index):
@@ -500,10 +482,9 @@ class DocumentCodeDelegate(QStyledItemDelegate):
 
     def _load_docs(self):
         """Завантажує списки документів з config_docs, що в common.py."""
-        if 'DocsList' in config_docs:
-            return dict(config_docs['DocsList'])
+        if "DocsList" in config_docs:
+            return dict(config_docs["DocsList"])
         else:
-
             return {}
 
     def createEditor(self, parent, option, index):
@@ -511,7 +492,6 @@ class DocumentCodeDelegate(QStyledItemDelegate):
         if self._is_target_element(index):
             editor = QComboBox(parent)
             for code, name in self.doc_list.items():
-
                 editor.addItem(f"{code} - {name}", code)
             return editor
         return super().createEditor(parent, option, index)
@@ -568,8 +548,7 @@ class ClosedDelegate(QStyledItemDelegate):
         super().__init__(parent)
         self.closed_options = {"true": "Так", "false": "Ні"}
         self.items = list(self.closed_options.values())
-        self.reverse_closed_options = {
-            v: k for k, v in self.closed_options.items()}
+        self.reverse_closed_options = {v: k for k, v in self.closed_options.items()}
 
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'Closed'."""
@@ -593,10 +572,8 @@ class ClosedDelegate(QStyledItemDelegate):
 
     def setModelData(self, editor, model, index):
         if self._is_target_element(index):
-
             selected_index = editor.currentIndex()
             if selected_index != -1:
-
                 code = "true" if selected_index == 0 else "false"
                 model.setData(index, code, Qt.ItemDataRole.EditRole)
 
@@ -615,20 +592,20 @@ class DispatcherDelegate(QStyledItemDelegate):
     """
 
     def __init__(
-            self, 
-            parent=None, 
-            state_act_delegate=None, 
-            category_delegate=None, 
-            purpose_delegate=None, 
-            ownership_delegate=None, 
-            doc_code_delegate=None, 
-            doc_type_delegate=None, 
-            land_code_delegate=None, 
-            closed_delegate=None,
-            citizenship_delegate=None,
-            region_delegate=None,
-            proprietor_code_delegate=None
-            ):
+        self,
+        parent=None,
+        state_act_delegate=None,
+        category_delegate=None,
+        purpose_delegate=None,
+        ownership_delegate=None,
+        doc_code_delegate=None,
+        doc_type_delegate=None,
+        land_code_delegate=None,
+        closed_delegate=None,
+        citizenship_delegate=None,
+        region_delegate=None,
+        proprietor_code_delegate=None,
+    ):
         super().__init__(parent)
 
         self.state_act_delegate = state_act_delegate
@@ -651,9 +628,7 @@ class DispatcherDelegate(QStyledItemDelegate):
         if self.purpose_delegate and self.purpose_delegate._is_target_element(index):
             editor = self.purpose_delegate.createEditor(parent, option, index)
             if editor:
-
-                self.purpose_delegate.setModelData(
-                    editor, index.model(), index)
+                self.purpose_delegate.setModelData(editor, index.model(), index)
             return None  # Не показуємо вбудований редактор
         if self.ownership_delegate and self.ownership_delegate._is_target_element(index):
             return self.ownership_delegate.createEditor(parent, option, index)
@@ -693,12 +668,13 @@ class DispatcherDelegate(QStyledItemDelegate):
         if self.closed_delegate and self.closed_delegate._is_target_element(index):
             return self.closed_delegate.setEditorData(editor, index)
 
-        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setEditorData(editor, index)
+        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index):
+            return self.citizenship_delegate.setEditorData(editor, index)
         if self.region_delegate and self.region_delegate._is_target_element(index):
             return self.region_delegate.setEditorData(editor, index)
         if self.proprietor_code_delegate and self.proprietor_code_delegate._is_target_element(index):
             return self.proprietor_code_delegate.setEditorData(editor, index)
-        
+
         return super().setEditorData(editor, index)
 
     def setModelData(self, editor, model, index):
@@ -719,12 +695,13 @@ class DispatcherDelegate(QStyledItemDelegate):
         if self.closed_delegate and self.closed_delegate._is_target_element(index):
             return self.closed_delegate.setModelData(editor, model, index)
 
-        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index): return self.citizenship_delegate.setModelData(editor, model, index)
+        if self.citizenship_delegate and self.citizenship_delegate._is_target_element(index):
+            return self.citizenship_delegate.setModelData(editor, model, index)
         if self.region_delegate and self.region_delegate._is_target_element(index):
             return self.region_delegate.setModelData(editor, model, index)
         if self.proprietor_code_delegate and self.proprietor_code_delegate._is_target_element(index):
             return self.proprietor_code_delegate.setModelData(editor, model, index)
-        
+
         return super().setModelData(editor, model, index)
 
     def displayText(self, value, locale):
@@ -736,7 +713,6 @@ class DispatcherDelegate(QStyledItemDelegate):
         super().initStyleOption(option, index)
 
         if index.isValid() and index.column() == 1:
-
             try:
                 full_path = index.data(Qt.ItemDataRole.UserRole) or ""
                 schema_path = re.sub(r"\[\d+\]", "", str(full_path))
@@ -751,11 +727,10 @@ class DispatcherDelegate(QStyledItemDelegate):
             if self.doc_code_delegate and self.doc_code_delegate._is_target_element(index):
                 option.text = self.doc_code_delegate.displayText(option.text, option.locale)
             elif self.doc_type_delegate and self.doc_type_delegate._is_target_element(index):
-                option.text = self.doc_type_delegate.displayText(
-                    option.text, option.locale)
+                option.text = self.doc_type_delegate.displayText(option.text, option.locale)
             elif self.closed_delegate and self.closed_delegate._is_target_element(index):
-                option.text = self.closed_delegate.displayText(
-                    option.text, option.locale)
+                option.text = self.closed_delegate.displayText(option.text, option.locale)
+
 
 class CitizenshipDelegate(QStyledItemDelegate):
     """
@@ -772,8 +747,8 @@ class CitizenshipDelegate(QStyledItemDelegate):
 
     def _load_countries(self):
         """Завантажує список країн з файлу конфігурації (секція [Countries])."""
-        if 'Countries' in config:
-            return dict(config['Countries'])
+        if "Countries" in config:
+            return dict(config["Countries"])
         return {}
 
     def _is_target_element(self, index):
@@ -781,10 +756,8 @@ class CitizenshipDelegate(QStyledItemDelegate):
         full_path = index.data(Qt.ItemDataRole.UserRole)
         if not full_path:
             return False
-        return (
-            full_path.endswith("/NaturalPerson/Citizenship") or
-            full_path.endswith("/Address/Country")
-        )
+        return full_path.endswith("/NaturalPerson/Citizenship") or full_path.endswith("/Address/Country")
+
     def createEditor(self, parent, option, index):
         """Створює QComboBox редактор, якщо елемент 'Citizenship'."""
         if self._is_target_element(index):
@@ -818,6 +791,7 @@ class CitizenshipDelegate(QStyledItemDelegate):
         """Відображає назву країни замість коду."""
         return self.countries.get(str(value), str(value))
 
+
 class RegionDelegate(QStyledItemDelegate):
     """
     Делегат для редагування елемента '/Address/Region'.
@@ -833,8 +807,8 @@ class RegionDelegate(QStyledItemDelegate):
 
     def _load_regions(self):
         """Завантажує список областей з файлу конфігурації (секція [Region])."""
-        if 'Region' in config:
-            return dict(config['Region'])
+        if "Region" in config:
+            return dict(config["Region"])
         return {}
 
     def _is_target_element(self, index):
@@ -868,6 +842,7 @@ class RegionDelegate(QStyledItemDelegate):
         else:
             super().setModelData(editor, model, index)
 
+
 class ProprietorCodeDelegate(QStyledItemDelegate):
     """
     Делегат для редагування елемента '/ProprietorInfo/ProprietorCode'.
@@ -883,8 +858,8 @@ class ProprietorCodeDelegate(QStyledItemDelegate):
 
     def _load_proprietor_codes(self):
         """Завантажує список з секції [ProprietorCode] файлу конфігурації."""
-        if 'ProprietorCode' in config:
-            return dict(config['ProprietorCode'])
+        if "ProprietorCode" in config:
+            return dict(config["ProprietorCode"])
         return {}
 
     def _is_target_element(self, index):

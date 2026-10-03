@@ -133,7 +133,8 @@ class CadastralZoneInfo:
             object_shape = ""
             if processor:
                 try:
-                    exterior_shape = processor._get_polyline_object_shape(externals_lines) if externals_lines is not None else ""
+                    exterior_shape = processor._get_polyline_object_shape(externals_lines) \
+                        if externals_lines is not None else ""
                     interior_shapes = []
                     for lines_el in internals_lines_list:
                         try:

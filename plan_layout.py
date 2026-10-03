@@ -1,6 +1,3 @@
-
-
-
 """
 plan_layout.py
 
@@ -14,10 +11,10 @@ plan_layout.py
 
 Версія: 2026-02-09 (scale-choice + overlay labels)
 """
-
 import configparser
 import math
 import os
+import re
 from typing import Dict, Optional, Tuple
 
 from qgis.core import (
@@ -51,8 +48,6 @@ from .symbols import Symbols
 LOG = True
 
 
-
-
 PAGE_W_MM = 210.0
 PAGE_H_MM = 297.0
 
@@ -80,11 +75,10 @@ NODES_TABLE_X_MM = 20.0
 NODES_TABLE_Y_MM = MARGIN_TOP_MM + MAP_SIDE_MM  # 10 + 180 = 190 мм
 
 
-NODES_TABLE_COL_UIDP_MM = 10.0    # "№"
-NODES_TABLE_COL_X_MM = 30.0       # X
-NODES_TABLE_COL_Y_MM = 30.0       # Y
-NODES_TABLE_COL_DESC_MM = 20.0    # "Опис"
-
+NODES_TABLE_COL_UIDP_MM = 10.0  # "№"
+NODES_TABLE_COL_X_MM = 30.0  # X
+NODES_TABLE_COL_Y_MM = 30.0  # Y
+NODES_TABLE_COL_DESC_MM = 20.0  # "Опис"
 
 
 NODES_TABLE_W_MM = 101.0
@@ -96,7 +90,6 @@ NODES_TABLE_FONT_PT = 8
 NODES_TABLE_HEADER_BG = "#f2f2f2"
 NODES_TABLE_ROW_ALT_BG = "#f7f7f7"
 N_SPACES_XY = 10  # кількість нерозривних пробілів перед X і Y
-
 
 
 NODES_TABLE_ROW_H_MM = 4.0
@@ -145,9 +138,6 @@ class PlanLayoutCreator:
         self.plugin = plugin
         self.cadastral_plan_group = parent_group.findGroup("Кадастровий план")
 
-
-
-
     def _find_layer_exact(self, group, name: str):
         if not group:
             return None
@@ -188,8 +178,6 @@ class PlanLayoutCreator:
                     return lyr
         return None
 
-
-
     def _map_xy_to_layout_mm(self, map_item: QgsLayoutItemMap, x: float, y: float) -> Tuple[float, float]:
         ext = map_item.extent()
         fx = (x - ext.xMinimum()) / ext.width()
@@ -214,9 +202,6 @@ class PlanLayoutCreator:
             spacing = 10.0
         return float(page_idx - 1) * (float(PAGE_H_MM) + spacing)
 
-
-
-
     def _build_cadastral_title(self) -> str:
         """
         Формує:
@@ -229,14 +214,12 @@ class PlanLayoutCreator:
             return base
 
         try:
-
             group_name = self.parent_group.name()
             xml_data = self.plugin.dockwidget.get_xml_data_for_group(group_name)
             if not xml_data or not getattr(xml_data, "tree", None):
                 return base
 
             root = xml_data.tree.getroot()
-
 
             def _first_text(xpath_expr: str) -> str:
                 res = root.xpath(xpath_expr)
@@ -252,7 +235,6 @@ class PlanLayoutCreator:
 
             if parcel in ("", "0000"):
                 parcel = "____"
-
 
             if zone and quarter:
                 return f"{base} {zone}:{quarter}:{parcel}"
@@ -323,7 +305,6 @@ class PlanLayoutCreator:
             street = self._xml_first_text(loc_info, "./*[local-name()='ParcelAddress']/*[local-name()='StreetName'][1]")
             building = self._xml_first_text(loc_info, "./*[local-name()='ParcelAddress']/*[local-name()='Building'][1]")
 
-
             location_node = loc_info.xpath("./*[local-name()='ParcelLocation'][1]")
             location_node = location_node[0] if location_node else None
             is_urban = bool(location_node is not None and location_node.xpath("./*[local-name()='Urban']"))
@@ -366,21 +347,15 @@ class PlanLayoutCreator:
             return ""
         try:
             proprietors = root.xpath(
-                "//*[local-name()='ParcelInfo']"
-                "/*[local-name()='Proprietors']"
-                "/*[local-name()='ProprietorInfo']"
+                "//*[local-name()='ParcelInfo']/*[local-name()='Proprietors']/*[local-name()='ProprietorInfo']"
             )
             owners = []
             for prop in proprietors:
                 natural = prop.xpath(
-                    ".//*[local-name()='Authentication']"
-                    "/*[local-name()='NaturalPerson']"
-                    "/*[local-name()='FullName'][1]"
+                    ".//*[local-name()='Authentication']/*[local-name()='NaturalPerson']/*[local-name()='FullName'][1]"
                 )
                 legal = prop.xpath(
-                    ".//*[local-name()='Authentication']"
-                    "/*[local-name()='LegalEntity']"
-                    "/*[local-name()='Name'][1]/text()"
+                    ".//*[local-name()='Authentication']/*[local-name()='LegalEntity']/*[local-name()='Name'][1]/text()"
                 )
                 if natural:
                     nm = self._xml_full_name(natural[0])
@@ -492,22 +467,15 @@ class PlanLayoutCreator:
 
         return None
 
-
-
     def _build_nodes_table_html(self, font_pt: Optional[float] = None) -> Tuple[str, int]:
         """
         Формує HTML-таблицю координат з шару 'Вузли ділянки'
         """
-        SP = "\u00A0"
+        SP = "\u00a0"
 
         nodes_layer = self._get_parcel_nodes_layer()
         if not nodes_layer:
             return "", 0
-
-
-
-
-
 
         transform = None
 
@@ -584,11 +552,6 @@ class PlanLayoutCreator:
             except Exception:
                 transform = None
 
-
-
-
-
-
         fld_uidp = "UIDP" if "UIDP" in [f.name() for f in nodes_layer.fields()] else None
         if not fld_uidp:
             return "", 0
@@ -601,20 +564,6 @@ class PlanLayoutCreator:
                 return f"{float(v):.2f}"
             except Exception:
                 return ""
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         rows = []
 
@@ -635,9 +584,6 @@ class PlanLayoutCreator:
 
             rows.append(row)
 
-
-
-
         def uidp_key(d):
             try:
                 return int(d["uidp"])
@@ -646,11 +592,9 @@ class PlanLayoutCreator:
 
         rows.sort(key=uidp_key)
 
-
         font_pt = float(font_pt) if font_pt else float(NODES_TABLE_FONT_PT)
         body_row_h = float(NODES_TABLE_ROW_H_MM)
         header_row_h = float(NODES_TABLE_HEADER_ROW_H_MM)
-
 
         uidp_w = float(NODES_TABLE_COL_UIDP_MM)
         if transform:
@@ -679,19 +623,6 @@ class PlanLayoutCreator:
             <th style="{th_style}">Y</th>
             """
 
-
-
-
-
-
-
-
-
-
-
-
-
-
         body = []
         td_base = f"padding:0 2px; {tr_body}"
         td_right = f"text-align:right; {td_base}"
@@ -716,42 +647,10 @@ class PlanLayoutCreator:
                     "</tr>"
                 )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         colgroup = "\n".join([f"<col style='width:{w:.2f}mm;'>" for w in widths])
         html = f"""
-        <div style="width:{float(NODES_TABLE_W_MM):.2f}mm; text-align:center; font-size:{font_pt}pt; font-weight:normal;">
+        <div style="width:{float(NODES_TABLE_W_MM):.2f}mm; \
+text-align:center; font-size:{font_pt}pt; font-weight:normal;">
           <table style="
             width:{float(NODES_TABLE_W_MM):.2f}mm;
             border-collapse:collapse;
@@ -766,17 +665,13 @@ class PlanLayoutCreator:
               </tr>
             </thead>
             <tbody>
-              {''.join(body)}
+              {"".join(body)}
             </tbody>
           </table>
         </div>
         """
 
-
-
-
         return html, len(body)
-
 
     def _build_boundary_description_rows(self) -> Tuple[list[str], int]:
         """
@@ -789,7 +684,6 @@ class PlanLayoutCreator:
         lines = [ln.strip() for ln in txt.split("\n") if ln.strip()]
         if not lines:
             return [], 0
-
 
         if lines[0].lower().startswith("опис меж"):
             lines = lines[1:]
@@ -818,7 +712,6 @@ class PlanLayoutCreator:
                     dpi = 96.0
                 return px * 25.4 / dpi
             except Exception:
-
                 try:
                     return float(len(str(text))) * 0.25
                 except Exception:
@@ -841,7 +734,6 @@ class PlanLayoutCreator:
 
         items: list[tuple[str, str, str, str]] = []
         for ln in lines:
-
             try:
                 left, rest = ln.split("–", 1)
             except ValueError:
@@ -852,13 +744,11 @@ class PlanLayoutCreator:
             from_letter = ""
             to_letter = ""
             try:
-
                 parts = left.replace("Від", "").replace("до", "").split()
                 if len(parts) >= 2:
                     from_letter, to_letter = parts[0], parts[1]
             except Exception:
                 from_letter, to_letter = "", ""
-
 
             name = rest
             kn = ""
@@ -883,14 +773,11 @@ class PlanLayoutCreator:
         if not items:
             return "", 0, 0.0
 
-
         def esc(s: str) -> str:
             return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         body_row_h = float(NODES_TABLE_ROW_H_MM)
         tr_body = f"height:{body_row_h}mm;"
-
-
 
         seg_header = "Частина межі"
         owner_header = "Назва"
@@ -905,7 +792,6 @@ class PlanLayoutCreator:
         w_owner = max(self._text_width_mm(font, t) for t in owner_texts) + pad_mm
         w_kn = max(self._text_width_mm(font, t) for t in kn_texts) + pad_mm
 
-
         w_seg = max(w_seg, 22.0)
         w_owner = max(w_owner, 40.0)
         w_kn = max(w_kn, 35.0)
@@ -913,8 +799,9 @@ class PlanLayoutCreator:
         table_w_mm = float(w_seg + w_owner + w_kn)
 
         rows_html = []
-        td_left = f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
-
+        td_left = (
+            f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        )
 
         tr_head = f"height:{float(NODES_TABLE_HEADER_ROW_H_MM):.2f}mm;"
         th_style = f"font-weight:normal; padding:0 2px; {tr_head} text-align:center;"
@@ -946,7 +833,8 @@ class PlanLayoutCreator:
         )
 
         html = f"""
-        <div style="width:{float(table_w_mm):.2f}mm; font-size:{float(font.pointSizeF() or NODES_TABLE_FONT_PT):.2f}pt; font-weight:normal;">
+        <div style="width:{float(table_w_mm):.2f}mm; \
+            font-size:{float(font.pointSizeF() or NODES_TABLE_FONT_PT):.2f}pt; font-weight:normal;">
           <table style="
             width:{float(table_w_mm):.2f}mm;
             table-layout:fixed;
@@ -956,7 +844,7 @@ class PlanLayoutCreator:
             <colgroup>
               {colgroup}
             </colgroup>
-            {''.join(rows_html)}
+            {"".join(rows_html)}
           </table>
         </div>
         """
@@ -981,18 +869,11 @@ class PlanLayoutCreator:
 
         layout.addLayoutItem(desc)
 
-
         desc_height = float(nrows) * float(NODES_TABLE_ROW_H_MM)
 
         desc.attemptResize(QgsLayoutSize(float(table_w_mm), desc_height, QgsUnitTypes.LayoutMillimeters))
 
-        desc.attemptMove(
-            QgsLayoutPoint(
-                BOUNDARY_DESC_X_MM,
-                BOUNDARY_DESC_Y_MM,
-                QgsUnitTypes.LayoutMillimeters
-            )
-        )
+        desc.attemptMove(QgsLayoutPoint(BOUNDARY_DESC_X_MM, BOUNDARY_DESC_Y_MM, QgsUnitTypes.LayoutMillimeters))
 
     def _add_nodes_coordinates_table(self, layout):
         """
@@ -1011,24 +892,11 @@ class PlanLayoutCreator:
 
         layout.addLayoutItem(tbl)
 
-
         total_h = NODES_TABLE_HEADER_ROW_H_MM + (int(nrows) * NODES_TABLE_ROW_H_MM)
 
-        tbl.attemptResize(
-            QgsLayoutSize(
-                NODES_TABLE_W_MM,
-                total_h,
-                QgsUnitTypes.LayoutMillimeters
-            )
-        )
+        tbl.attemptResize(QgsLayoutSize(NODES_TABLE_W_MM, total_h, QgsUnitTypes.LayoutMillimeters))
 
-        tbl.attemptMove(
-            QgsLayoutPoint(
-                NODES_TABLE_X_MM,
-                NODES_TABLE_Y_MM,
-                QgsUnitTypes.LayoutMillimeters
-            )
-        )
+        tbl.attemptMove(QgsLayoutPoint(NODES_TABLE_X_MM, NODES_TABLE_Y_MM, QgsUnitTypes.LayoutMillimeters))
         try:
             w = float(tbl.rect().width())
             h = float(tbl.rect().height())
@@ -1070,7 +938,6 @@ class PlanLayoutCreator:
         y_off = self._page_y_offset(layout, 2)
         top_y = float(title_y_mm) + float(TITLE_H_MM) + 5.0 + float(y_off)
 
-
         head = QgsLayoutItemLabel(layout)
         head.setText("Таблиця координат точок повороту межі земельної ділянки")
         try:
@@ -1093,7 +960,6 @@ class PlanLayoutCreator:
         head.attemptMove(QgsLayoutPoint(head_x, top_y, QgsUnitTypes.LayoutMillimeters))
         head.setObjectName("Заголовок таблиці координат:p2")
         head.setId("Заголовок таблиці координат:p2")
-
 
         tbl = QgsLayoutItemLabel(layout)
         tbl.setMode(QgsLayoutItemLabel.ModeHtml)
@@ -1119,15 +985,13 @@ class PlanLayoutCreator:
             th = float(tbl.rect().height())
             log_calls(
                 logFile,
-                f"Nodes table size (p2): expected {expected_w:.2f}x{expected_h:.2f} mm, item {tw:.2f}x{th:.2f} mm, rows={int(nrows)}",
+                (f"Nodes table size (p2): expected {expected_w:.2f}x{expected_h:.2f} mm, "
+                 f"item {tw:.2f}x{th:.2f} mm, rows={int(nrows)}"),
             )
         except Exception as e:
             log_calls(logFile, f"{e}")
             pass
         tbl.attemptMove(QgsLayoutPoint(tbl_x, tbl_y, QgsUnitTypes.LayoutMillimeters))
-
-
-
 
         try:
             boundary_html, brow_count, boundary_w_mm = self._build_boundary_description_table_html(
@@ -1165,15 +1029,10 @@ class PlanLayoutCreator:
                 btbl.setId("Опис меж:p2")
                 layout.addLayoutItem(btbl)
 
-
-
                 b_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(brow_count) * float(NODES_TABLE_ROW_H_MM) + 2.0
                 btbl.attemptResize(QgsLayoutSize(float(boundary_w_mm), b_h, QgsUnitTypes.LayoutMillimeters))
                 bx = float(x_mm) + max(0.0, (float(w_mm) - float(boundary_w_mm)) / 2.0)
                 btbl.attemptMove(QgsLayoutPoint(bx, next_y + bhead_h, QgsUnitTypes.LayoutMillimeters))
-
-
-
 
                 try:
                     exp_gap = 5.0
@@ -1219,10 +1078,8 @@ class PlanLayoutCreator:
                         ex = float(x_mm) + max(0.0, (float(w_mm) - float(e_w)) / 2.0)
                         etbl.attemptMove(QgsLayoutPoint(ex, exp_y + etitle_h, QgsUnitTypes.LayoutMillimeters))
 
-
-
-
                         try:
+
                             def _has_features(layer) -> bool:
                                 if layer is None:
                                     return False
@@ -1252,10 +1109,14 @@ class PlanLayoutCreator:
                                     pass
                                 layout.addLayoutItem(rtitle)
                                 rtitle_h = float(NODES_TABLE_TITLE_H_MM)
-                                rtitle.attemptResize(QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters))
+                                rtitle.attemptResize(
+                                    QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 rtitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                                 rtitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-                                rtitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
+                                rtitle.attemptMove(
+                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 rtitle.setObjectName("Обмеження заголовок:p2")
                                 rtitle.setId("Обмеження заголовок:p2")
 
@@ -1271,10 +1132,16 @@ class PlanLayoutCreator:
                                 rtbl.setId("Обмеження:p2")
                                 layout.addLayoutItem(rtbl)
 
-                                r_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(rrows) * float(NODES_TABLE_ROW_H_MM) + 2.0
+                                r_h = (
+                                    float(NODES_TABLE_HEADER_ROW_H_MM)
+                                    + float(rrows) * float(NODES_TABLE_ROW_H_MM)
+                                    + 2.0
+                                )
                                 rtbl.attemptResize(QgsLayoutSize(float(r_w), r_h, QgsUnitTypes.LayoutMillimeters))
                                 rx = float(x_mm) + max(0.0, (float(w_mm) - float(r_w)) / 2.0)
-                                rtbl.attemptMove(QgsLayoutPoint(rx, y_cursor + rtitle_h, QgsUnitTypes.LayoutMillimeters))
+                                rtbl.attemptMove(
+                                    QgsLayoutPoint(rx, y_cursor + rtitle_h, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 y_cursor = float(y_cursor + rtitle_h + r_h)
 
                             if _has_features(leases_layer):
@@ -1288,10 +1155,14 @@ class PlanLayoutCreator:
                                     pass
                                 layout.addLayoutItem(ltitle)
                                 ltitle_h = float(NODES_TABLE_TITLE_H_MM)
-                                ltitle.attemptResize(QgsLayoutSize(float(w_mm), ltitle_h, QgsUnitTypes.LayoutMillimeters))
+                                ltitle.attemptResize(
+                                    QgsLayoutSize(float(w_mm), ltitle_h, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 ltitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                                 ltitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-                                ltitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
+                                ltitle.attemptMove(
+                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 ltitle.setObjectName("Оренда заголовок:p2")
                                 ltitle.setId("Оренда заголовок:p2")
 
@@ -1314,10 +1185,16 @@ class PlanLayoutCreator:
                                     ltbl.setId("Оренда:p2")
                                     layout.addLayoutItem(ltbl)
 
-                                    l_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(lrows) * float(NODES_TABLE_ROW_H_MM) + 2.0
+                                    l_h = (
+                                        float(NODES_TABLE_HEADER_ROW_H_MM)
+                                        + float(lrows) * float(NODES_TABLE_ROW_H_MM)
+                                        + 2.0
+                                    )
                                     ltbl.attemptResize(QgsLayoutSize(float(l_w), l_h, QgsUnitTypes.LayoutMillimeters))
                                     lx = float(x_mm) + max(0.0, (float(w_mm) - float(l_w)) / 2.0)
-                                    ltbl.attemptMove(QgsLayoutPoint(lx, y_cursor + ltitle_h, QgsUnitTypes.LayoutMillimeters))
+                                    ltbl.attemptMove(
+                                        QgsLayoutPoint(lx, y_cursor + ltitle_h, QgsUnitTypes.LayoutMillimeters)
+                                    )
                                     y_cursor = float(y_cursor + ltitle_h + l_h)
 
                             if _has_features(subleases_layer):
@@ -1331,10 +1208,14 @@ class PlanLayoutCreator:
                                     pass
                                 layout.addLayoutItem(stitle)
                                 stitle_h = float(NODES_TABLE_TITLE_H_MM)
-                                stitle.attemptResize(QgsLayoutSize(float(w_mm), stitle_h, QgsUnitTypes.LayoutMillimeters))
+                                stitle.attemptResize(
+                                    QgsLayoutSize(float(w_mm), stitle_h, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 stitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                                 stitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-                                stitle.attemptMove(QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters))
+                                stitle.attemptMove(
+                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters)
+                                )
                                 stitle.setObjectName("Суборенда заголовок:p2")
                                 stitle.setId("Суборенда заголовок:p2")
 
@@ -1357,10 +1238,16 @@ class PlanLayoutCreator:
                                     stbl.setId("Суборенда:p2")
                                     layout.addLayoutItem(stbl)
 
-                                    s_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(srows) * float(NODES_TABLE_ROW_H_MM) + 2.0
+                                    s_h = (
+                                        float(NODES_TABLE_HEADER_ROW_H_MM)
+                                        + float(srows) * float(NODES_TABLE_ROW_H_MM)
+                                        + 2.0
+                                    )
                                     stbl.attemptResize(QgsLayoutSize(float(s_w), s_h, QgsUnitTypes.LayoutMillimeters))
                                     sx = float(x_mm) + max(0.0, (float(w_mm) - float(s_w)) / 2.0)
-                                    stbl.attemptMove(QgsLayoutPoint(sx, y_cursor + stitle_h, QgsUnitTypes.LayoutMillimeters))
+                                    stbl.attemptMove(
+                                        QgsLayoutPoint(sx, y_cursor + stitle_h, QgsUnitTypes.LayoutMillimeters)
+                                    )
                                     y_cursor = float(y_cursor + stitle_h + s_h)
                         except Exception as e:
                             log_calls(logFile, f"Page2 restrictions parts add failed: {e}")
@@ -1368,11 +1255,6 @@ class PlanLayoutCreator:
                     log_calls(logFile, f"Page2 lands explication add failed: {e}")
         except Exception as e:
             log_calls(logFile, f"Page2 boundary table add failed: {e}")
-
-
-
-
-
 
     def create_layout(self, scale_value: int, show_ruler: bool = False):
         if LOG:
@@ -1392,10 +1274,8 @@ class PlanLayoutCreator:
         if not mgr.addLayout(layout):
             raise RuntimeError("Layout create failed")
 
-
         page = layout.pageCollection().page(0)
         page.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutMillimeters))
-
 
         try:
             from qgis.core import QgsLayoutItemPage
@@ -1408,27 +1288,6 @@ class PlanLayoutCreator:
         except Exception as e:
             log_calls(logFile, f"{e}")
             pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         content_x = MARGIN_LEFT_MM
         content_w = PAGE_W_MM - MARGIN_LEFT_MM - MARGIN_RIGHT_MM
@@ -1450,14 +1309,20 @@ class PlanLayoutCreator:
         customer_name = self._build_customer_name(xml_root)
         land_categories = self._ini_section_map("LandCategories")
         land_purposes = self._ini_section_map("LandPurposeSubchapters")
-        category_code = self._xml_first_text(xml_root, "//*[local-name()='CategoryPurposeInfo']/*[local-name()='Category'][1]")
-        purpose_code = self._xml_first_text(xml_root, "//*[local-name()='CategoryPurposeInfo']/*[local-name()='Purpose'][1]")
+        category_code = self._xml_first_text(
+            xml_root, "//*[local-name()='CategoryPurposeInfo']/*[local-name()='Category'][1]"
+        )
+        purpose_code = self._xml_first_text(
+            xml_root, "//*[local-name()='CategoryPurposeInfo']/*[local-name()='Purpose'][1]"
+        )
         category_text = land_categories.get(category_code, "") if category_code else ""
         purpose_text = land_purposes.get(purpose_code, "") if purpose_code else ""
 
         area_ha_txt = ""
         try:
-            area_raw = self._xml_first_text(xml_root, "//*[local-name()='ParcelMetricInfo']/*[local-name()='Area']/*[local-name()='Size'][1]")
+            area_raw = self._xml_first_text(
+                xml_root, "//*[local-name()='ParcelMetricInfo']/*[local-name()='Area']/*[local-name()='Size'][1]"
+            )
             area_unit = self._xml_first_text(
                 xml_root,
                 "//*[local-name()='ParcelMetricInfo']/*[local-name()='Area']/*[local-name()='MeasurementUnit'][1]",
@@ -1479,7 +1344,6 @@ class PlanLayoutCreator:
         except Exception:
             page_count = 1
 
-
         map_item = QgsLayoutItemMap(layout)
         map_item.setId("Ділянка")
         map_item.setObjectName("Ділянка")
@@ -1488,14 +1352,12 @@ class PlanLayoutCreator:
         map_item.attemptMove(QgsLayoutPoint(content_x, map_y, QgsUnitTypes.LayoutMillimeters))
         map_item.attemptResize(QgsLayoutSize(MAP_SIDE_MM, MAP_SIDE_MM, QgsUnitTypes.LayoutMillimeters))
 
-
         neighbors = self._find_layer_exact(self.cadastral_plan_group, "Суміжники")
         extent = neighbors.extent() if neighbors else self._group_extent()
 
         if not extent:
             QMessageBox.critical(self.iface.mainWindow(), "Помилка", "Немає екстента для карти")
             return None
-
 
         cx = (extent.xMinimum() + extent.xMaximum()) / 2.0
         cy = (extent.yMinimum() + extent.yMaximum()) / 2.0
@@ -1520,24 +1382,20 @@ class PlanLayoutCreator:
             except Exception as e:
                 log_calls(logFile, f"Ruler add failed: {e}")
 
-
-
-
         title_bg = QgsLayoutItemShape(layout)
         title_bg.setShapeType(QgsLayoutItemShape.Rectangle)
         title_bg.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutMillimeters))
         title_bg.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
-        title_bg_symbol = QgsFillSymbol.createSimple({
-            "color": "242,242,242,255",          # як у шапці таблиць (#f2f2f2)
-            "outline_color": "136,136,136,255",  # як у таблицях
-            "outline_width": "0.1",
-            "outline_style": "solid"
-        })
+        title_bg_symbol = QgsFillSymbol.createSimple(
+            {
+                "color": "242,242,242,255",  # як у шапці таблиць (#f2f2f2)
+                "outline_color": "136,136,136,255",  # як у таблицях
+                "outline_width": "0.1",
+                "outline_style": "solid",
+            }
+        )
         title_bg.setSymbol(title_bg_symbol)
         layout.addLayoutItem(title_bg)
-
-
-
 
         title = QgsLayoutItemLabel(layout)
         sheet_title = f"Кадастровий план земельної ділянки {cadastral_number}".strip()
@@ -1547,7 +1405,6 @@ class PlanLayoutCreator:
         fnt.setPointSizeF(10)
         fnt.setBold(False)
         title.setFont(fnt)
-
 
         layout.addLayoutItem(title)  # IMPORTANT before attemptResize
 
@@ -1562,17 +1419,10 @@ class PlanLayoutCreator:
             )
         )
 
-
-
-
         sig = QgsLayoutItemLabel(layout)
         sig.setObjectName("Signature")
         sig.setId("Signature")
-        sig_text = (
-            "Сертифікований інженер-землевпорядник "
-            "_____________________________ "
-            f"{executor_sig_name}"
-        ).rstrip()
+        sig_text = (f"Сертифікований інженер-землевпорядник _____________________________ {executor_sig_name}").rstrip()
         sig.setText(sig_text)
         sig.setFont(fnt)
         layout.addLayoutItem(sig)
@@ -1588,9 +1438,6 @@ class PlanLayoutCreator:
         sig.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutMillimeters))
 
-
-
-
         scale_label = QgsLayoutItemLabel(layout)
         scale_label.setText(f"Масштаб 1:{int(scale_value)}")
 
@@ -1598,7 +1445,6 @@ class PlanLayoutCreator:
         fnt2.setPointSizeF(9)
         fnt2.setBold(False)
         scale_label.setFont(fnt2)
-
 
         layout.addLayoutItem(scale_label)
 
@@ -1614,9 +1460,6 @@ class PlanLayoutCreator:
             )
         )
 
-
-
-
         try:
             Symbols(
                 layout,
@@ -1631,9 +1474,6 @@ class PlanLayoutCreator:
             )
         except Exception as e:
             log_calls(logFile, f"Symbols add failed: {e}")
-
-
-
 
         try:
             symbols_y = map_y + MAP_SIDE_MM + OVERLAY_PAD_MM + SCALE_H_MM + 1.0
@@ -1694,7 +1534,6 @@ class PlanLayoutCreator:
                 )
                 paragraph.setText(f"{line1}\n{line2}".strip())
 
-
                 font_size = 10.0
                 if available_h < 12.0:
                     font_size = 9.0
@@ -1719,69 +1558,12 @@ class PlanLayoutCreator:
         except Exception as e:
             log_calls(logFile, f"Parcel text block add failed: {e}")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         self.add_neighbor_letters(layout, map_item)
-
-
-
 
         try:
             page_count = int(layout.pageCollection().pageCount())
         except Exception:
             page_count = 1
-
-
-
 
         try:
             parcel_text_font = None
@@ -1836,7 +1618,6 @@ class PlanLayoutCreator:
         for page_idx in range(2, page_count + 1):
             y_off = self._page_y_offset(layout, page_idx)
 
-
             bg = QgsLayoutItemShape(layout)
             bg.setShapeType(QgsLayoutItemShape.Rectangle)
             bg.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutMillimeters))
@@ -1850,7 +1631,6 @@ class PlanLayoutCreator:
             bg.setId(f"TitleBg:p{page_idx}")
             layout.addLayoutItem(bg)
 
-
             t = QgsLayoutItemLabel(layout)
             t.setText(f"{sheet_title} (аркуш {page_idx} з {page_count})")
             t.setFont(fnt)
@@ -1861,7 +1641,6 @@ class PlanLayoutCreator:
             t.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutMillimeters))
             t.setObjectName(f"Title:p{page_idx}")
             t.setId(f"Title:p{page_idx}")
-
 
             s = QgsLayoutItemLabel(layout)
             s.setText(sig_text)
@@ -1881,9 +1660,6 @@ class PlanLayoutCreator:
 
         self.iface.openLayoutDesigner(layout)
         return layout
-
-
-
 
     def add_neighbor_letters(self, layout, map_item):
         """
@@ -1906,7 +1682,6 @@ class PlanLayoutCreator:
         F_NODE_LIT = "LITERA"
         F_SHAPE = "object_shape"
 
-
         parcel_shape = str(next(parcel.getFeatures())[F_SHAPE])
         base = [s for s in parcel_shape.split("|")[0].split("-") if s]
         if base and base[0] == base[-1]:
@@ -1914,13 +1689,15 @@ class PlanLayoutCreator:
         doubled = base + base
 
         uidp_to_pt = {str(f["uidp"]): f.geometry().asPoint() for f in nodes_root.getFeatures()}
-        uidp_to_lit: Dict[str, str] = {str(f[F_NODE_UIDP]).strip(): str(f[F_NODE_LIT]).strip() for f in nodes.getFeatures()}
+        uidp_to_lit: Dict[str, str] = {
+            str(f[F_NODE_UIDP]).strip(): str(f[F_NODE_LIT]).strip() for f in nodes.getFeatures()
+        }
 
         def contains_sequence(inner):
             if not inner:
                 return False
             for i in range(len(base)):
-                if doubled[i:i + len(inner)] == inner:
+                if doubled[i: i + len(inner)] == inner:
                     return True
             return False
 
@@ -1940,8 +1717,6 @@ class PlanLayoutCreator:
             match_forward = contains_sequence(inner)
             match_reversed = contains_sequence(rev_inner)
 
-
-
             if match_forward and not match_reversed:
                 place_uidp = shape[0]
                 shared_uidp = shape[1]
@@ -1949,23 +1724,14 @@ class PlanLayoutCreator:
                 place_uidp = shape[-1]
                 shared_uidp = shape[-2]
             else:
-
-
-
                 boundary_uidps = set(base)
                 candidates = []
 
-                shared_left = next(
-                    (u for u in shape[1:] if u in boundary_uidps and u in uidp_to_lit),
-                    None
-                )
+                shared_left = next((u for u in shape[1:] if u in boundary_uidps and u in uidp_to_lit), None)
                 if shared_left:
                     candidates.append((shape[0], shared_left))
 
-                shared_right = next(
-                    (u for u in reversed(shape[:-1]) if u in boundary_uidps and u in uidp_to_lit),
-                    None
-                )
+                shared_right = next((u for u in reversed(shape[:-1]) if u in boundary_uidps and u in uidp_to_lit), None)
                 if shared_right:
                     candidates.append((shape[-1], shared_right))
 
@@ -1984,8 +1750,6 @@ class PlanLayoutCreator:
                 continue
             used_letters.add(letter)
 
-
-
             whisker_key = (min(place_uidp, shared_uidp), max(place_uidp, shared_uidp))
             if whisker_key in seen_whiskers:
                 continue
@@ -1999,9 +1763,7 @@ class PlanLayoutCreator:
             place_l = self._map_xy_to_layout_mm(map_item, place_pt.x(), place_pt.y())
             shared_l = self._map_xy_to_layout_mm(map_item, shared_pt.x(), shared_pt.y())
 
-
             dx, dy = _unit(place_l[0] - shared_l[0], place_l[1] - shared_l[1])
-
 
             nx, ny = dy, -dx
 
@@ -2023,7 +1785,6 @@ class PlanLayoutCreator:
             lbl.setReferencePoint(4)  # center
             lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
 
-
     def _build_boundary_description(self) -> str:
         """
         Формує текст блоку 'Опис меж' на основі XML.
@@ -2044,18 +1805,13 @@ class PlanLayoutCreator:
 
         root = xml_data.tree.getroot()
 
-
         try:
-            adj_units = root.xpath(
-                "//*[local-name()='AdjacentUnits']/*[local-name()='AdjacentUnitInfo']"
-            )
+            adj_units = root.xpath("//*[local-name()='AdjacentUnits']/*[local-name()='AdjacentUnitInfo']")
         except Exception:
             adj_units = root.findall(".//AdjacentUnits/AdjacentUnitInfo")
 
         if not adj_units:
             return ""
-
-
 
         letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ"
 
@@ -2067,17 +1823,18 @@ class PlanLayoutCreator:
             A = letters[i]
             B = letters[(i + 1) % count]
 
-
             name = ""
 
-
             try:
-                legal = adj.xpath(".//*[local-name()='Proprietor']/*[local-name()='LegalEntity']/*[local-name()='Name'][1]")
+                legal = adj.xpath(
+                    ".//*[local-name()='Proprietor']/*[local-name()='LegalEntity']/*[local-name()='Name'][1]"
+                )
             except Exception:
                 legal = []
             if legal and getattr(legal[0], "text", None):
                 name = str(legal[0].text).strip()
             else:
+
                 def _first(xpath_expr: str) -> str:
                     try:
                         res = adj.xpath(xpath_expr)
@@ -2088,12 +1845,20 @@ class PlanLayoutCreator:
                     return ""
 
                 parts = [
-                    _first(".//*[local-name()='Proprietor']/*[local-name()='NaturalPerson']/*[local-name()='FullName']/*[local-name()='LastName'][1]"),
-                    _first(".//*[local-name()='Proprietor']/*[local-name()='NaturalPerson']/*[local-name()='FullName']/*[local-name()='FirstName'][1]"),
-                    _first(".//*[local-name()='Proprietor']/*[local-name()='NaturalPerson']/*[local-name()='FullName']/*[local-name()='MiddleName'][1]"),
+                    _first(
+                        (".//*[local-name()='Proprietor']/*[local-name()='NaturalPerson']"
+                         "/*[local-name()='FullName']/*[local-name()='LastName'][1]")
+                    ),
+                    _first(
+                        (".//*[local-name()='Proprietor']/*[local-name()='NaturalPerson']"
+                         "/*[local-name()='FullName']/*[local-name()='FirstName'][1]")
+                    ),
+                    _first(
+                        (".//*[local-name()='Proprietor']/*[local-name()='NaturalPerson']"
+                         "/*[local-name()='FullName']/*[local-name()='MiddleName'][1]")
+                    ),
                 ]
                 name = " ".join(p for p in parts if p)
-
 
             try:
                 kn_el = adj.xpath("./*[local-name()='CadastralNumber'][1]")

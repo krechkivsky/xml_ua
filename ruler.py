@@ -24,25 +24,19 @@ class Ruler:
 
         thickness_mm = 0.1
 
-
         mm_per_meter = 1000.0 / float(scale_value)
         if mm_per_meter <= 0:
             return
 
         y_bottom = float(map_y_mm) + float(map_side_mm)
 
-
         baseline = QgsLayoutItemShape(self.layout)
         baseline.setShapeType(QgsLayoutItemShape.Rectangle)
         baseline.setId("Ruler:baseline")
         baseline.setObjectName("Ruler:baseline")
 
-        baseline.attemptMove(
-            QgsLayoutPoint(float(map_x_mm), y_bottom - thickness_mm, QgsUnitTypes.LayoutMillimeters)
-        )
-        baseline.attemptResize(
-            QgsLayoutSize(float(map_side_mm), thickness_mm, QgsUnitTypes.LayoutMillimeters)
-        )
+        baseline.attemptMove(QgsLayoutPoint(float(map_x_mm), y_bottom - thickness_mm, QgsUnitTypes.LayoutMillimeters))
+        baseline.attemptResize(QgsLayoutSize(float(map_side_mm), thickness_mm, QgsUnitTypes.LayoutMillimeters))
         baseline_symbol = QgsFillSymbol.createSimple(
             {
                 "color": "0,0,0,255",
@@ -51,7 +45,6 @@ class Ruler:
         )
         baseline.setSymbol(baseline_symbol)
         self.layout.addLayoutItem(baseline)
-
 
         max_meters = int(float(map_side_mm) / mm_per_meter) if mm_per_meter else 0
         for m in range(0, max_meters + 1):
@@ -71,12 +64,8 @@ class Ruler:
             tick.setId(f"Ruler:tick:{m}")
             tick.setObjectName(f"Ruler:tick:{m}")
 
-            tick.attemptMove(
-                QgsLayoutPoint(x, y_bottom - tick_h, QgsUnitTypes.LayoutMillimeters)
-            )
-            tick.attemptResize(
-                QgsLayoutSize(thickness_mm, tick_h, QgsUnitTypes.LayoutMillimeters)
-            )
+            tick.attemptMove(QgsLayoutPoint(x, y_bottom - tick_h, QgsUnitTypes.LayoutMillimeters))
+            tick.attemptResize(QgsLayoutSize(thickness_mm, tick_h, QgsUnitTypes.LayoutMillimeters))
             tick_symbol = QgsFillSymbol.createSimple(
                 {
                     "color": "0,0,0,255",

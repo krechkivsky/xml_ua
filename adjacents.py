@@ -1,7 +1,5 @@
 import os
 
-from lxml import etree as ET
-
 from qgis.core import (
     Qgis,
     QgsFeature,
@@ -37,17 +35,12 @@ class AdjacentUnits:
 
         layer_name = "Суміжники"
 
-        layers_to_remove = [
-            child.layerId() for child in self.group.children() if child.name() == layer_name
-        ]
+        layers_to_remove = [child.layerId() for child in self.group.children() if child.name() == layer_name]
         if layers_to_remove:
             QgsProject.instance().removeMapLayers(layers_to_remove)
 
-        self.layer = QgsVectorLayer(
-            f"LineString?crs={self.crs_epsg}", layer_name, "memory"
-        )
-        self.layer.loadNamedStyle(os.path.join(
-            self.plugin_dir, "templates", "adjacent.qml"))
+        self.layer = QgsVectorLayer(f"LineString?crs={self.crs_epsg}", layer_name, "memory")
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "adjacent.qml"))
 
         self.layer.setCustomProperty("skip_save_dialog", True)
 
@@ -58,7 +51,7 @@ class AdjacentUnits:
         if self.xml_data:
             for si in self.xml_data.shapes:
                 if si.layer_id == self.layer.id():
-                    shape_parts = si.object_shape.split('-')
+                    shape_parts = si.object_shape.split("-")
                     normalized_shape = "-".join(sorted(shape_parts))
                     existing_shapes_in_layer.add(normalized_shape)
 
@@ -75,26 +68,24 @@ class AdjacentUnits:
             if boundary_lines is not None:
                 try:
                     from .topology import GeometryProcessor
+
                     processor = GeometryProcessor(self.root.getroottree())
 
                     # object_shape та напрямок визначені до створення
                     # AdjacentUnitInfo. Тут XML тільки читаємо для побудови шару.
                     object_shape = processor._get_polyline_object_shape(boundary_lines)
-                    boundary_coords = self.xml_ua_layers.lines_element2polyline(
-                        boundary_lines
-                    )
+                    boundary_coords = self.xml_ua_layers.lines_element2polyline(boundary_lines)
 
                     # Перевірка на дублікати та додавання до шару QGIS.
-                    normalized_shape = "-".join(sorted(object_shape.split('-')))
+                    normalized_shape = "-".join(sorted(object_shape.split("-")))
                     if normalized_shape in existing_shapes_in_layer:
                         iface.messageBar().pushMessage(
                             "Попередження",
-                            f"Знайдено дублікат геометрії суміжника (shape: {object_shape}). Об'єкт не буде додано на карту.",
+                            f"Знайдено дублікат геометрії суміжника (shape: {object_shape}). Об'єкт не буде додано.",
                             level=Qgis.Warning,
-                            duration=10
+                            duration=10,
                         )
-                        log_msg(
-                            logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат суміжника з object_shape: {object_shape}")
+                        log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат суміжника з object_shape: {object_shape}")
                         continue
                     existing_shapes_in_layer.add(normalized_shape)
 
@@ -107,8 +98,7 @@ class AdjacentUnits:
                         adjacent.set("object_id", object_id_text)
 
                     if boundary_coords and len(boundary_coords) >= 2:
-                        line_string = QgsLineString(
-                            [QgsPointXY(p.y(), p.x()) for p in boundary_coords])
+                        line_string = QgsLineString([QgsPointXY(p.y(), p.x()) for p in boundary_coords])
                         feature = QgsFeature(self.layer.fields())
                         feature.setGeometry(QgsGeometry(line_string))
                         object_id = int(object_id_text) if object_id_text.isdigit() else None
@@ -116,9 +106,8 @@ class AdjacentUnits:
 
                         if self.xml_data and object_id_text:
                             shape_info = ShapeInfo(
-                                layer_id=self.layer.id(),
-                                object_id=object_id_text,
-                                object_shape=object_shape)
+                                layer_id=self.layer.id(), object_id=object_id_text, object_shape=object_shape
+                            )
                             self.xml_data.shapes.append(shape_info)
 
                         provider.addFeature(feature)
@@ -133,16 +122,14 @@ class AdjacentUnits:
         self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty(
-                "xml_data_object_id", id(self.xml_data))
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
 
         return self.layer
 
     def _get_proprietor_name(self, adjacent_element):
         """Отримує ім'я власника з елемента AdjacentUnitInfo."""
         proprietor = ""
-        natural_person = adjacent_element.find(
-            ".//Proprietor/NaturalPerson/FullName")
+        natural_person = adjacent_element.find(".//Proprietor/NaturalPerson/FullName")
         legal_entity = adjacent_element.find(".//Proprietor/LegalEntity")
 
         if natural_person is not None:

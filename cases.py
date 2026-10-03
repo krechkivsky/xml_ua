@@ -3,17 +3,19 @@ import re
 
 from .common import log_calls, logFile
 
-if not hasattr(inspect, 'getargspec'):
+if not hasattr(inspect, "getargspec"):
+
     def getargspec_replacement(func):
         full_arg_spec = inspect.getfullargspec(func)
         return (full_arg_spec.args, full_arg_spec.varargs, full_arg_spec.varkw, full_arg_spec.defaults)
+
     inspect.getargspec = getargspec_replacement
 
 
 try:
     import pymorphy3
 
-    morph = pymorphy3.MorphAnalyzer(lang='uk')
+    morph = pymorphy3.MorphAnalyzer(lang="uk")
     PYMORPHY3_AVAILABLE = True
 except Exception as exc:
     morph = None
@@ -42,23 +44,20 @@ def bornPIB(full_name_str: str) -> str:
     genitive_parts = []
 
     for i, part in enumerate(parts):
-
         p = morph.parse(part.lower())[0]
 
         gender = None
         if len(parts) > 1 and i == 0:  # Якщо це прізвище
-            if 'Patr' in morph.parse(parts[-1])[0].tag:  # По-батькові
+            if "Patr" in morph.parse(parts[-1])[0].tag:  # По-батькові
                 gender = morph.parse(parts[-1])[0].tag.gender
-            elif 'Name' in morph.parse(parts[1])[0].tag:  # Ім'я
+            elif "Name" in morph.parse(parts[1])[0].tag:  # Ім'я
                 gender = morph.parse(parts[1])[0].tag.gender
 
-        inflected_word = p.inflect({'gent', gender} if gender else {'gent'})
+        inflected_word = p.inflect({"gent", gender} if gender else {"gent"})
 
         if inflected_word:
-
             genitive_parts.append(inflected_word.word.capitalize())
         else:
-
             genitive_parts.append(part)
 
     return " ".join(genitive_parts)
@@ -79,8 +78,7 @@ def bornRada(rada_name_str: str) -> str:
         return rada_name_str
 
     parts = rada_name_str.split()
-    genitive_parts = [p.inflect({'gent'}).word if p.inflect(
-        {'gent'}) else p for p in parts]
+    genitive_parts = [p.inflect({"gent"}).word if p.inflect({"gent"}) else p for p in parts]
 
     if genitive_parts:
         genitive_parts[0] = genitive_parts[0].capitalize()
@@ -132,20 +130,18 @@ def to_genitive(phrase: str) -> str:
             return out[:1].upper() + out[1:]
         return out
 
-
     if not PYMORPHY3_AVAILABLE:
         return " ".join(_fix_iv(w) for w in phrase.split())
 
     words = phrase.split()
     genitive_words = []
     for word in words:
-
         if word.lower().endswith(("ів", "їв")):
             genitive_words.append(_fix_iv(word))
             continue
 
         parsed_word = morph.parse(word)[0]
-        inflected = parsed_word.inflect({'gent'})
+        inflected = parsed_word.inflect({"gent"})
         if inflected:
             gen = inflected.word.capitalize() if word.istitle() else inflected.word
             genitive_words.append(_fix_iv(gen))

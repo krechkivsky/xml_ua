@@ -1,5 +1,3 @@
-
-
 import os
 
 from lxml import etree
@@ -53,8 +51,7 @@ class CadastralQuarters:
         if not coordinates:
             return QgsPolygon()  # Повертаємо порожній полігон
 
-        exterior_ring = QgsLineString(
-            [QgsPointXY(p.y(), p.x()) for p in coordinates])
+        exterior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in coordinates])
 
         polygon = QgsPolygon(exterior_ring)
         return polygon
@@ -62,23 +59,21 @@ class CadastralQuarters:
     def add_quarter_layer(self):
         """Створює та заповнює шар 'Кадастровий квартал'."""
         self.layer_name = "Кадастровий квартал"
-        self.layer = QgsVectorLayer(
-            f"MultiPolygon?crs={self.crs_epsg}", self.layer_name, "memory")
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", self.layer_name, "memory")
 
         self.layer.setCustomProperty("skip_save_dialog", True)
 
         if not self.layer.isValid():
-            QMessageBox.critical(
-                None, "xml_ua", "Виникла помилка при створенні шару кварталів.")
+            QMessageBox.critical(None, "xml_ua", "Виникла помилка при створенні шару кварталів.")
             return None
 
-        self.layer.loadNamedStyle(os.path.join(
-            self.plugin_dir, "templates", "quarter.qml"))
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "quarter.qml"))
         provider = self.layer.dataProvider()
         ensure_object_layer_fields(self.layer)
 
         try:
             from .topology import GeometryProcessor
+
             processor = GeometryProcessor(self.root.getroottree())
         except Exception:
             processor = None
@@ -90,17 +85,13 @@ class CadastralQuarters:
 
             parcel_metric_info = self.root.find(".//ParcelMetricInfo")
             if parcel_metric_info is None:
-
                 external_coords = []
                 internal_coords_list = []
                 externals_lines = None
                 internals_lines_list = []
             else:
-
-                externals_lines = parcel_metric_info.find(
-                    ".//Externals/Boundary/Lines")
-                external_coords = self.lines_to_coords(
-                    externals_lines) if externals_lines is not None else []
+                externals_lines = parcel_metric_info.find(".//Externals/Boundary/Lines")
+                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
 
                 internals_lines_list = parcel_metric_info.findall(".//Internals/Boundary/Lines")
                 internal_coords_list = [
@@ -109,24 +100,18 @@ class CadastralQuarters:
 
                 quarter_externals = quarter_element.find("Externals")
                 if quarter_externals is not None:
-
                     quarter_element.remove(quarter_externals)
 
-                quarter_externals = etree.Element(
-                    "Externals")  # Створюємо новий
+                quarter_externals = etree.Element("Externals")  # Створюємо новий
 
-                regional_contacts_element = quarter_element.find(
-                    "RegionalContacts")
+                regional_contacts_element = quarter_element.find("RegionalContacts")
                 if regional_contacts_element is not None:
-
                     regional_contacts_element.addnext(quarter_externals)
                 else:
-
                     quarter_element.append(quarter_externals)
 
                 parcel_externals = parcel_metric_info.find("Externals")
                 if parcel_externals is not None:
-
                     for child in list(quarter_externals):
                         quarter_externals.remove(child)
                     for child in parcel_externals:
@@ -145,7 +130,9 @@ class CadastralQuarters:
             object_shape = ""
             if processor:
                 try:
-                    exterior_shape = processor._get_polyline_object_shape(externals_lines) if externals_lines is not None else ""
+                    exterior_shape = (
+                        processor._get_polyline_object_shape(externals_lines) if externals_lines is not None else ""
+                    )
                     interior_shapes = []
                     for lines_el in internals_lines_list:
                         try:
@@ -161,11 +148,10 @@ class CadastralQuarters:
 
         QgsProject.instance().addMapLayer(self.layer, False)
         self.group.addLayer(self.layer)
-        if hasattr(self, 'xml_ua_layers'):
+        if hasattr(self, "xml_ua_layers"):
             self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty(
-                "xml_data_object_id", id(self.xml_data))
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
 
         return self.layer

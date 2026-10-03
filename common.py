@@ -11,8 +11,7 @@ from qgis.PyQt.QtCore import QObject, QVariant, pyqtSignal
 from qgis.PyQt.QtWidgets import QDockWidget, QMessageBox
 
 logFile = open(os.path.dirname(__file__) + "/log.md", "w", encoding="utf-8")
-logFile.write(
-    f"## Plugin reloaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+logFile.write(f"## Plugin reloaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 logFile.flush()
 
 try:
@@ -22,15 +21,12 @@ try:
         main_window = iface.mainWindow()
         if main_window:
             for widget in main_window.findChildren(QDockWidget):
-
                 if widget.windowTitle() == "xml_ua" and widget.isVisible():
                     widget.hide()
-                    logFile.write(
-                        f"INFO: Приховано старий видимий віджет під час перезавантаження плагіна.\n")
+                    logFile.write("INFO: Приховано старий видимий віджет під час перезавантаження плагіна.\n")
 except Exception as e:
-    logFile.write(
-        f"WARNING: Не вдалося приховати старий віджет під час перезавантаження: {e}\n")
-    
+    logFile.write(f"WARNING: Не вдалося приховати старий віджет під час перезавантаження: {e}\n")
+
 ini_path = os.path.dirname(__file__) + "/templates/xml_ua.ini"
 docs_path = os.path.dirname(__file__) + "/templates/docs_list.ini"
 fields_path = os.path.dirname(__file__) + "/templates/field_dicts.ini"
@@ -40,6 +36,7 @@ xml_file_name = ""
 
 BLACKLIST = type, ModuleType, FunctionType
 PARCEL_MARGIN_FACTOR = 1.10
+
 
 def parse_float(value, default=None):
     """
@@ -70,6 +67,7 @@ def parse_float(value, default=None):
         return float(s)
     except ValueError:
         return default
+
 
 def _normalize_number_text_with_comma(value: str) -> str | None:
     """
@@ -115,6 +113,7 @@ def _normalize_number_text_with_comma(value: str) -> str | None:
         return None
 
     return normalized
+
 
 def normalize_decimal_commas_in_tree(xml_tree, xpaths=None):
     """
@@ -170,6 +169,7 @@ def normalize_decimal_commas_in_tree(xml_tree, xpaths=None):
 
     return changes
 
+
 def ensure_object_layer_fields(layer):
     """
     Ensure a vector layer has the technical fields used by the plugin:
@@ -202,10 +202,8 @@ def ensure_object_layer_fields(layer):
                 form_config.setReadOnly(idx, True)
         layer.setEditFormConfig(form_config)
     except Exception as e:
-
         log_calls(logFile, f"{e}")
         pass
-
 
     try:
         from qgis.core import (
@@ -217,13 +215,14 @@ def ensure_object_layer_fields(layer):
             layer.setDefaultValueDefinition(
                 idx,
                 QgsDefaultValue(
-                    "coalesce(\"object_id\", coalesce(aggregate(@layer,'max',\"object_id\"),0) + 1)",
+                    'coalesce("object_id", coalesce(aggregate(@layer,\'max\',"object_id"),0) + 1)',
                     True,
                 ),
             )
     except Exception as e:
         log_calls(logFile, f"{e}")
         pass
+
 
 def next_object_id_in_container(parent, child_tag: str) -> str:
     """
@@ -254,11 +253,11 @@ def next_object_id_in_container(parent, child_tag: str) -> str:
         next_id += 1
     return str(next_id)
 
+
 def size(obj):
     """sum size of object & members."""
     if isinstance(obj, BLACKLIST):
-        raise TypeError(
-            'getsize() does not take argument of type: ' + str(type(obj)))
+        raise TypeError("getsize() does not take argument of type: " + str(type(obj)))
     seen_ids = set()
     size = 0
     objects = [obj]
@@ -272,10 +271,12 @@ def size(obj):
         objects = get_referents(*need_referents)
     return size
 
+
 class Connections(QObject):
     """
     Клас для централізованого управління з'єднаннями сигналів і слотів.
     """
+
     connectionRemoved = pyqtSignal()
 
     def __init__(self):
@@ -302,19 +303,17 @@ class Connections(QObject):
         """
 
         if self.connection_established(sender, signal_name, slot):
-
             QMessageBox.warning(
-                None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+                None, "xml_ua", f"З'єднання вже існує: {type(sender).__name__}, '{signal_name}', {slot.__name__}"
+            )
 
             return
 
         try:
-
             signal = getattr(sender, signal_name)
 
             if not isinstance(signal, pyqtSignal) and not callable(signal):
-                raise AttributeError(
-                    f"'{signal_name}' is not a signal or callable on '{type(sender).__name__}'")
+                raise AttributeError(f"'{signal_name}' is not a signal or callable on '{type(sender).__name__}'")
 
             signal.connect(slot)
             self.connections.append((sender, signal_name, slot))
@@ -330,7 +329,6 @@ class Connections(QObject):
 
         if connection_to_remove in self.connections:
             try:
-
                 signal = getattr(sender, signal_name)
 
                 signal.disconnect(slot)
@@ -338,13 +336,12 @@ class Connections(QObject):
                 self.connections.remove(connection_to_remove)
 
             except (TypeError, AttributeError) as e:
-
-                log_msg(
-                    logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+                log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
         else:
-
             log_msg(
-                logFile, f"З'єднання для від'єднання не знайдено: {type(sender).__name__}, '{signal_name}', {slot.__name__}")
+                logFile,
+                f"З'єднання для від'єднання не знайдено: {type(sender).__name__}, '{signal_name}', {slot.__name__}",
+            )
 
     def disconnect_all(self):
         """
@@ -356,11 +353,9 @@ class Connections(QObject):
                 signal.disconnect(slot)
 
             except TypeError as e:
-                log_msg(
-                    logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+                log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
             except AttributeError as e:
-                log_msg(
-                    logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
+                log_msg(logFile, f"Помилка від'єднання з'єднання: {e}, signal: {signal_name}, slot: {slot}")
         self.connections.clear()
         self.connectionRemoved.emit()
 
@@ -394,12 +389,14 @@ class Connections(QObject):
             result += f"{i + 1}. {sender_name}, '{signal_name}', {slot_name}\n"
         return result
 
+
 connector = Connections()
+
 
 def get_object_name_from_frame(obj, frame):
     """
-        Пошук імені об'єкта у вказаному фреймі стеку.
-        frame = inspect.currentframe()
+    Пошук імені об'єкта у вказаному фреймі стеку.
+    frame = inspect.currentframe()
 
     """
     for name, value in frame.f_locals.items():
@@ -407,8 +404,10 @@ def get_object_name_from_frame(obj, frame):
             return name
     return None
 
+
 def caller(i: int):
     return inspect.stack()[i].function
+
 
 def log_msg(logFile, msg=""):
     """ """
@@ -417,6 +416,7 @@ def log_msg(logFile, msg=""):
 
     logFile.write(f"\n##### [{caller(2)}():]({filename}#L{lineno}) {msg}")
     logFile.flush()
+
 
 def get_call_stack(i: int):
     """Отримує стек викликів у вигляді рядка у зворотному порядку,
@@ -440,22 +440,23 @@ def get_call_stack(i: int):
         idx += 1
         filename = os.path.basename(abs_filename)
         lineno = frame.f_lineno
-        spaces = ' ' * max(1, (24 - len(filename)))
+        spaces = " " * max(1, (24 - len(filename)))
         func_name = frame.f_code.co_name
 
         result += f"\n [{idx}. {filename} {spaces} {func_name}]({filename}#L{lineno})"
 
     return result
 
+
 def log_calls(logFile, msg: str = "") -> None:
-    """ Записує повідомлення в лог-файл з інформацією про стек викликів.
-    """
+    """Записує повідомлення в лог-файл з інформацією про стек викликів."""
     stack_info = get_call_stack(2)
 
     log_message = f"{stack_info}→\n{msg} \n"
 
     logFile.write(log_message)
     logFile.flush()
+
 
 def geometry_to_string(geometry):
     """
@@ -522,9 +523,11 @@ def geometry_to_string(geometry):
 
     return result_string.strip() + "\n"
 
+
 class CaseSensitiveConfigParser(configparser.ConfigParser):
     def optionxform(self, optionstr):
         return optionstr
+
 
 config = CaseSensitiveConfigParser(strict=False)
 config.read(ini_path, encoding="utf-8")
@@ -538,7 +541,8 @@ metadata_elements = [
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverName",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/ReceiverIdentifier",
     "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/Software",
-    "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/SoftwareVersion"]
+    "UkrainianCadastralExchangeFile/AdditionalPart/ServiceInfo/SoftwareVersion",
+]
 
 category_raw = {
     "100": "Землі сільськогосподарського призначення",
@@ -549,13 +553,10 @@ category_raw = {
     "600": "Землі історико-культурного призначення",
     "700": "Землі лісогосподарського призначення",
     "800": "Землі водного фонду",
-    "900": "Землі промисловості, транспорту, електронних комунікацій, енергетики,оборони та іншого призначення"
+    "900": "Землі промисловості, транспорту, електронних комунікацій, енергетики,оборони та іншого призначення",
 }
 
-category_map = {
-
-    f"{code} {label}": code for code, label in category_raw.items()
-}
+category_map = {f"{code} {label}": code for code, label in category_raw.items()}
 
 purpose_raw = {
     "01.00": "Категорія: землі сільськогосподарського призначення",
@@ -726,9 +727,7 @@ purpose_raw = {
     "19.00": "Категорія: Для 16.00-18.00 та природно-заповідного фонду",
 }
 
-purpose_map = {
-    f"{code} {label}": code for code, label in purpose_raw.items()
-}
+purpose_map = {f"{code} {label}": code for code, label in purpose_raw.items()}
 
 code_raw = {
     "100": "Приватна власність",
@@ -736,35 +735,7 @@ code_raw = {
     "300": "Комунальна власність",
 }
 
-code_map = {
-    f"{code} {label}": code for code, label in code_raw.items()
-}
-
-parcel_field2path_dict = {
-    "ParcelID": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID",
-    "Description": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Description",
-    "AreaSize": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/Size",
-    "AreaUnit": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/MeasurementUnit",
-    "DeterminationMethod": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/Area/DeterminationMethod",
-    "Region": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Region",
-    "Settlement": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/Settlement",
-    "District": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
-
-
-
-
-
-    "ParcelLocation": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/District",
-    "StreetType": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetType",
-    "StreetName": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/StreetName",
-    "Building": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Building",
-    "Block": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/ParcelAddress/Block",
-    "AdditionalInfo": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelLocationInfo/AdditionalInfoBlock/AdditionalInfo",
-    "Category": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Category",
-    "Purpose": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Purpose",
-    "Use": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/CategoryPurposeInfo/Use",
-    "Code": "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/OwnershipInfo/Code"
-}
+code_map = {f"{code} {label}": code for code, label in code_raw.items()}
 
 area_determination_map = {
     "<ExhangeFileCoordinates/>": "За координатами обмінного файлу",
@@ -778,6 +749,7 @@ area_determination_map = {
     "<Calculation><CoordinateSystem><SC63><P/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-P",
     "<Calculation><CoordinateSystem><SC63><T/></SC63></CoordinateSystem></Calculation>": "Переобчислення з SC63-T",
 }
+
 
 def insert_element_in_order(parent_element, new_element):
     """
@@ -800,12 +772,11 @@ def insert_element_in_order(parent_element, new_element):
         "Restrictions",
         "LandsParcel",
         "AdjacentUnits",
-        "AdditionalInfoBlock"
+        "AdditionalInfoBlock",
     ]
 
     new_tag = new_element.tag
     if new_tag not in order:
-
         parent_element.append(new_element)
         return
 
@@ -821,6 +792,7 @@ def insert_element_in_order(parent_element, new_element):
         insert_before_element.addprevious(new_element)
     else:
         parent_element.append(new_element)
+
 
 def sort_children_in_parcel_info(parcel_info_element):
     """
@@ -843,7 +815,7 @@ def sort_children_in_parcel_info(parcel_info_element):
         "Restrictions",
         "LandsParcel",
         "AdjacentUnits",
-        "AdditionalInfoBlock"
+        "AdditionalInfoBlock",
     ]
 
     current_children = list(parcel_info_element)
@@ -859,7 +831,6 @@ def sort_children_in_parcel_info(parcel_info_element):
 
     present_tags_sorted = [child.tag for child in sorted_children]
     if current_tags != present_tags_sorted:
-
         parcel_info_element.clear()
         for child in sorted_children:
             parcel_info_element.append(child)

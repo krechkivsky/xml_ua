@@ -1,4 +1,5 @@
 """Coverage checks for the parcel perimeter and adjacent-unit boundaries."""
+
 from __future__ import annotations
 
 import math
@@ -95,10 +96,7 @@ def _boundary_limits(chain, closed, parcel_uidps, adjacent_incidence):
         # Point contacts have no shared boundary segment. Contacts at a node
         # incident to more than three units are explicitly corner adjacencies.
         if shared_indices:
-            is_corner = any(
-                1 + adjacent_incidence.get(chain[i], 0) > 3
-                for i in shared_indices
-            )
+            is_corner = any(1 + adjacent_incidence.get(chain[i], 0) > 3 for i in shared_indices)
             if is_corner:
                 return 0, 0
         return 0, 0
@@ -153,16 +151,10 @@ def check_adjacent_coverage(xml_tree, adjacent_layer=None, tolerance_m=TOLERANCE
             adjacent_incidence[uidp] = adjacent_incidence.get(uidp, 0) + 1
 
     def boundary_length(chain, closed):
-        start, end = _boundary_limits(
-            chain, closed, parcel_uidps, adjacent_incidence
-        )
+        start, end = _boundary_limits(chain, closed, parcel_uidps, adjacent_incidence)
         return _chain_length(chain, coords, start, end)
 
-    xml_total = sum(
-        boundary_length(chain, closed)
-        for boundaries in records
-        for chain, closed in boundaries
-    )
+    xml_total = sum(boundary_length(chain, closed) for boundaries in records for chain, closed in boundaries)
 
     layer_total = None
     if adjacent_layer is not None:
@@ -179,9 +171,7 @@ def check_adjacent_coverage(xml_tree, adjacent_layer=None, tolerance_m=TOLERANCE
             match = xml_by_shape.get(_shape_key(chain))
             if match:
                 source_chain, closed = match
-                start, end = _boundary_limits(
-                    source_chain, closed, parcel_uidps, adjacent_incidence
-                )
+                start, end = _boundary_limits(source_chain, closed, parcel_uidps, adjacent_incidence)
                 geometry = feature.geometry()
                 points = geometry.asPolyline() if not geometry.isNull() else []
                 if len(points) == len(source_chain):
@@ -192,9 +182,7 @@ def check_adjacent_coverage(xml_tree, adjacent_layer=None, tolerance_m=TOLERANCE
                     layer_total += _chain_length(source_chain, coords, start, end)
             else:
                 closed = len(chain) > 2 and chain[0] == chain[-1]
-                start, end = _boundary_limits(
-                    chain, closed, parcel_uidps, adjacent_incidence
-                )
+                start, end = _boundary_limits(chain, closed, parcel_uidps, adjacent_incidence)
                 geometry = feature.geometry()
                 points = geometry.asPolyline() if not geometry.isNull() else []
                 layer_total += (
@@ -207,7 +195,8 @@ def check_adjacent_coverage(xml_tree, adjacent_layer=None, tolerance_m=TOLERANCE
     difference = abs(xml_total - perimeter)
     if difference > tolerance_m:
         errors.append(
-            f"Блок суміжників: сума довжин {xml_total:.3f} м не дорівнює периметру ділянки {perimeter:.3f} м (різниця {difference:.3f} м)."
+            (f"Блок суміжників: сума довжин {xml_total:.3f} м не дорівнює периметру ділянки "
+             f"{perimeter:.3f} м (різниця {difference:.3f} м).")
         )
     if adjacent_layer is None:
         errors.append("Шар «Суміжники» відсутній, тому його повноту не вдалося перевірити.")
@@ -215,7 +204,8 @@ def check_adjacent_coverage(xml_tree, adjacent_layer=None, tolerance_m=TOLERANCE
         difference = abs(layer_total - perimeter)
         if difference > tolerance_m:
             errors.append(
-                f"Шар «Суміжники»: сума довжин {layer_total:.3f} м не дорівнює периметру ділянки {perimeter:.3f} м (різниця {difference:.3f} м)."
+                f"Шар «Суміжники»: сума довжин {layer_total:.3f} м не дорівнює периметру ділянки "
+                f"{perimeter:.3f} м (різниця {difference:.3f} м)."
             )
 
     return {"perimeter": perimeter, "xml_total": xml_total, "layer_total": layer_total, "errors": errors}

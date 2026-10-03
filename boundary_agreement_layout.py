@@ -50,9 +50,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         super().__init__(iface, parent_group, project, plugin=plugin)
         # Для акту використовуємо окрему групу шарів, але залишаємо fallback на "Кадастровий план"
         # щоб не ламати роботу, якщо групу ще не підготовано.
-        self.cadastral_plan_group = (
-            parent_group.findGroup("Акт погодження меж")
-            or parent_group.findGroup("Кадастровий план")
+        self.cadastral_plan_group = parent_group.findGroup("Акт погодження меж") or parent_group.findGroup(
+            "Кадастровий план"
         )
 
     def _build_agreement_table_html(
@@ -92,7 +91,9 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
 
         body_row_h = float(body_row_h_mm)
         tr_body = f"height:{body_row_h:.2f}mm;"
-        td_left = f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        td_left = (
+            f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        )
         td_sign = f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap;"
 
         tr_head = f"height:{float(NODES_TABLE_HEADER_ROW_H_MM):.2f}mm;"
@@ -112,7 +113,7 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         # - перед кожним рядком з даними додаємо "порожній" рядок з пустими комірками
         # - "зебра" не потрібна
         nbsp = "&nbsp;"
-        for (a, b, nm, _kn) in items:
+        for a, b, nm, _kn in items:
             seg = f"Від {a} до {b}".strip()
             rows_html.append(
                 f"<tr style='{tr_body}'>"
@@ -138,7 +139,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         )
 
         html = f"""
-        <div style="width:{float(table_w_mm):.2f}mm; font-size:{float(font.pointSizeF() or 8.0):.2f}pt; font-weight:normal;">
+        <div style="width:{float(table_w_mm):.2f}mm;
+ font-size:{float(font.pointSizeF() or 8.0):.2f}pt; font-weight:normal;">
           <table style="
             width:{float(table_w_mm):.2f}mm;
             table-layout:fixed;
@@ -148,7 +150,7 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
             <colgroup>
               {colgroup}
             </colgroup>
-            {''.join(rows_html)}
+            {"".join(rows_html)}
           </table>
         </div>
         """
@@ -195,7 +197,9 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
 
         area_ha_txt = ""
         try:
-            area_raw = self._xml_first_text(xml_root, "//*[local-name()='ParcelMetricInfo']/*[local-name()='Area']/*[local-name()='Size'][1]")
+            area_raw = self._xml_first_text(
+                xml_root, "//*[local-name()='ParcelMetricInfo']/*[local-name()='Area']/*[local-name()='Size'][1]"
+            )
             area_unit = self._xml_first_text(
                 xml_root,
                 "//*[local-name()='ParcelMetricInfo']/*[local-name()='Area']/*[local-name()='MeasurementUnit'][1]",
@@ -250,12 +254,14 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         title_bg.setShapeType(QgsLayoutItemShape.Rectangle)
         title_bg.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutMillimeters))
         title_bg.attemptResize(QgsLayoutSize(content_w, float(TITLE_H_MM), QgsUnitTypes.LayoutMillimeters))
-        title_bg_symbol = QgsFillSymbol.createSimple({
-            "color": "242,242,242,255",
-            "outline_color": "136,136,136,255",
-            "outline_width": "0.1",
-            "outline_style": "solid",
-        })
+        title_bg_symbol = QgsFillSymbol.createSimple(
+            {
+                "color": "242,242,242,255",
+                "outline_color": "136,136,136,255",
+                "outline_width": "0.1",
+                "outline_style": "solid",
+            }
+        )
         title_bg.setSymbol(title_bg_symbol)
         layout.addLayoutItem(title_bg)
 
@@ -372,11 +378,7 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         sig = QgsLayoutItemLabel(layout)
         sig.setObjectName("Signature")
         sig.setId("Signature")
-        sig_text = (
-            "Сертифікований інженер-землевпорядник "
-            "_____________________________ "
-            f"{executor_sig_name}"
-        ).rstrip()
+        sig_text = (f"Сертифікований інженер-землевпорядник _____________________________ {executor_sig_name}").rstrip()
         sig.setText(sig_text)
         sig.setFont(QFont(fnt))
         layout.addLayoutItem(sig)

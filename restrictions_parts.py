@@ -116,9 +116,7 @@ class RestrictionsPartsTable:
         area_by_oid = RestrictionsPartsTable._area_ha_by_object_id(restrictions_layer)
 
         try:
-            infos = xml_root.xpath(
-                "//*[local-name()='Restrictions']/*[local-name()='RestrictionInfo']"
-            )
+            infos = xml_root.xpath("//*[local-name()='Restrictions']/*[local-name()='RestrictionInfo']")
         except Exception:
             infos = []
 
@@ -191,7 +189,9 @@ class RestrictionsPartsTable:
         tr_head = f"height:{float(header_row_h_mm):.2f}mm;"
         tr_body = f"height:{float(body_row_h_mm):.2f}mm;"
         th_style = f"font-weight:normal; padding:0 2px; {tr_head} text-align:center;"
-        td_style = f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        td_style = (
+            f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        )
 
         colgroup = "\n".join([f"<col style='width:{w:.2f}mm;'>" for w in widths])
 
@@ -225,7 +225,7 @@ class RestrictionsPartsTable:
             <colgroup>
               {colgroup}
             </colgroup>
-            {''.join(rows_html)}
+            {"".join(rows_html)}
           </table>
         </div>
         """

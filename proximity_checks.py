@@ -304,7 +304,10 @@ def build_proximity_report(*, xml_path: str, result: ProximityCheckResult) -> st
     out.append(f"Файл: {xml_path}")
     out.append(f"Дата/час: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     out.append(f"Поріг: {result.threshold_m} м")
-    out.append(f"Точок: {result.points_parsed}/{result.points_total}, Ліній: {result.polylines_total}, Сегментів: {result.segments_total}")
+    out.append(
+        (f"Точок: {result.points_parsed}/{result.points_total}, "
+         f"Ліній: {result.polylines_total}, Сегментів: {result.segments_total}")
+    )
     out.append(f"Час: {result.elapsed_sec:.2f} сек")
     out.append("")
 
@@ -313,9 +316,7 @@ def build_proximity_report(*, xml_path: str, result: ProximityCheckResult) -> st
         out.append("  немає")
     else:
         for i, hit in enumerate(result.close_hits, 1):
-            out.append(
-                f"  {i}. Точка {hit.uidp} близька до точки {hit.other_uidp}  {hit.distance_m:.3f}"
-            )
+            out.append(f"  {i}. Точка {hit.uidp} близька до точки {hit.other_uidp}  {hit.distance_m:.3f}")
     out.append("")
 
     out.append("2. Створні точки:")
@@ -323,9 +324,7 @@ def build_proximity_report(*, xml_path: str, result: ProximityCheckResult) -> st
         out.append("  немає")
     else:
         for i, hit in enumerate(result.near_line_hits, 1):
-            out.append(
-                f"  {i}. Точка {hit.uidp} близька до лінії {hit.ulid}  {hit.distance_m:.3f}"
-            )
+            out.append(f"  {i}. Точка {hit.uidp} близька до лінії {hit.ulid}  {hit.distance_m:.3f}")
 
     return "\n".join(out) + "\n"
 

@@ -1,8 +1,7 @@
-
-
 """
 Модуль для обробки та унікалізації геометричних даних в XML.
 """
+
 import math
 
 from lxml import etree as etree
@@ -27,11 +26,9 @@ class GeometryProcessor:
         self.root = self.tree.getroot()
         self.points = self._get_all_points()
         self.polylines = self._get_all_polylines()
-        self.max_uidp = self._get_max_id('.//PointInfo/Point', 'UIDP')
-        self.max_pn = self._get_max_id('.//PointInfo/Point', 'PN')
-        self.max_ulid = self._get_max_id('.//Polyline/PL', 'ULID')
-
-
+        self.max_uidp = self._get_max_id(".//PointInfo/Point", "UIDP")
+        self.max_pn = self._get_max_id(".//PointInfo/Point", "PN")
+        self.max_ulid = self._get_max_id(".//Polyline/PL", "ULID")
 
         self.tolerance = 0.10  # 5 см
         self.point_info = self.root.find(".//PointInfo")
@@ -50,11 +47,11 @@ class GeometryProcessor:
     def _get_existing_points(self):
         """Створює словник існуючих точок для швидкого пошуку за координатами."""
         points = {}
-        for p_elem in self.root.findall('.//PointInfo/Point'):
-            uidp = p_elem.findtext('UIDP')
+        for p_elem in self.root.findall(".//PointInfo/Point"):
+            uidp = p_elem.findtext("UIDP")
             try:
-                y = float(p_elem.findtext('X'))
-                x = float(p_elem.findtext('Y'))
+                y = float(p_elem.findtext("X"))
+                x = float(p_elem.findtext("Y"))
                 coord_tuple = (round(y, 3), round(x, 3))
                 points[coord_tuple] = uidp
             except (ValueError, TypeError):
@@ -64,14 +61,13 @@ class GeometryProcessor:
     def _get_all_points(self):
         """Збирає всі існуючі точки з XML у словник."""
         points_dict = {}
-        for p_elem in self.root.findall('.//PointInfo/Point'):
-            uidp = p_elem.findtext('UIDP')
+        for p_elem in self.root.findall(".//PointInfo/Point"):
+            uidp = p_elem.findtext("UIDP")
             try:
-
-                y = float(p_elem.findtext('X'))
-                x = float(p_elem.findtext('Y'))
+                y = float(p_elem.findtext("X"))
+                x = float(p_elem.findtext("Y"))
                 if uidp:
-                    points_dict[uidp] = {'x': x, 'y': y, 'elem': p_elem}
+                    points_dict[uidp] = {"x": x, "y": y, "elem": p_elem}
             except (ValueError, TypeError):
                 continue
         return points_dict
@@ -79,12 +75,11 @@ class GeometryProcessor:
     def _get_all_polylines(self):
         """Збирає всі існуючі полілінії з XML у словник."""
         polylines_dict = {}
-        for pl_elem in self.root.findall('.//Polyline/PL'):
-            ulid = pl_elem.findtext('ULID')
-            points = [p.text for p in pl_elem.findall('Points/P')]
+        for pl_elem in self.root.findall(".//Polyline/PL"):
+            ulid = pl_elem.findtext("ULID")
+            points = [p.text for p in pl_elem.findall("Points/P")]
             if ulid and points:
-
-                polylines_dict[ulid] = {'points': points, 'elem': pl_elem}
+                polylines_dict[ulid] = {"points": points, "elem": pl_elem}
         return polylines_dict
 
     def _get_or_create_point(self, qgs_point):
@@ -96,14 +91,16 @@ class GeometryProcessor:
         new_x, new_y = qgs_point.x(), qgs_point.y()
 
         for uidp, point_data in self.points.items():
-
-            existing_x, existing_y = point_data['x'], point_data['y']
-            distance = math.sqrt((new_x - existing_x) **
-                                 2 + (new_y - existing_y)**2)
+            existing_x, existing_y = point_data["x"], point_data["y"]
+            distance = math.sqrt((new_x - existing_x) ** 2 + (new_y - existing_y) ** 2)
 
             if distance < self.tolerance:
                 log_calls(
-                    logFile, f"Знайдено існуючу точку UIDP: {uidp} в межах допуску {self.tolerance}м. Координати ({new_x:.3f}, {new_y:.3f}) замінено на ({existing_x:.3f}, {existing_y:.3f}).")
+                    logFile,
+                    (f"Знайдено існуючу точку UIDP: {uidp} в межах допуску "
+                     f"{self.tolerance}м. Координати ({new_x:.3f}, {new_y:.3f}) замінено на "
+                     f"({existing_x:.3f}, {existing_y:.3f})."),
+                )
                 return uidp
 
         if self.point_info is None:
@@ -122,8 +119,7 @@ class GeometryProcessor:
 
         self.point_info.append(new_point_element)
 
-        self.points[str(self.max_uidp)] = {'x': qgs_point.x(
-        ), 'y': qgs_point.y(), 'elem': new_point_element}
+        self.points[str(self.max_uidp)] = {"x": qgs_point.x(), "y": qgs_point.y(), "elem": new_point_element}
         log_calls(logFile, f"Створено нову точку з UIDP: {self.max_uidp}")
         return str(self.max_uidp)
 
@@ -134,9 +130,8 @@ class GeometryProcessor:
         new_x, new_y = qgs_point.x(), qgs_point.y()
 
         for uidp, point_data in self.points.items():
-            existing_x, existing_y = point_data['x'], point_data['y']
-            distance = math.sqrt((new_x - existing_x) **
-                                 2 + (new_y - existing_y)**2)
+            existing_x, existing_y = point_data["x"], point_data["y"]
+            distance = math.sqrt((new_x - existing_x) ** 2 + (new_y - existing_y) ** 2)
 
             if distance < self.tolerance:
                 return uidp
@@ -147,9 +142,8 @@ class GeometryProcessor:
 
         segment_points_set = frozenset([uidp1, uidp2])
         for ulid, polyline_data in self.polylines.items():
-            if frozenset(polyline_data['points']) == segment_points_set:
-                log_calls(
-                    logFile, f"Знайдено існуючу лінію ULID: {ulid}. Використовуємо її.")
+            if frozenset(polyline_data["points"]) == segment_points_set:
+                log_calls(logFile, f"Знайдено існуючу лінію ULID: {ulid}. Використовуємо її.")
                 return ulid
 
         if self.polyline_info is None:
@@ -158,22 +152,19 @@ class GeometryProcessor:
 
         self.max_ulid += 1
         new_ulid = str(self.max_ulid)
-        log_calls(
-            logFile, f"Створено нову лінію з ULID: {new_ulid} між точками {uidp1} та {uidp2}.")
+        log_calls(logFile, f"Створено нову лінію з ULID: {new_ulid} між точками {uidp1} та {uidp2}.")
         pl_element = etree.Element("PL")
         etree.SubElement(pl_element, "ULID").text = new_ulid
         points_element = etree.SubElement(pl_element, "Points")
         etree.SubElement(points_element, "P").text = uidp1
         etree.SubElement(points_element, "P").text = uidp2
 
-
-        length = math.sqrt((p2.x() - p1.x())**2 + (p2.y() - p1.y())**2)
+        length = math.sqrt((p2.x() - p1.x()) ** 2 + (p2.y() - p1.y()) ** 2)
         etree.SubElement(pl_element, "Length").text = f"{length:.2f}"
 
         self.polyline_info.append(pl_element)
 
-        self.polylines[new_ulid] = {
-            'points': [uidp1, uidp2], 'elem': pl_element}
+        self.polylines[new_ulid] = {"points": [uidp1, uidp2], "elem": pl_element}
 
         return new_ulid
 
@@ -192,13 +183,11 @@ class GeometryProcessor:
 
         externals = etree.Element("Externals")
 
-        polygon = geom_part if isinstance(
-            geom_part, QgsPolygon) else geom_part.geometryN(0)
+        polygon = geom_part if isinstance(geom_part, QgsPolygon) else geom_part.geometryN(0)
 
         exterior_ring = polygon.exteriorRing()
         if exterior_ring:
-            boundary_ulids, processed_points, processed_polylines = self._process_ring(
-                exterior_ring)
+            boundary_ulids, processed_points, processed_polylines = self._process_ring(exterior_ring)
             new_points_to_add.extend(processed_points)
             new_polylines_to_add.extend(processed_polylines)
 
@@ -218,8 +207,7 @@ class GeometryProcessor:
             for i in range(polygon.numInteriorRings()):
                 interior_ring = polygon.interiorRing(i)
                 if interior_ring:
-                    boundary_ulids, processed_points, processed_polylines = self._process_ring(
-                        interior_ring)
+                    boundary_ulids, processed_points, processed_polylines = self._process_ring(interior_ring)
                     new_points_to_add.extend(processed_points)
                     new_polylines_to_add.extend(processed_polylines)
 
@@ -230,15 +218,13 @@ class GeometryProcessor:
                         line_elem = etree.SubElement(lines, "Line")
                         etree.SubElement(line_elem, "ULID").text = ulid
                     etree.SubElement(boundary, "Closed").text = "true"
-                    object_shapes.append(
-                        self._get_polyline_object_shape(lines))
+                    object_shapes.append(self._get_polyline_object_shape(lines))
 
-        point_info_container = self.root.find('.//PointInfo')
+        point_info_container = self.root.find(".//PointInfo")
         if point_info_container is not None:
-
             point_info_container.extend(new_points_to_add)
 
-        polyline_container = self.root.find('.//Polyline')
+        polyline_container = self.root.find(".//Polyline")
         if polyline_container is not None:
             polyline_container.extend(new_polylines_to_add)
 
@@ -262,8 +248,7 @@ class GeometryProcessor:
         for qgis_point in points_in_ring:
             found_existing = False
             for uidp, data in self.points.items():
-                dist = math.sqrt(
-                    (qgis_point.x() - data['x'])**2 + (qgis_point.y() - data['y'])**2)
+                dist = math.sqrt((qgis_point.x() - data["x"]) ** 2 + (qgis_point.y() - data["y"]) ** 2)
                 if dist < self.tolerance:
                     ring_uidps.append(uidp)
                     found_existing = True
@@ -278,28 +263,28 @@ class GeometryProcessor:
                 etree.SubElement(p_elem, "PN").text = new_uidp
                 det_method = etree.SubElement(p_elem, "DeterminationMethod")
                 etree.SubElement(det_method, "GPS")
-                etree.SubElement(
-                    p_elem, "X").text = f"{qgis_point.y():.3f}"  # Y -> X
-                etree.SubElement(
-                    p_elem, "Y").text = f"{qgis_point.x():.3f}"  # X -> Y
+                etree.SubElement(p_elem, "X").text = f"{qgis_point.y():.3f}"  # Y -> X
+                etree.SubElement(p_elem, "Y").text = f"{qgis_point.x():.3f}"  # X -> Y
                 etree.SubElement(p_elem, "H").text = "0.00"
                 etree.SubElement(p_elem, "MX").text = "0.05"
                 etree.SubElement(p_elem, "MY").text = "0.05"
                 etree.SubElement(p_elem, "MH").text = "0.05"
                 etree.SubElement(p_elem, "Description").text = ""
                 newly_created_points.append(p_elem)
-                self.points[new_uidp] = {
-                    'x': qgis_point.x(), 'y': qgis_point.y(), 'elem': p_elem}
+                self.points[new_uidp] = {"x": qgis_point.x(), "y": qgis_point.y(), "elem": p_elem}
 
         final_ring_uidps = []
         if ring_uidps:
             final_ring_uidps.append(ring_uidps[0])
             for i in range(1, len(ring_uidps)):
-                if ring_uidps[i] != ring_uidps[i-1]:
+                if ring_uidps[i] != ring_uidps[i - 1]:
                     final_ring_uidps.append(ring_uidps[i])
                 else:
                     log_calls(
-                        logFile, f"ПОПЕРЕДЖЕННЯ: Видалено помилкове послідовне входження точки UIDP: {ring_uidps[i]} у полігональному об'єкті.")
+                        logFile,
+                        ("ПОПЕРЕДЖЕННЯ: Видалено помилкове послідовне "
+                         f"входження точки UIDP: {ring_uidps[i]} у полігональному об'єкті."),
+                    )
         ring_uidps = final_ring_uidps
 
         if len(ring_uidps) > 1 and ring_uidps[0] == ring_uidps[-1]:
@@ -309,7 +294,9 @@ class GeometryProcessor:
             seen = set()
             duplicates = {x for x in ring_uidps if x in seen or seen.add(x)}  # noqa
             object_shape = "-".join(ring_uidps)
-            error_msg = f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} входять в контур більше одного разу (самоперетин).\n\nObject Shape: {object_shape}\n\nОб'єкт не буде додано."
+            error_msg = (f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} "
+                         f"входять в контур більше одного разу (самоперетин).\n\nObject Shape: "
+                         f"{object_shape}\n\nОб'єкт не буде додано.")
             log_calls(logFile, error_msg)
             raise ValueError(error_msg)
 
@@ -320,7 +307,7 @@ class GeometryProcessor:
 
             found_existing_pl = False
             for ulid, data in self.polylines.items():
-                if frozenset(data['points']) == current_segment_points:
+                if frozenset(data["points"]) == current_segment_points:
                     boundary_ulids.append(ulid)
                     found_existing_pl = True
                     break
@@ -338,13 +325,11 @@ class GeometryProcessor:
 
                 p1_coords = self.points[p1_uidp]
                 p2_coords = self.points[p2_uidp]
-                length = math.sqrt(
-                    (p2_coords['x'] - p1_coords['x'])**2 + (p2_coords['y'] - p1_coords['y'])**2)
+                length = math.sqrt((p2_coords["x"] - p1_coords["x"]) ** 2 + (p2_coords["y"] - p1_coords["y"]) ** 2)
                 etree.SubElement(pl_elem, "Length").text = f"{length:.2f}"
 
                 newly_created_polylines.append(pl_elem)
-                self.polylines[new_ulid] = {'points': [
-                    p1_uidp, p2_uidp], 'elem': pl_elem}
+                self.polylines[new_ulid] = {"points": [p1_uidp, p2_uidp], "elem": pl_elem}
 
         return boundary_ulids, newly_created_points, newly_created_polylines
 
@@ -358,15 +343,13 @@ class GeometryProcessor:
             log_calls(logFile, "(початок): Розділ 'AdjacentUnits' ВІДСУТНІЙ.")
         else:
             count = len(adj_units_before.findall("AdjacentUnitInfo"))
-            log_calls(
-                logFile, f"(початок): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
+            log_calls(logFile, f"(початок): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
 
         log_calls(logFile)
         if geometry.wkbType() not in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
             raise ValueError("Геометрія суміжника повинна бути полілінією.")
 
         if geometry.type() == QgsWkbTypes.MultiLineString:
-
             polyline = geometry.asMultiPolyline()[0]
         else:
             polyline = geometry.asPolyline()
@@ -375,7 +358,7 @@ class GeometryProcessor:
         point_uidps = []
 
         for i in range(len(polyline) - 1):
-            p1, p2 = polyline[i], polyline[i+1]
+            p1, p2 = polyline[i], polyline[i + 1]
             uidp1 = self._get_or_create_point(p1)
             uidp2 = self._get_or_create_point(p2)
 
@@ -387,27 +370,25 @@ class GeometryProcessor:
             if ulid not in line_ulids:
                 line_ulids.append(ulid)
 
-        final_point_uidps = [point_uidps[i] for i in range(
-            len(point_uidps)) if i == 0 or point_uidps[i] != point_uidps[i-1]]
+        final_point_uidps = [
+            point_uidps[i] for i in range(len(point_uidps)) if i == 0 or point_uidps[i] != point_uidps[i - 1]
+        ]
         if len(final_point_uidps) < len(point_uidps):
-            log_calls(
-                logFile, "ПОПЕРЕДЖЕННЯ: Видалено помилкові послідовні входження точок у геометрії суміжника.")
+            log_calls(logFile, "ПОПЕРЕДЖЕННЯ: Видалено помилкові послідовні входження точок у геометрії суміжника.")
 
         if len(final_point_uidps) != len(set(final_point_uidps)):
             seen = set()
-            duplicates = {
-                x for x in final_point_uidps if x in seen or seen.add(x)}
-            error_msg = f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} входять в контур суміжника більше одного разу (самоперетин). Об'єкт не буде додано."
+            duplicates = {x for x in final_point_uidps if x in seen or seen.add(x)}
+            error_msg = (f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} "
+                         "входять в контур суміжника більше одного разу (самоперетин). Об'єкт не буде додано.")
             log_calls(logFile, error_msg)
             raise ValueError(error_msg)
 
         object_shape = "-".join(point_uidps)
 
         for adj_unit in self.root.findall(".//AdjacentUnitInfo"):
-            existing_ulids = {line.findtext("ULID") for line in adj_unit.findall(
-                ".//AdjacentBoundary/Lines/Line")}
+            existing_ulids = {line.findtext("ULID") for line in adj_unit.findall(".//AdjacentBoundary/Lines/Line")}
             if set(line_ulids) == existing_ulids:
-
                 return  # Виходимо, щоб не створювати дублікат
 
         parcel_info = self.root.find(".//ParcelInfo")
@@ -416,22 +397,17 @@ class GeometryProcessor:
 
         adjacent_units_container = parcel_info.find("AdjacentUnits")
         if adjacent_units_container is None:
-            log_calls(
-                logFile, "Розділ 'AdjacentUnits' відсутній. Створюємо новий.")
-            adjacent_units_container = etree.Element(
-                "AdjacentUnits")  # Створюємо новий елемент
+            log_calls(logFile, "Розділ 'AdjacentUnits' відсутній. Створюємо новий.")
+            adjacent_units_container = etree.Element("AdjacentUnits")  # Створюємо новий елемент
 
             adj_units_after_creation = self.root.find(".//AdjacentUnits")
             if adj_units_after_creation is None:
-                log_calls(
-                    logFile, "(після створення контейнера): Розділ 'AdjacentUnits' все ще ВІДСУТНІЙ.")
+                log_calls(logFile, "(після створення контейнера): Розділ 'AdjacentUnits' все ще ВІДСУТНІЙ.")
             else:
-                log_calls(
-                    logFile, "(після створення контейнера): Розділ 'AdjacentUnits' тепер ІСНУЄ.")
+                log_calls(logFile, "(після створення контейнера): Розділ 'AdjacentUnits' тепер ІСНУЄ.")
             insert_element_in_order(parcel_info, adjacent_units_container)
 
-        adj_unit_info = etree.SubElement(
-            adjacent_units_container, "AdjacentUnitInfo")
+        adj_unit_info = etree.SubElement(adjacent_units_container, "AdjacentUnitInfo")
         object_id = next_object_id_in_container(adjacent_units_container, "AdjacentUnitInfo")
         adj_unit_info.set("object_id", object_id)
 
@@ -450,18 +426,18 @@ class GeometryProcessor:
         if adjacent_units_container is not None:
             count = len(adjacent_units_container.findall("AdjacentUnitInfo"))
             log_calls(
-                logFile, f"(після додавання елемента): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
+                logFile, f"(після додавання елемента): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}."
+            )
         else:
-            log_calls(
-                logFile, "(після додавання елемента): Розділ 'AdjacentUnits' несподівано став ВІДСУТНІМ.")
+            log_calls(logFile, "(після додавання елемента): Розділ 'AdjacentUnits' несподівано став ВІДСУТНІМ.")
 
         log_calls(logFile, f"Додано нового суміжника: {object_shape}.")
 
     def delete_adjacent_by_shape(self, object_shape_to_delete: str):
-        """ # noqa
+        """# noqa
         Видаляє суміжника з XML-дерева за його object_shape.
         """
-        points_to_check = object_shape_to_delete.split('-')
+        points_to_check = object_shape_to_delete.split("-")
         if not points_to_check:
             return
 
@@ -479,7 +455,7 @@ class GeometryProcessor:
             for line in boundary_lines:
                 ulid = line.findtext("ULID")
                 if ulid in self.polylines:
-                    current_shape_points.update(self.polylines[ulid]['points'])
+                    current_shape_points.update(self.polylines[ulid]["points"])
 
             if set(points_to_check) == current_shape_points:
                 element_to_delete = adj_unit
@@ -487,13 +463,11 @@ class GeometryProcessor:
 
         if element_to_delete is not None:
             adjacent_units_container.remove(element_to_delete)
-            log_calls(
-                logFile, f"Суміжника {object_shape_to_delete} було видалено з XML.")
+            log_calls(logFile, f"Суміжника {object_shape_to_delete} було видалено з XML.")
 
             if not adjacent_units_container.findall("AdjacentUnitInfo"):
                 adjacent_units_container.getparent().remove(adjacent_units_container)
-                log_calls(
-                    logFile, "Розділ 'AdjacentUnits' став порожнім і був видалений.")
+                log_calls(logFile, "Розділ 'AdjacentUnits' став порожнім і був видалений.")
 
     def delete_adjacents_not_in_set(self, remaining_shapes: set):
         """
@@ -517,10 +491,9 @@ class GeometryProcessor:
             for line in boundary_lines:
                 ulid = line.findtext("ULID")
                 if ulid in self.polylines:
-                    segments.append(self.polylines[ulid]['points'])
+                    segments.append(self.polylines[ulid]["points"])
 
             if segments:  # noqa
-
                 if segments:
                     current_shape_points.extend(segments.pop(0))
 
@@ -540,9 +513,11 @@ class GeometryProcessor:
                                 found_next = True
                                 break
                         if not found_next:
-
                             log_calls(
-                                logFile, f"ПОПЕРЕДЖЕННЯ: Ланцюжок суміжника розірвано. Залишилось {len(segments)} нез'єднаних сегментів.")
+                                logFile,
+                                ("ПОПЕРЕДЖЕННЯ: Ланцюжок суміжника розірвано. "
+                                 f"Залишилось {len(segments)} нез'єднаних сегментів."),
+                            )
                             break
 
             current_shape = "-".join(current_shape_points)
@@ -596,21 +571,18 @@ class GeometryProcessor:
         """
 
         if lines_container is None:
-
             return ""
 
-        lines_container.getparent(
-        ).tag if lines_container.getparent() is not None else "N/A"
-        [line.findtext('ULID') for line in lines_container.findall(
-            'Line') if line.findtext('ULID') is not None]
+        lines_container.getparent().tag if lines_container.getparent() is not None else "N/A"
+        [line.findtext("ULID") for line in lines_container.findall("Line") if line.findtext("ULID") is not None]
 
         if lines_container is None:
             return ""
         segments = []
-        for line in lines_container.findall('Line'):
-            ulid = line.findtext('ULID')
+        for line in lines_container.findall("Line"):
+            ulid = line.findtext("ULID")
             if ulid and ulid in self.polylines:
-                segments.append(self.polylines[ulid]['points'])
+                segments.append(self.polylines[ulid]["points"])
 
         if not segments:
             return ""
@@ -618,7 +590,6 @@ class GeometryProcessor:
         shape_points = []
 
         if segments:
-
             shape_points.extend(segments.pop(0))
 
             while segments:
@@ -627,7 +598,6 @@ class GeometryProcessor:
                 found_next = False
 
                 for i, seg in enumerate(segments):
-
                     if seg[0] == end_point:
                         shape_points.append(seg[1])
                         segments.pop(i)
@@ -652,19 +622,15 @@ class GeometryProcessor:
 
                 if not found_next:
                     log_calls(
-                        logFile, f"ПОПЕРЕДЖЕННЯ: Ланцюжок суміжника розірвано. Залишилось {len(segments)} нез'єднаних сегментів.")
+                        logFile,
+                        ("ПОПЕРЕДЖЕННЯ: Ланцюжок суміжника розірвано. "
+                         f"Залишилось {len(segments)} нез'єднаних сегментів."),
+                    )
                     break  # Ланцюжок розірвано
 
         result = "-".join(shape_points)
 
         return result
-
-    def get_shape_from_qgis_feature(self, feature: 'QgsFeature'):
-        """
-        Відновлює object_shape для графічного об'єкта QGIS.
-        """
-
-        return "-".join(shape_uidps)
 
     def get_object_shape_from_externals(self, externals_element):
         """
@@ -674,13 +640,14 @@ class GeometryProcessor:
         if externals_element is None:
             return ""
 
-        exterior_shape = self._get_polyline_object_shape(
-            externals_element.find("Boundary/Lines"))
+        exterior_shape = self._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
         interior_shapes = []
         internals_container = externals_element.find("Internals")
         if internals_container is not None:
-            interior_shapes = [self._get_polyline_object_shape(internal.find(
-                "Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+            interior_shapes = [
+                self._get_polyline_object_shape(internal.find("Boundary/Lines"))
+                for internal in internals_container.findall("Boundary")
+            ]
 
         all_rings = [exterior_shape] + interior_shapes
         return "|".join(filter(None, all_rings))
@@ -695,53 +662,49 @@ class GeometryProcessor:
 
         used_ulids = set()
 
-        xpath_for_ulids = ".//Externals/Boundary/Lines/Line/ULID | .//Internals/Boundary/Lines/Line/ULID | .//AdjacentBoundary/Lines/Line/ULID"
+        xpath_for_ulids = (".//Externals/Boundary/Lines/Line/ULID "
+                           "| .//Internals/Boundary/Lines/Line/ULID | .//AdjacentBoundary/Lines/Line/ULID")
         for line_ref in self.root.xpath(xpath_for_ulids):
             if line_ref.text:
                 used_ulids.add(line_ref.text)
 
-        polyline_container = self.root.find(
-            './/Polyline')  # Блок опису поліліній
+        polyline_container = self.root.find(".//Polyline")  # Блок опису поліліній
         lines_removed_count = 0
         lines_removed_str = ""
         if polyline_container is not None:
             for pl in list(polyline_container):
-                ulid = pl.findtext('ULID')
+                ulid = pl.findtext("ULID")
                 if ulid not in used_ulids:
                     polyline_container.remove(pl)
                     lines_removed_count += 1
-                    lines_removed_str += ulid + ','
+                    lines_removed_str += ulid + ","
         if lines_removed_count > 0:
-            log_calls(
-                logFile, f"2. Видалено {lines_removed_count} поліліній: {lines_removed_str}")
+            log_calls(logFile, f"2. Видалено {lines_removed_count} поліліній: {lines_removed_str}")
 
         used_uidps = set()
         if polyline_container is not None:
-            for p_ref in polyline_container.xpath('.//PL/Points/P'):
+            for p_ref in polyline_container.xpath(".//PL/Points/P"):
                 if p_ref.text:
                     used_uidps.add(p_ref.text)
 
-        point_info_container = self.root.find('.//PointInfo')
+        point_info_container = self.root.find(".//PointInfo")
         points_removed_count = 0
         if point_info_container is not None:
             for point in list(point_info_container):
-                uidp = point.findtext('UIDP')
+                uidp = point.findtext("UIDP")
                 if uidp not in used_uidps:
                     point_info_container.remove(point)
                     points_removed_count += 1
         if points_removed_count > 0:
-            log_calls(
-                logFile, f"4. Видалено {points_removed_count} невикористовуваних точок (<Point>).")
+            log_calls(logFile, f"4. Видалено {points_removed_count} невикористовуваних точок (<Point>).")
 
         self.renumber_geometry()
 
         final_state = etree.tostring(self.root)
         if initial_state != final_state:
-            log_calls(
-                logFile, "--- Завершено очищення та перенумерацію. Зміни внесено. ---")
+            log_calls(logFile, "--- Завершено очищення та перенумерацію. Зміни внесено. ---")
             return True
         else:
-
             return False
 
     def renumber_geometry(self):
@@ -751,48 +714,43 @@ class GeometryProcessor:
         """
 
         old_uidp_to_new = {}
-        all_points = self.root.findall('.//PointInfo/Point')
+        all_points = self.root.findall(".//PointInfo/Point")
 
-        all_points.sort(key=lambda p: int(p.findtext('UIDP', '0')))
+        all_points.sort(key=lambda p: int(p.findtext("UIDP", "0")))
 
         for i, point_elem in enumerate(all_points, 1):
             new_uidp = str(i)
-            old_uidp = point_elem.findtext('UIDP')
+            old_uidp = point_elem.findtext("UIDP")
 
             if old_uidp and old_uidp != new_uidp:
                 old_uidp_to_new[old_uidp] = new_uidp
 
-            point_elem.find('UIDP').text = new_uidp
+            point_elem.find("UIDP").text = new_uidp
 
         old_ulid_to_new = {}
-        all_lines = self.root.findall('.//Polyline/PL')
+        all_lines = self.root.findall(".//Polyline/PL")
 
-        all_lines.sort(key=lambda pl: int(pl.findtext('ULID', '0')))
+        all_lines.sort(key=lambda pl: int(pl.findtext("ULID", "0")))
 
         for i, line_elem in enumerate(all_lines, 1):
             new_ulid = str(i)
-            old_ulid = line_elem.findtext('ULID')
+            old_ulid = line_elem.findtext("ULID")
 
             if old_ulid and old_ulid != new_ulid:
                 old_ulid_to_new[old_ulid] = new_ulid
 
-            line_elem.find('ULID').text = new_ulid
+            line_elem.find("ULID").text = new_ulid
 
         if old_uidp_to_new:
             updated_p_refs = 0
             for p_ref in self.root.xpath(
-                ".//Polyline/PL/Points/P | "
-                ".//AdjacentBoundary/Lines/Line/FP | "
-                ".//AdjacentBoundary/Lines/Line/TP"
+                ".//Polyline/PL/Points/P | .//AdjacentBoundary/Lines/Line/FP | .//AdjacentBoundary/Lines/Line/TP"
             ):
                 old_ref = p_ref.text
                 if old_ref in old_uidp_to_new:
                     p_ref.text = old_uidp_to_new[old_ref]
                     updated_p_refs += 1
-            log_calls(
-                logFile,
-                f"Оновлено {updated_p_refs} посилань на вузли в полілініях та FP/TP."
-            )
+            log_calls(logFile, f"Оновлено {updated_p_refs} посилань на вузли в полілініях та FP/TP.")
 
         if old_ulid_to_new:
             updated_ulid_refs = 0
@@ -807,14 +765,13 @@ class GeometryProcessor:
                 if old_ref in old_ulid_to_new:
                     ulid_ref.text = old_ulid_to_new[old_ref]
                     updated_ulid_refs += 1
-            log_calls(
-                logFile, f"Оновлено {updated_ulid_refs} посилань на лінії в контурах.")
+            log_calls(logFile, f"Оновлено {updated_ulid_refs} посилань на лінії в контурах.")
 
         self.points = self._get_all_points()
         self.polylines = self._get_all_polylines()
-        self.max_uidp = self._get_max_id('.//PointInfo/Point', 'UIDP')
-        self.max_pn = self._get_max_id('.//PointInfo/Point', 'PN')
-        self.max_ulid = self._get_max_id('.//Polyline/PL', 'ULID')
+        self.max_uidp = self._get_max_id(".//PointInfo/Point", "UIDP")
+        self.max_pn = self._get_max_id(".//PointInfo/Point", "PN")
+        self.max_ulid = self._get_max_id(".//Polyline/PL", "ULID")
 
     def process_lease_geometry(self, geometry: QgsGeometry):
         """
@@ -824,8 +781,7 @@ class GeometryProcessor:
         if geometry.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
             raise ValueError("Геометрія оренди повинна бути полігоном.")
 
-        externals_element, _, _, object_shape = self.process_new_geometry(
-            geometry)
+        externals_element, _, _, object_shape = self.process_new_geometry(geometry)
         if externals_element is None:
             raise ValueError("Не вдалося обробити геометрію полігону оренди.")
 
@@ -859,20 +815,17 @@ class GeometryProcessor:
         etree.SubElement(passport, "IssuanceAuthority").text = " "
         etree.SubElement(passport, "PassportSeries").text = " "
 
-        etree.SubElement(
-            lease_agreement, "Area").text = f"{(geometry.area() / 10000.0):.4f}"
+        etree.SubElement(lease_agreement, "Area").text = f"{(geometry.area() / 10000.0):.4f}"
         lease_term = etree.SubElement(lease_agreement, "LeaseTerm")
         etree.SubElement(lease_term, "LeaseDuration").text = " "
         rent = etree.SubElement(lease_agreement, "Rent")
         etree.SubElement(rent, "MoneyRent").text = "0.0"
         etree.SubElement(lease_agreement, "RegistrationNumber").text = " "
-        etree.SubElement(
-            lease_agreement, "RegistrationDate").text = "1900-01-01"
+        etree.SubElement(lease_agreement, "RegistrationDate").text = "1900-01-01"
 
         lease_info.append(externals_element)
 
-        log_calls(
-            logFile, f"Додано новий елемент LeaseInfo. object_shape: {object_shape}")
+        log_calls(logFile, f"Додано новий елемент LeaseInfo. object_shape: {object_shape}")
 
         return object_id, object_shape
 
@@ -884,11 +837,9 @@ class GeometryProcessor:
         if geometry.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
             raise ValueError("Геометрія суборенди повинна бути полігоном.")
 
-        externals_element, _, _, object_shape = self.process_new_geometry(
-            geometry)
+        externals_element, _, _, object_shape = self.process_new_geometry(geometry)
         if externals_element is None:
-            raise ValueError(
-                "Не вдалося обробити геометрію полігону суборенди.")
+            raise ValueError("Не вдалося обробити геометрію полігону суборенди.")
 
         parcel_info = self.root.find(".//ParcelInfo")
         if parcel_info is None:
@@ -896,8 +847,7 @@ class GeometryProcessor:
 
         subleases_container = parcel_info.find("Subleases")
         if subleases_container is None:
-            log_calls(
-                logFile, "Створення нового розділу <Subleases> в XML-дереві.")
+            log_calls(logFile, "Створення нового розділу <Subleases> в XML-дереві.")
             subleases_container = etree.Element("Subleases")
             insert_element_in_order(parcel_info, subleases_container)
 
@@ -926,8 +876,7 @@ class GeometryProcessor:
         etree.SubElement(address, "Street").text = " "
         etree.SubElement(address, "Building").text = " "
 
-        etree.SubElement(
-            sublease_info, "Area").text = f"{(geometry.area() / 10000.0):.4f}"
+        etree.SubElement(sublease_info, "Area").text = f"{(geometry.area() / 10000.0):.4f}"
         etree.SubElement(sublease_info, "RegistrationDate").text = "1900-01-01"
         etree.SubElement(sublease_info, "RegistrationNumber").text = " "
         subrent = etree.SubElement(sublease_info, "Subrent")
@@ -936,8 +885,7 @@ class GeometryProcessor:
 
         sublease_info.append(externals_element)
 
-        log_calls(
-            logFile, f"Додано новий елемент SubleaseInfo. object_shape: {object_shape}")
+        log_calls(logFile, f"Додано новий елемент SubleaseInfo. object_shape: {object_shape}")
 
         return object_id, object_shape
 
@@ -949,11 +897,9 @@ class GeometryProcessor:
         if geometry.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
             raise ValueError("Геометрія обмеження повинна бути полігоном.")
 
-        externals_element, _, _, object_shape = self.process_new_geometry(
-            geometry)
+        externals_element, _, _, object_shape = self.process_new_geometry(geometry)
         if externals_element is None:
-            raise ValueError(
-                "Не вдалося обробити геометрію полігону обмеження.")
+            raise ValueError("Не вдалося обробити геометрію полігону обмеження.")
 
         parcel_info = self.root.find(".//ParcelInfo")
         if parcel_info is None:
@@ -961,29 +907,25 @@ class GeometryProcessor:
 
         restrictions_container = parcel_info.find("Restrictions")
         if restrictions_container is None:
-            log_calls(
-                logFile, "Створення нового розділу <Restrictions> в XML-дереві.")
+            log_calls(logFile, "Створення нового розділу <Restrictions> в XML-дереві.")
             restrictions_container = etree.Element("Restrictions")
             insert_element_in_order(parcel_info, restrictions_container)
 
-        restriction_info = etree.SubElement(
-            restrictions_container, "RestrictionInfo")
+        restriction_info = etree.SubElement(restrictions_container, "RestrictionInfo")
         object_id = next_object_id_in_container(restrictions_container, "RestrictionInfo")
         restriction_info.set("object_id", object_id)
 
         etree.SubElement(restriction_info, "RestrictionCode").text = " "
         etree.SubElement(restriction_info, "RestrictionName").text = " "
 
-        restriction_term = etree.SubElement(
-            restriction_info, "RestrictionTerm")
+        restriction_term = etree.SubElement(restriction_info, "RestrictionTerm")
         time_element = etree.SubElement(restriction_term, "Time")
         etree.SubElement(time_element, "StartDate").text = "1900-01-01"
         etree.SubElement(time_element, "ExpirationDate").text = "1900-01-01"
 
         restriction_info.append(externals_element)
 
-        log_calls(
-            logFile, f"Додано новий елемент RestrictionInfo. object_shape: {object_shape}")
+        log_calls(logFile, f"Додано новий елемент RestrictionInfo. object_shape: {object_shape}")
 
         return object_id, object_shape
 
@@ -1001,8 +943,7 @@ class GeometryProcessor:
             lands_parcel_element = etree.Element("LandsParcel")
             insert_element_in_order(parcel_info_element, lands_parcel_element)
 
-        land_parcel_info = etree.SubElement(
-            lands_parcel_element, "LandParcelInfo")
+        land_parcel_info = etree.SubElement(lands_parcel_element, "LandParcelInfo")
         object_id = next_object_id_in_container(lands_parcel_element, "LandParcelInfo")
         land_parcel_info.set("object_id", object_id)
 
@@ -1013,6 +954,5 @@ class GeometryProcessor:
         etree.SubElement(area, "MeasurementUnit").text = "га"
         if externals_element is not None:
             metric_info.append(externals_element)
-        log_calls(
-            logFile, f"Додано новий елемент LandParcelInfo. object_id: {object_id}, object_shape: {object_shape}")
+        log_calls(logFile, f"Додано новий елемент LandParcelInfo. object_id: {object_id}, object_shape: {object_shape}")
         return object_id

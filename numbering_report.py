@@ -145,7 +145,8 @@ def _format_id_analysis(title: str, values: Iterable[str]) -> str:
     out = []
     out.append(f"{title}:")
     out.append(
-        f"  - Всього: {len(values_list)}, числових: {info['count_numeric']}, нечислових/порожніх: {info['count_non_numeric']}"
+        (f"  - Всього: {len(values_list)}, числових: {info['count_numeric']}, "
+         f"нечислових/порожніх: {info['count_non_numeric']}")
     )
     out.append(f"  - Мін/Макс: {info['min']} / {info['max']}")
 
@@ -167,24 +168,30 @@ def _format_configuration(snapshot: GeometryNumberingSnapshot, full: bool) -> st
 
     out.append(_format_id_analysis("Вузли (PointInfo/Point) UIDP", (p.uidp for p in snapshot.points)))
     out.append(_format_id_analysis("Вузли (PointInfo/Point) PN", (p.pn for p in snapshot.points)))
-    out.append(_format_id_analysis("Лінії (Polyline/PL) ULID", (l.ulid for l in snapshot.lines)))
+    out.append(_format_id_analysis("Лінії (Polyline/PL) ULID", (_layer.ulid for _layer in snapshot.lines)))
     out.append("")
 
     uidps = {p.uidp for p in snapshot.points if p.uidp}
-    ulids = {l.ulid for l in snapshot.lines if l.ulid}
+    ulids = {_layer.ulid for _layer in snapshot.lines if _layer.ulid}
 
     invalid_p_refs = [r.value for r in snapshot.polyline_point_refs if r.value and r.value not in uidps]
     invalid_ulid_refs = [r.value for r in snapshot.boundary_ulid_refs if r.value and r.value not in ulids]
 
     out.append("Посилання:")
-    out.append(f"  - P (Polyline/PL/Points/P) всього: {len(snapshot.polyline_point_refs)}, некоректних: {len(invalid_p_refs)}")
+    out.append(
+        f"  - P (Polyline/PL/Points/P) всього: {len(snapshot.polyline_point_refs)}, некоректних: {len(invalid_p_refs)}")
     if invalid_p_refs:
         examples = ", ".join(invalid_p_refs[:30])
-        out.append(f"    приклади (до 30): {examples}" + (f" (ще {len(invalid_p_refs) - 30})" if len(invalid_p_refs) > 30 else ""))
-    out.append(f"  - ULID у контурах (Boundary/Lines/Line/ULID) всього: {len(snapshot.boundary_ulid_refs)}, некоректних: {len(invalid_ulid_refs)}")
+        out.append(f"    приклади (до 30): {examples}"
+                   + (f" (ще {len(invalid_p_refs) - 30})" if len(invalid_p_refs) > 30 else ""))
+    out.append(
+        f"  - ULID у контурах (Boundary/Lines/Line/ULID) всього: "
+        f"{len(snapshot.boundary_ulid_refs)}, некоректних: {len(invalid_ulid_refs)}"
+    )
     if invalid_ulid_refs:
         examples = ", ".join(invalid_ulid_refs[:30])
-        out.append(f"    приклади (до 30): {examples}" + (f" (ще {len(invalid_ulid_refs) - 30})" if len(invalid_ulid_refs) > 30 else ""))
+        out.append(f"    приклади (до 30): {examples}"
+                   + (f" (ще {len(invalid_ulid_refs) - 30})" if len(invalid_ulid_refs) > 30 else ""))
 
     if not full:
         return "\n".join(out)
@@ -196,8 +203,8 @@ def _format_configuration(snapshot: GeometryNumberingSnapshot, full: bool) -> st
         out.append(f"    - UIDP={p.uidp} PN={p.pn} X={p.x} Y={p.y}")
 
     out.append("  Лінії (ULID, точки) у порядку в XML:")
-    for l in snapshot.lines:
-        out.append(f"    - ULID={l.ulid} P=[{', '.join(l.point_refs)}]")
+    for _layer in snapshot.lines:
+        out.append(f"    - ULID={_layer.ulid} P=[{', '.join(_layer.point_refs)}]")
 
     return "\n".join(out)
 
@@ -206,28 +213,34 @@ def _format_algorithm() -> str:
     return "\n".join(
         [
             "Алгоритм перевірки/виправлення нумерації вузлів і ліній (виконується при відкритті):",
-            "  1) Зібрати всі посилання на лінії ULID у контурах: Externals/Boundary/Lines, Internals/Boundary/Lines, AdjacentBoundary/Lines.",
-            "  2) Видалити з <Polyline> всі <PL>, ULID яких ніде не використовується (\"висячі\" лінії).",
-            "  3) Зібрати всі посилання на вузли UIDP у <Polyline>/<PL>/<Points>/<P> (для ліній, що залишились).",
-            "  4) Видалити з <PointInfo> всі <Point>, UIDP яких ніде не використовується (\"висячі\" вузли).",
-            "  5) Перенумерувати вузли: відсортувати <PointInfo>/<Point> за старим UIDP (як число) і присвоїти UIDP=1..N. (PN не перевіряється на унікальність і не виправляється.)",
-            "  6) Оновити всі посилання <Polyline>/<PL>/<Points>/<P> згідно з мапою старий UIDP -> новий UIDP.",
-            "  7) Перенумерувати лінії: відсортувати <Polyline>/<PL> за старим ULID (як число) і присвоїти ULID=1..M.",
+            "  1) Зібрати всі посилання на лінії ULID у контурах: "
+            "Externals/Boundary/Lines, Internals/Boundary/Lines, AdjacentBoundary/Lines.",
+            '  2) Видалити з <Polyline> всі <PL>, ULID яких ніде не використовується ("висячі" лінії).',
+            "  3) Зібрати всі посилання на вузли UIDP у <Polyline>/<PL>/<Points>/<P> "
+            "(для ліній, що залишились).",
+            '  4) Видалити з <PointInfo> всі <Point>, UIDP яких ніде не використовується ("висячі" вузли).',
+            "  5) Перенумерувати вузли: відсортувати <PointInfo>/<Point> за старим UIDP (як число) "
+            "і присвоїти UIDP=1..N. (PN не перевіряється на унікальність і не виправляється.)",
+            "  6) Оновити всі посилання <Polyline>/<PL>/<Points>/<P> згідно "
+            "з мапою старий UIDP -> новий UIDP.",
+            "  7) Перенумерувати лінії: відсортувати <Polyline>/<PL> за старим ULID (як число) "
+            "і присвоїти ULID=1..M.",
             "  8) Оновити всі посилання на ULID у контурах згідно з мапою старий ULID -> новий ULID.",
         ]
     )
 
 
 def build_geometry_numbering_report(
-    *,
-    xml_path: str,
-    before: GeometryNumberingSnapshot,
-    after: GeometryNumberingSnapshot,
-) -> str:
+        *,
+        xml_path: str,
+        before: GeometryNumberingSnapshot,
+        after: GeometryNumberingSnapshot,
+        ) -> str:
     full_before_after = (len(before.points) + len(before.lines)) <= 2000
 
     removed_points = [p.uidp for p in before.points if getattr(p.elem, "getparent", lambda: None)() is None]
-    removed_lines = [l.ulid for l in before.lines if getattr(l.elem, "getparent", lambda: None)() is None]
+    removed_lines = [_layer.ulid for _layer in before.lines
+                     if getattr(_layer.elem, "getparent", lambda: None)() is None]
 
     uidp_map: list[tuple[str, str]] = []
     for p in before.points:
@@ -238,12 +251,12 @@ def build_geometry_numbering_report(
             uidp_map.append((p.uidp, new_uidp))
 
     ulid_map: list[tuple[str, str]] = []
-    for l in before.lines:
-        if getattr(l.elem, "getparent", lambda: None)() is None:
+    for _layer in before.lines:
+        if getattr(_layer.elem, "getparent", lambda: None)() is None:
             continue
-        new_ulid = _safe_text(getattr(l.elem.find("ULID"), "text", None))
-        if l.ulid != new_ulid and l.ulid:
-            ulid_map.append((l.ulid, new_ulid))
+        new_ulid = _safe_text(getattr(_layer.elem.find("ULID"), "text", None))
+        if _layer.ulid != new_ulid and _layer.ulid:
+            ulid_map.append((_layer.ulid, new_ulid))
 
     changed_p_refs = 0
     for r in before.polyline_point_refs:
@@ -267,14 +280,25 @@ def build_geometry_numbering_report(
     out.append(_format_configuration(before, full=full_before_after))
     out.append("")
     out.append("=== Причина змін / що саме було зроблено ===")
-    out.append(f"- Видалено невикористовуваних ліній (PL): {len(removed_lines)}" + (f" (ULID: {', '.join(removed_lines[:50])}{' …' if len(removed_lines) > 50 else ''})" if removed_lines else ""))
-    out.append(f"- Видалено невикористовуваних вузлів (Point): {len(removed_points)}" + (f" (UIDP: {', '.join(removed_points[:50])}{' …' if len(removed_points) > 50 else ''})" if removed_points else ""))
+    out.append(f"- Видалено невикористовуваних ліній (PL): {len(removed_lines)}"
+               + (
+                   f" (ULID: {', '.join(removed_lines[:50])}"
+                   f"{' …' if len(removed_lines) > 50 else ''})" if removed_lines else ""))
+    out.append(f"- Видалено невикористовуваних вузлів (Point): {len(removed_points)}"
+               + (
+                   f" (UIDP: {', '.join(removed_points[:50])}"
+                   f"{' …' if len(removed_points) > 50 else ''})" if removed_points else ""))
     out.append(f"- Перенумеровано UIDP: {len(uidp_map)} елемент(ів), оновлено посилань P: {changed_p_refs}")
     if uidp_map:
-        out.append("  приклади UIDP (до 50): " + ", ".join(f"{a}->{b}" for a, b in uidp_map[:50]) + (f" (ще {len(uidp_map) - 50})" if len(uidp_map) > 50 else ""))
-    out.append(f"- Перенумеровано ULID: {len(ulid_map)} елемент(ів), оновлено посилань ULID у контурах: {changed_ulid_refs}")
+        out.append("  приклади UIDP (до 50): "
+                   + ", ".join(f"{a}->{b}" for a, b in uidp_map[:50])
+                   + (f" (ще {len(uidp_map) - 50})" if len(uidp_map) > 50 else ""))
+    out.append(f"- Перенумеровано ULID: {len(ulid_map)} елемент(ів), "
+               + f"оновлено посилань ULID у контурах: {changed_ulid_refs}")
     if ulid_map:
-        out.append("  приклади ULID (до 50): " + ", ".join(f"{a}->{b}" for a, b in ulid_map[:50]) + (f" (ще {len(ulid_map) - 50})" if len(ulid_map) > 50 else ""))
+        out.append("  приклади ULID (до 50): "
+                   + ", ".join(f"{a}->{b}" for a, b in ulid_map[:50])
+                   + (f" (ще {len(ulid_map) - 50})" if len(ulid_map) > 50 else ""))
     out.append("")
     out.append("=== Змінена конфігурація (після виправлення) ===")
     out.append(_format_configuration(after, full=full_before_after))

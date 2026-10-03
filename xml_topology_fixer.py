@@ -1,5 +1,3 @@
-
-
 import os
 import shutil
 from datetime import datetime
@@ -25,6 +23,7 @@ class XmlTopologyFixer:
 
     class FixResult(Enum):
         """Represents the user's choice or the outcome of the check."""
+
         FILE_FIXED_AND_SAVED = 1
         OPEN_AS_IS = 2
         NO_ISSUES_FOUND = 3
@@ -56,15 +55,14 @@ class XmlTopologyFixer:
             self.tree = etree.parse(self.file_path, parser)
             self.root = self.tree.getroot()
         except etree.XMLSyntaxError:
-
             return self.FixResult.NO_ISSUES_FOUND
 
-        metric_info = self.root.find('.//MetricInfo')
+        metric_info = self.root.find(".//MetricInfo")
         if metric_info is None:
             return self.FixResult.NO_ISSUES_FOUND
 
-        point_info = metric_info.find('PointInfo')
-        polyline_info = metric_info.find('Polyline')
+        point_info = metric_info.find("PointInfo")
+        polyline_info = metric_info.find("Polyline")
 
         if point_info is None or polyline_info is None:
             return self.FixResult.NO_ISSUES_FOUND
@@ -72,23 +70,19 @@ class XmlTopologyFixer:
         used_point_ids = self._get_used_point_ids(metric_info)
         used_polyline_ids = self._get_used_polyline_ids()
 
-        all_points = point_info.findall('Point')
-        all_polylines = polyline_info.findall('PL')
+        all_points = point_info.findall("Point")
+        all_polylines = polyline_info.findall("PL")
 
-        unused_points = [p for p in all_points if p.findtext(
-            'UIDP') not in used_point_ids]
-        unused_polylines = [pl for pl in all_polylines if pl.findtext(
-            'ULID') not in used_polyline_ids]
+        unused_points = [p for p in all_points if p.findtext("UIDP") not in used_point_ids]
+        unused_polylines = [pl for pl in all_polylines if pl.findtext("ULID") not in used_polyline_ids]
 
         if not unused_points and not unused_polylines:
             return self.FixResult.NO_ISSUES_FOUND
 
-        msg_box, clicked_button = self._confirm_fix(
-            len(unused_points), len(unused_polylines))
+        msg_box, clicked_button = self._confirm_fix(len(unused_points), len(unused_polylines))
         user_choice_role = msg_box.buttonRole(clicked_button)
 
         if user_choice_role == QMessageBox.ButtonRole.YesRole:  # "Виправити та зберегти"
-
             self._backup_original_file()
 
             for point in unused_points:
@@ -96,16 +90,13 @@ class XmlTopologyFixer:
             for polyline in unused_polylines:
                 polyline_info.remove(polyline)
 
-            point_info[:] = sorted(
-                point_info, key=lambda p: int(p.findtext('UIDP')))
-            polyline_info[:] = sorted(
-                polyline_info, key=lambda pl: int(pl.findtext('ULID')))
+            point_info[:] = sorted(point_info, key=lambda p: int(p.findtext("UIDP")))
+            polyline_info[:] = sorted(polyline_info, key=lambda pl: int(pl.findtext("ULID")))
 
-            self.tree.write(self.file_path, pretty_print=True,
-                            xml_declaration=True, encoding='UTF-8')
+            self.tree.write(self.file_path, pretty_print=True, xml_declaration=True, encoding="UTF-8")
             iface.messageBar().pushMessage(
-                "Успіх", "Топологію було виправлено. Файл буде перезавантажено.",
-                level=Qgis.Success, duration=5)
+                "Успіх", "Топологію було виправлено. Файл буде перезавантажено.", level=Qgis.Success, duration=5
+            )
             return self.FixResult.FILE_FIXED_AND_SAVED
 
         elif user_choice_role == QMessageBox.ButtonRole.NoRole:  # "Відкрити як є"
@@ -117,19 +108,22 @@ class XmlTopologyFixer:
         """Collects all referenced point IDs (UIDP)."""
         used_ids = set()
 
-        for p_id in metric_info.xpath('.//Polyline/PL/Points/P/text()'):
+        for p_id in metric_info.xpath(".//Polyline/PL/Points/P/text()"):
             used_ids.add(p_id)
 
-        for p_id in metric_info.xpath('.//ControlPoint/P/text()'):
+        for p_id in metric_info.xpath(".//ControlPoint/P/text()"):
             used_ids.add(p_id)
 
-        for p_id in self.root.xpath('.//Boundary/Lines/Line/FP/text() | .//Boundary/Lines/Line/TP/text()'):
+        for p_id in self.root.xpath(".//Boundary/Lines/Line/FP/text() | .//Boundary/Lines/Line/TP/text()"):
             used_ids.add(p_id)
 
-        for p_id in self.root.xpath('.//AdjacentRests/Points/P/text()'):
+        for p_id in self.root.xpath(".//AdjacentRests/Points/P/text()"):
             used_ids.add(p_id)
 
-        for p_id in self.root.xpath('.//ParcelInfo/LandParcelInfo/MetricInfo/Externals/Boundary/Lines/Line/FP/text() | .//ParcelInfo/LandParcelInfo/MetricInfo/Externals/Boundary/Lines/Line/TP/text()'):
+        for p_id in self.root.xpath(
+            (".//ParcelInfo/LandParcelInfo/MetricInfo/Externals/Boundary/Lines/Line/FP/text() "
+             "| .//ParcelInfo/LandParcelInfo/MetricInfo/Externals/Boundary/Lines/Line/TP/text()")
+        ):
             used_ids.add(p_id)
         return used_ids
 
@@ -137,7 +131,7 @@ class XmlTopologyFixer:
         """Collects all referenced polyline IDs (ULID)."""
         used_ids = set()
 
-        for ulid in self.root.xpath('.//Boundary/Lines/Line/ULID/text()'):
+        for ulid in self.root.xpath(".//Boundary/Lines/Line/ULID/text()"):
             used_ids.add(ulid)
         return used_ids
 
@@ -153,15 +147,12 @@ class XmlTopologyFixer:
 
         msg_box = QMessageBox(self.parent_widget)
         msg_box.setIcon(QMessageBox.Icon.Question)
-        msg_box.setWindowTitle('Виправлення топології')
+        msg_box.setWindowTitle("Виправлення топології")
         msg_box.setText(message)
-        msg_box.setInformativeText(
-            "Буде створено резервну копію оригінального (неправильного) файлу.")
+        msg_box.setInformativeText("Буде створено резервну копію оригінального (неправильного) файлу.")
 
-        fix_button = msg_box.addButton(
-            "Виправити та зберегти", QMessageBox.ButtonRole.YesRole)
-        msg_box.addButton(
-            "Відкрити як є", QMessageBox.ButtonRole.NoRole)
+        fix_button = msg_box.addButton("Виправити та зберегти", QMessageBox.ButtonRole.YesRole)
+        msg_box.addButton("Відкрити як є", QMessageBox.ButtonRole.NoRole)
         msg_box.addButton("Скасувати", QMessageBox.ButtonRole.RejectRole)
 
         msg_box.setDefaultButton(fix_button)
@@ -178,10 +169,8 @@ class XmlTopologyFixer:
             shutil.copy2(self.file_path, backup_path)
 
             info_msg = f"Створено резервну копію:\n{os.path.basename(backup_path)}"
-            QMessageBox.information(
-                self.parent_widget, "Резервне копіювання", info_msg)
+            QMessageBox.information(self.parent_widget, "Резервне копіювання", info_msg)
 
         except Exception as e:
             error_msg = f"Не вдалося створити резервну копію.\nПомилка: {e}"
-            QMessageBox.warning(self.parent_widget,
-                                "Помилка копіювання", error_msg)
+            QMessageBox.warning(self.parent_widget, "Помилка копіювання", error_msg)

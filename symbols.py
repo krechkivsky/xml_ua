@@ -119,8 +119,7 @@ class Symbols:
             if not oid:
                 return ""
             res = self.xml_root.xpath(
-                "//*[local-name()='RestrictionInfo'][@object_id=$oid]"
-                "/*[local-name()='RestrictionCode'][1]/text()",
+                "//*[local-name()='RestrictionInfo'][@object_id=$oid]/*[local-name()='RestrictionCode'][1]/text()",
                 oid=oid,
             )
             if not res:
@@ -137,6 +136,7 @@ class Symbols:
         - line color: black
         - spacing: 3 mm
         """
+
         def _outline_like_cell3() -> dict:
 
             defaults = {
@@ -166,8 +166,6 @@ class Symbols:
         try:
             outline = _outline_like_cell3()
             fill = QgsFillSymbol.createSimple({"color": "255,255,255,0", **outline})
-
-
 
             pattern = None
             try:
@@ -234,7 +232,6 @@ class Symbols:
                 except Exception as e:
                     log_calls(logFile, f"{e}")
                     pass
-
 
             try:
                 line_sym = QgsLineSymbol.createSimple(
@@ -342,16 +339,12 @@ class Symbols:
 
     def _add_demo_line_with_arrows(self, layer_name: str, x_mm: float, y_mm: float, w_mm: float, h_mm: float):
 
-
-
-
         lyr = self._find_layer_from_sources(layer_name)
         line_symbol = self._clone_renderer_symbol(lyr)
         try:
             line_color = line_symbol.color().name() if line_symbol else "#000000"
         except Exception:
             line_color = "#000000"
-
 
         seg_w = 0.2
         seg_h = float(self.DEMO_H_MM) + 2.0
@@ -436,7 +429,6 @@ class Symbols:
         except Exception:
             color = "#000000"
 
-
         d = min(float(w_mm), float(h_mm), 3.0) * 0.75
         cx = float(x_mm) + (float(w_mm) - d) / 2.0
         cy = float(y_mm) + (float(h_mm) - d) / 2.0
@@ -513,8 +505,6 @@ class Symbols:
             obj_id="Symbols:parcel_demo",
         )
 
-
-
         font = QFont()
         font.setPointSizeF(5.0)
         font.setBold(False)
@@ -534,18 +524,27 @@ class Symbols:
         label_w = 2.2
         label_h = 2.0
 
-
         _label("1", mini_x + pad, mini_y + pad, label_w, label_h, Qt.AlignmentFlag.AlignLeft)
         _label("2", mini_x + mini_w - label_w - pad, mini_y + pad, label_w, label_h, Qt.AlignmentFlag.AlignRight)
-        _label("3", mini_x + mini_w - label_w - pad, mini_y + mini_h - label_h - pad, label_w, label_h, Qt.AlignmentFlag.AlignRight)
+        _label(
+            "3",
+            mini_x + mini_w - label_w - pad,
+            mini_y + mini_h - label_h - pad,
+            label_w,
+            label_h,
+            Qt.AlignmentFlag.AlignRight,
+        )
         _label("4", mini_x + pad, mini_y + mini_h - label_h - pad, label_w, label_h, Qt.AlignmentFlag.AlignLeft)
-
 
         len_w = 6.5
         len_h = 2.0
-        _label("10.00", mini_x + (mini_w - len_w) / 2.0, mini_y - len_h - 0.2, len_w, len_h, Qt.AlignmentFlag.AlignHCenter)
+        _label(
+            "10.00", mini_x + (mini_w - len_w) / 2.0, mini_y - len_h - 0.2, len_w, len_h, Qt.AlignmentFlag.AlignHCenter
+        )
         _label("8.00", mini_x + mini_w + 0.2, mini_y + (mini_h - len_h) / 2.0, len_w, len_h, Qt.AlignmentFlag.AlignLeft)
-        _label("10.00", mini_x + (mini_w - len_w) / 2.0, mini_y + mini_h + 0.2, len_w, len_h, Qt.AlignmentFlag.AlignHCenter)
+        _label(
+            "10.00", mini_x + (mini_w - len_w) / 2.0, mini_y + mini_h + 0.2, len_w, len_h, Qt.AlignmentFlag.AlignHCenter
+        )
         _label("8.00", mini_x - len_w - 0.2, mini_y + (mini_h - len_h) / 2.0, len_w, len_h, Qt.AlignmentFlag.AlignRight)
 
         return rect
@@ -553,7 +552,6 @@ class Symbols:
     def add(self, x_mm: float, y_mm: float, table_w_mm: float, row_h_mm: float = 15.0):
         if not self.layout:
             return
-
 
         title_rect = self._add_cell_rect(
             x_mm,
@@ -587,7 +585,6 @@ class Symbols:
         title_lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         title_lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutMillimeters))
 
-
         row_y = y_mm + self.TITLE_H_MM
         pad = 1.0
 
@@ -603,7 +600,6 @@ class Symbols:
                 )
                 cur_x += w
 
-
         _row_cells(1, row_y)
         self._add_demo_parcel(x_mm, row_y, self.COL_W_MM[0], row_h_mm)
         self._add_text(
@@ -615,7 +611,6 @@ class Symbols:
             align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
-
 
         c3_x = x_mm + sum(self.COL_W_MM[:2])
         mini_x = c3_x + (self.COL_W_MM[2] - self.DEMO_W_MM) / 2.0
@@ -637,7 +632,6 @@ class Symbols:
             font_pt=6.0,
         )
 
-
         c5_x = x_mm + sum(self.COL_W_MM[:4])
         mini_x = c5_x + (self.COL_W_MM[4] - self.DEMO_W_MM) / 2.0
         mini_y = row_y + (row_h_mm - self.DEMO_H_MM) / 2.0
@@ -652,10 +646,8 @@ class Symbols:
             font_pt=6.0,
         )
 
-
         row2_y = row_y + row_h_mm
         _row_cells(2, row2_y)
-
 
         c7_x = x_mm
         mini_x = c7_x + (self.COL_W_MM[0] - self.DEMO_W_MM) / 2.0
@@ -673,7 +665,6 @@ class Symbols:
             font_pt=6.0,
         )
 
-
         c9_x = x_mm + sum(self.COL_W_MM[:2])
         self._add_demo_line_with_arrows("Суміжники", c9_x, row2_y, self.COL_W_MM[2], row_h_mm)
         self._add_text(
@@ -686,7 +677,6 @@ class Symbols:
             font_pt=6.0,
         )
 
-
         c11_x = x_mm + sum(self.COL_W_MM[:4])
         self._add_demo_point("Закріплені вузли", c11_x, row2_y, self.COL_W_MM[4], row_h_mm)
         self._add_text(
@@ -698,9 +688,6 @@ class Symbols:
             align=Qt.AlignmentFlag.AlignLeft,
             font_pt=6.0,
         )
-
-
-
 
         restrictions_layer = None
         try:
@@ -750,7 +737,6 @@ class Symbols:
             except Exception:
                 restrictions = []
 
-
         if restrictions:
             seen = set()
             uniq = []
@@ -761,7 +747,6 @@ class Symbols:
                 uniq.append((oid_int, code))
             restrictions = uniq
 
-
         if restrictions:
             start_y = row_y + 2 * row_h_mm
             pairs_per_row = 3
@@ -769,7 +754,6 @@ class Symbols:
                 r = idx // pairs_per_row  # 0-based extra row index
                 pos = idx % pairs_per_row  # 0..2
                 y0 = start_y + r * row_h_mm
-
 
                 if pos == 0:
                     _row_cells(3 + r, y0)

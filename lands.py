@@ -1,6 +1,5 @@
-
-
 import os
+from lxml import etree
 
 from qgis.core import (
     Qgis,
@@ -27,7 +26,17 @@ from .data_models import ShapeInfo  # noqa
 class LandsParcels:
     """Клас для обробки угідь з XML-файлу."""
 
-    def __init__(self, tree_or_root, crs_epsg, group, plugin_dir, layers_root, lines_to_coords_func, xml_ua_layers_instance, xml_data=None):
+    def __init__(
+        self,
+        tree_or_root,
+        crs_epsg,
+        group,
+        plugin_dir,
+        layers_root,
+        lines_to_coords_func,
+        xml_ua_layers_instance,
+        xml_data=None,
+    ):
         """
         Ініціалізація об'єкта для роботи з угіддями.
 
@@ -41,7 +50,7 @@ class LandsParcels:
             xml_ua_layers_instance: Екземпляр класу xmlUaLayers для доступу до його методів.
         """
 
-        if hasattr(tree_or_root, 'getroot'):
+        if hasattr(tree_or_root, "getroot"):
             self.tree = tree_or_root
             self.root = tree_or_root.getroot()
         else:
@@ -61,8 +70,7 @@ class LandsParcels:
         if not coordinates:
             return QgsPolygon()
 
-        line_string = QgsLineString(
-            [QgsPointXY(p.y(), p.x()) for p in coordinates])
+        line_string = QgsLineString([QgsPointXY(p.y(), p.x()) for p in coordinates])
         polygon = QgsPolygon(line_string)
         return polygon
 
@@ -81,12 +89,11 @@ class LandsParcels:
 
         try:
             from .topology import GeometryProcessor
+
             processor = GeometryProcessor(self.tree)
-            log_msg(
-                logFile, "GeometryProcessor успішно створено в redraw_lands_layer.")
+            log_msg(logFile, "GeometryProcessor успішно створено в redraw_lands_layer.")
         except Exception as e:
-            log_msg(
-                logFile, f"Не вдалося створити GeometryProcessor в LandsParcels (redraw): {e}")
+            log_msg(logFile, f"Не вдалося створити GeometryProcessor в LandsParcels (redraw): {e}")
             processor = None
 
         for land_parcel_info in lands_parcel_container.findall("LandParcelInfo"):
@@ -100,21 +107,24 @@ class LandsParcels:
 
             externals_element = metric_info.find("Externals")
 
-            object_shape = processor.get_object_shape_from_externals(
-                externals_element) if processor else ""
+            object_shape = processor.get_object_shape_from_externals(externals_element) if processor else ""
 
-            external_coords = self.lines_to_coords(externals_element.find(
-                "Boundary/Lines"), context='modify') if externals_element is not None and externals_element.find("Boundary/Lines") is not None else []
+            external_coords = (
+                self.lines_to_coords(externals_element.find("Boundary/Lines"), context="modify")
+                if externals_element is not None and externals_element.find("Boundary/Lines") is not None
+                else []
+            )
 
             internal_coords_list = []
-            internals_container = externals_element.find(
-                "Internals") if externals_element is not None else None
+            internals_container = externals_element.find("Internals") if externals_element is not None else None
             if internals_container is not None:
-                internal_coords_list = [self.lines_to_coords(b.find(
-                    'Lines'), context='modify') for b in internals_container.findall("Boundary") if b.find('Lines') is not None]
+                internal_coords_list = [
+                    self.lines_to_coords(b.find("Lines"), context="modify")
+                    for b in internals_container.findall("Boundary")
+                    if b.find("Lines") is not None
+                ]
 
-            polygon = self._create_polygon_with_holes(
-                external_coords, internal_coords_list)
+            polygon = self._create_polygon_with_holes(external_coords, internal_coords_list)
             if not polygon.isEmpty():
                 feature = QgsFeature(layer.fields())
                 feature.setGeometry(QgsGeometry(polygon))
@@ -123,8 +133,7 @@ class LandsParcels:
                 provider.addFeature(feature)
 
         layer.commitChanges()
-        log_msg(
-            logFile, f"Шар '{layer.name()}' успішно перемальовано. Додано {layer.featureCount()} об'єкт(ів).")
+        log_msg(logFile, f"Шар '{layer.name()}' успішно перемальовано. Додано {layer.featureCount()} об'єкт(ів).")
 
     def _create_polygon_with_holes(self, exterior_coords, interior_coords_list):
         """Створює полігон з отворами."""
@@ -132,19 +141,16 @@ class LandsParcels:
         if not polygon.isEmpty():
             for interior_coords in interior_coords_list:
                 if interior_coords:
-                    interior_ring = QgsLineString(
-                        [QgsPointXY(p.y(), p.x()) for p in interior_coords])
+                    interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in interior_coords])
                     polygon.addInteriorRing(interior_ring)
         return polygon
 
     def add_lands_layer(self):
         """Створює та заповнює шар 'Угіддя'."""
         layer_name = "Угіддя"
-        self.layer = QgsVectorLayer(
-            f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
+        self.layer = QgsVectorLayer(f"MultiPolygon?crs={self.crs_epsg}", layer_name, "memory")
         self.layer.setCustomProperty("skip_save_dialog", True)
-        self.layer.loadNamedStyle(os.path.join(
-            self.plugin_dir, "templates", "lands_parcel.qml"))
+        self.layer.loadNamedStyle(os.path.join(self.plugin_dir, "templates", "lands_parcel.qml"))
         provider = self.layer.dataProvider()
 
         ensure_object_layer_fields(self.layer)
@@ -163,10 +169,10 @@ class LandsParcels:
 
         try:
             from .topology import GeometryProcessor
+
             processor = GeometryProcessor(self.root.getroottree())
         except Exception as e:
-            log_msg(
-                logFile, f"Не вдалося створити GeometryProcessor в LandsParcels: {e}")
+            log_msg(logFile, f"Не вдалося створити GeometryProcessor в LandsParcels: {e}")
             processor = None
 
         used_object_ids = set()
@@ -178,39 +184,46 @@ class LandsParcels:
 
         for lands_parcel in self.root.findall(".//LandsParcel/LandParcelInfo/MetricInfo"):
             land_parcel_info = lands_parcel.getparent()
-            object_id_text = str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
+            object_id_text = (
+                str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
+            )
             size_element = lands_parcel.find("./Area/Size")
             parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = lands_parcel.find(".//Externals")
             if externals_element is None:
-
                 external_coords = []
             else:
                 externals_lines = externals_element.find(".//Boundary/Lines")
-                external_coords = self.lines_to_coords(
-                    externals_lines) if externals_lines is not None else []
+                external_coords = self.lines_to_coords(externals_lines) if externals_lines is not None else []
 
-            internal_coords_list = [self.lines_to_coords(b.find('Lines')) for b in lands_parcel.findall(
-                ".//Internals/Boundary") if b.find('Lines') is not None]
+            internal_coords_list = [
+                self.lines_to_coords(b.find("Lines"))
+                for b in lands_parcel.findall(".//Internals/Boundary")
+                if b.find("Lines") is not None
+            ]
 
             object_shape = ""
             if processor and externals_element is not None:
-                exterior_shape = processor._get_polyline_object_shape(
-                    externals_element.find("Boundary/Lines"))
+                exterior_shape = processor._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
                 interior_shapes = []
                 internals_container = externals_element.find("Internals")
                 if internals_container is not None:
-                    interior_shapes = [processor._get_polyline_object_shape(internal.find(
-                        "Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                    interior_shapes = [
+                        processor._get_polyline_object_shape(internal.find("Boundary/Lines"))
+                        for internal in internals_container.findall("Boundary")
+                    ]
                 all_rings = [exterior_shape] + interior_shapes
                 object_shape = "|".join(filter(None, all_rings))
 
                 if object_shape in existing_shapes_in_layer:
-                    iface.messageBar().pushMessage("Попередження",
-                                                   f"Знайдено дублікат геометрії угіддя (shape: {object_shape}). Об'єкт не буде додано на карту.", level=Qgis.Warning, duration=10)
-                    log_msg(
-                        logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат угіддя з object_shape: {object_shape}")
+                    iface.messageBar().pushMessage(
+                        "Попередження",
+                        f"Знайдено дублікат геометрії угіддя (shape: {object_shape}). Об'єкт не буде додано на карту.",
+                        level=Qgis.Warning,
+                        duration=10,
+                    )
+                    log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат угіддя з object_shape: {object_shape}")
                     continue
                 existing_shapes_in_layer.add(object_shape)
 
@@ -226,9 +239,7 @@ class LandsParcels:
             if not polygon.isEmpty():
                 for internal_coords in internal_coords_list:
                     if internal_coords:
-
-                        interior_ring = QgsLineString(
-                            [QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
                         polygon.addInteriorRing(interior_ring)
 
             feature = QgsFeature(self.layer.fields())
@@ -238,10 +249,7 @@ class LandsParcels:
             feature.setAttributes([object_id, object_shape])
 
             if self.xml_data:
-                shape_info = ShapeInfo(
-                    layer_id=self.layer.id(),
-                    object_id=object_id_text,
-                    object_shape=object_shape)
+                shape_info = ShapeInfo(layer_id=self.layer.id(), object_id=object_id_text, object_shape=object_shape)
                 self.xml_data.shapes.append(shape_info)
 
             provider.addFeature(feature)
@@ -252,7 +260,6 @@ class LandsParcels:
         self.xml_ua_layers.last_to_first(self.group)
 
         if self.xml_data:
-            self.layer.setCustomProperty(
-                "xml_data_object_id", id(self.xml_data))
+            self.layer.setCustomProperty("xml_data_object_id", id(self.xml_data))
 
         return self.layer

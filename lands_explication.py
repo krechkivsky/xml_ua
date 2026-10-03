@@ -82,9 +82,7 @@ class LandsExplicationTable:
         lands_code_map = LandsExplicationTable._lands_code_dict()
 
         try:
-            infos = xml_root.xpath(
-                "//*[local-name()='LandsParcel']/*[local-name()='LandParcelInfo']"
-            )
+            infos = xml_root.xpath("//*[local-name()='LandsParcel']/*[local-name()='LandParcelInfo']")
         except Exception:
             infos = []
 
@@ -105,9 +103,7 @@ class LandsExplicationTable:
 
             size = ""
             try:
-                sz = info.xpath(
-                    "./*[local-name()='MetricInfo'][1]/*[local-name()='Area'][1]/*[local-name()='Size'][1]"
-                )
+                sz = info.xpath("./*[local-name()='MetricInfo'][1]/*[local-name()='Area'][1]/*[local-name()='Size'][1]")
                 if sz and getattr(sz[0], "text", None):
                     size = str(sz[0].text).strip()
             except Exception:
@@ -115,7 +111,6 @@ class LandsExplicationTable:
 
             purpose = lands_code_map.get(land_code, "")
             rows.append((obj_id, size, land_code, purpose))
-
 
         def _k(r):
             try:
@@ -142,7 +137,6 @@ class LandsExplicationTable:
 
         headers = ["Номер", "Площа", "Код", "Призначення"]
 
-
         cols = [
             [headers[0]] + [r[0] for r in items],
             [headers[1]] + [r[1] for r in items],
@@ -151,7 +145,6 @@ class LandsExplicationTable:
         ]
         pad_mm = 4.0
         widths = [max(LandsExplicationTable._text_width_mm(font, t) for t in col) + pad_mm for col in cols]
-
 
         widths[0] = max(widths[0], 12.0)
         widths[1] = max(widths[1], 18.0)
@@ -166,7 +159,9 @@ class LandsExplicationTable:
         tr_head = f"height:{float(header_row_h_mm):.2f}mm;"
         tr_body = f"height:{float(body_row_h_mm):.2f}mm;"
         th_style = f"font-weight:normal; padding:0 2px; {tr_head} text-align:center;"
-        td_style = f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        td_style = (
+            f"text-align:left; padding:0 2px; {tr_body} white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+        )
 
         colgroup = "\n".join([f"<col style='width:{w:.2f}mm;'>" for w in widths])
 
@@ -200,7 +195,7 @@ class LandsExplicationTable:
             <colgroup>
               {colgroup}
             </colgroup>
-            {''.join(rows_html)}
+            {"".join(rows_html)}
           </table>
         </div>
         """

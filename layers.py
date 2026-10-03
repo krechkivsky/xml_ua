@@ -1,11 +1,10 @@
-
-
 import os
 
 from lxml import etree as ET
 from qgis.core import QgsLayerTreeLayer, QgsPointXY, QgsProject
 from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox
 from qgis.utils import iface
+from qgis.core import Qgis
 
 from .adjacents import AdjacentUnits
 from .common import log_msg, logFile
@@ -22,15 +21,9 @@ from .zone import CadastralZoneInfo
 
 
 class xmlUaLayers:
-
     _id_counter = 0
 
-    def __init__(self,
-                 xmlFilePath="",
-                 tree=None,
-                 plugin=None,
-                 xml_data=None,
-                 context="open"):
+    def __init__(self, xmlFilePath="", tree=None, plugin=None, xml_data=None, context="open"):
 
         self.xml_data = xml_data  # Store the xml_data object
         self.cleanup()
@@ -54,8 +47,7 @@ class xmlUaLayers:
 
         self.xmlFilePath: str = xmlFilePath
         self.plugin_dir = os.path.dirname(__file__)
-        self.fileNameNoExt: str = os.path.splitext(
-            os.path.basename(xmlFilePath))[0]
+        self.fileNameNoExt: str = os.path.splitext(os.path.basename(xmlFilePath))[0]
 
         existing_group = None
         preferred_group_name = ""
@@ -68,8 +60,6 @@ class xmlUaLayers:
                 self.group_name = preferred_group_name
                 self.group = existing_group
             else:
-
-
                 self.group_name = preferred_group_name
                 self.create_group()
                 existing_group = self.group
@@ -99,18 +89,16 @@ class xmlUaLayers:
         self.added_layers = []
 
         if self.group:
-            self.group.setCustomProperty(
-                "xml_data_group_name", self.group_name)
+            self.group.setCustomProperty("xml_data_group_name", self.group_name)
             if self.xml_data:
-                self.group.setCustomProperty(
-                    "xml_data_object_id", id(self.xml_data))
+                self.group.setCustomProperty("xml_data_object_id", id(self.xml_data))
 
-        self.points_handler = Points(
-            self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root)
+        self.points_handler = Points(self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root)
         self.points_handler.read_points()
 
-        self.lines_handler = PLs(self.root, self.crsEpsg, self.group,
-                                 self.plugin_dir, self.layers_root, self.points_handler.qgisPoints)
+        self.lines_handler = PLs(
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self.layers_root, self.points_handler.qgisPoints
+        )
         self.lines_handler.read_lines()
         self.qgisLines = self.lines_handler.qgis_lines  # Keep for other methods
 
@@ -137,57 +125,84 @@ class xmlUaLayers:
         self.control_points_handler.add_control_points_layer()  # Закріплені вузли
         self.lines_handler.add_lines_layer()  # Полілінії
 
-        zone_handler = CadastralZoneInfo(self.root, self.crsEpsg, self.group,
-                                         self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data)
+        zone_handler = CadastralZoneInfo(
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data
+        )
         zone_handler.add_zone_layer()
 
         quarter_handler = CadastralQuarters(
-            self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data)
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data
+        )
         quarter_handler.add_quarter_layer()
 
-        parcel_handler = CadastralParcel(self.root, self.crsEpsg, self.group, self.plugin_dir,
-                                         self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
+        parcel_handler = CadastralParcel(
+            self.root,
+            self.crsEpsg,
+            self.group,
+            self.plugin_dir,
+            self.layers_root,
+            self.linesToCoordinates,
+            self,
+            xml_data=self.xml_data,
+        )
         parcel_handler.add_parcel_layer()
 
-        self.lands_handler = LandsParcels(self.root, self.crsEpsg, self.group, self.plugin_dir,
-                                          self.layers_root, self.linesToCoordinates, self, xml_data=self.xml_data)
+        self.lands_handler = LandsParcels(
+            self.root,
+            self.crsEpsg,
+            self.group,
+            self.plugin_dir,
+            self.layers_root,
+            self.linesToCoordinates,
+            self,
+            xml_data=self.xml_data,
+        )
         if self.root.find(".//LandsParcel") is not None:
             self.lands_handler.add_lands_layer()
 
-        leases_handler = Leases(self.root, self.crsEpsg, self.group, self.plugin_dir,
-                                self.linesToCoordinates, self, xml_data=self.xml_data)  # Оренда
+        leases_handler = Leases(
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data
+        )  # Оренда
         if self.root.find(".//Leases") is not None:
             leases_handler.add_leases_layer()
 
-        self.subleases_handler = Subleases(self.root, self.crsEpsg, self.group, self.plugin_dir,
-                                           self.linesToCoordinates, self, xml_data=self.xml_data)  # Суборенда
+        self.subleases_handler = Subleases(
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data
+        )  # Суборенда
         if self.root.find(".//Subleases") is not None:
             self.subleases_handler.add_subleases_layer()
 
-        restrictions_handler = Restrictions(self.root, self.crsEpsg, self.group, self.plugin_dir,
-                                            self.linesToCoordinates, self, xml_data=self.xml_data)  # Обмеження
+        restrictions_handler = Restrictions(
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self.linesToCoordinates, self, xml_data=self.xml_data
+        )  # Обмеження
         if self.root.find(".//Restrictions") is not None:
             restrictions_handler.add_restrictions_layer()
 
         self.adjacents_handler = AdjacentUnits(
-            self.root, self.crsEpsg, self.group, self.plugin_dir, self, self.xml_data)
+            self.root, self.crsEpsg, self.group, self.plugin_dir, self, self.xml_data
+        )
         if self.root.find(".//AdjacentUnits") is not None:
             self.adjacents_handler.add_adjacents_layer()
 
         all_handlers = [
-            self.points_handler, self.control_points_handler, self.lines_handler, quarter_handler, zone_handler,
-            parcel_handler, self.lands_handler, leases_handler, self.subleases_handler,
-            restrictions_handler, self.adjacents_handler
+            self.points_handler,
+            self.control_points_handler,
+            self.lines_handler,
+            quarter_handler,
+            zone_handler,
+            parcel_handler,
+            self.lands_handler,
+            leases_handler,
+            self.subleases_handler,
+            restrictions_handler,
+            self.adjacents_handler,
         ]
 
         for layer_obj in all_handlers:
+            if layer_obj and hasattr(layer_obj, "layer") and layer_obj.layer and self.xml_data:
+                layer_obj.layer.setCustomProperty("xml_data_object_id", str(id(self.xml_data)))  # Ensure it's a string
 
-            if layer_obj and hasattr(layer_obj, 'layer') and layer_obj.layer and self.xml_data:
-                layer_obj.layer.setCustomProperty("xml_data_object_id", str(
-                    id(self.xml_data)))  # Ensure it's a string
-
-                layer_obj.layer.setCustomProperty(
-                    "xml_group_name", self.group_name)
+                layer_obj.layer.setCustomProperty("xml_group_name", self.group_name)
 
     def check_construction_status(self):
         """
@@ -202,12 +217,11 @@ class xmlUaLayers:
             "./InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo",
             ".//ParcelInfo",
             ".//ParcelInfo/LandsParcel",
-            ".//ParcelInfo/AdjacentUnits"
+            ".//ParcelInfo/AdjacentUnits",
         ]
 
         for path in paths_to_check:
             if self.root.find(path) is None:
-
                 return True
 
         return False
@@ -219,11 +233,9 @@ class xmlUaLayers:
 
         group_name = base_name
 
-        existing_groups = [group.name()
-                           for group in self.layers_root.findGroups()]
+        existing_groups = [group.name() for group in self.layers_root.findGroups()]
 
         if group_name not in existing_groups:
-
             return group_name
 
         suffix = 1
@@ -240,13 +252,12 @@ class xmlUaLayers:
         щоб уникнути дублювання при перезавантаженні плагіна.
         """
 
-        if hasattr(self, 'group') and self.group:
-
+        if hasattr(self, "group") and self.group:
             if self.layers_root.findGroup(self.group.name()):
                 self.layers_root.removeChildNode(self.group)
             self.group = None
 
-        if hasattr(self, 'added_layers'):
+        if hasattr(self, "added_layers"):
             self.added_layers = []
 
     def create_group(self):
@@ -272,16 +283,16 @@ class xmlUaLayers:
         return
 
     def linesToCoordinates(self, lines_element):
-        """ Формує список координат замкненого полігону на основі ULID ліній 
-            і їх точок.
+        """Формує список координат замкненого полігону на основі ULID ліній
+        і їх точок.
 
-            Parameters:
-                lines_element (xml.etree.ElementTree.Element): 
-                context (str, optional): Контекст виклику ('open', 'new', 'modify').
-                                         Defaults to "unknown".
+        Parameters:
+            lines_element (xml.etree.ElementTree.Element):
+            context (str, optional): Контекст виклику ('open', 'new', 'modify').
+                                     Defaults to "unknown".
 
-            Returns:
-                list: Список координат замкненого полігону.
+        Returns:
+            list: Список координат замкненого полігону.
         """
 
         if lines_element is None:
@@ -294,11 +305,9 @@ class xmlUaLayers:
             if ulid and ulid in self.qgisLines:
                 lines.append((ulid, self.qgisLines[ulid]))
             elif ulid:
-                raise ValueError(
-                    f"ULID '{ulid}' не знайдено в списку координат.")
+                raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
-                raise ValueError(
-                    "Лінія не містить атрибуту унікального ідентифікатора.")
+                raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
 
         if not lines:
             return []
@@ -311,7 +320,6 @@ class xmlUaLayers:
         used_lines.add(current_line[0])
 
         while len(used_lines) < len(lines):
-
             for ulid, coords in lines:
                 if ulid in used_lines:
                     continue
@@ -326,8 +334,7 @@ class xmlUaLayers:
                     used_lines.add(ulid)
                     break
             else:
-                raise ValueError(
-                    "Неможливо сформувати замкнений полігон — деякі лінії не з'єднуються.")
+                raise ValueError("Неможливо сформувати замкнений полігон — деякі лінії не з'єднуються.")
 
         if polygon_coordinates[0] != polygon_coordinates[-1]:
             polygon_coordinates.append(polygon_coordinates[0])
@@ -338,10 +345,8 @@ class xmlUaLayers:
         """Обробник сигналу editingStopped."""
 
         self.layer_modified = True
-        self.tree.write(self.xmlFilePath, encoding="utf-8",
-                        xml_declaration=True)  # type: ignore
-        self.show_message("on_editing_stopped",
-                          f"Зміни збережено у файлі {self.xmlFilePath}.")
+        self.tree.write(self.xmlFilePath, encoding="utf-8", xml_declaration=True)  # type: ignore
+        self.show_message("on_editing_stopped", f"Зміни збережено у файлі {self.xmlFilePath}.")
 
     def handle_parcel_attribute_change(self, layer, fid, field_index, new_value):
 
@@ -354,22 +359,16 @@ class xmlUaLayers:
             return
 
         if field_name == "DeterminationMethod":
-
             if new_value == "Переобчислення з місцевої системи координат":
-
                 msk_number, ok = QInputDialog.getText(
-                    None,
-                    "Реєстраційний номер МСК",
-                    "Введіть номер місцевої системи координат (наприклад, 4610102):"
+                    None, "Реєстраційний номер МСК", "Введіть номер місцевої системи координат (наприклад, 4610102):"
                 )
                 if ok and msk_number.strip():
-
                     new_label = f"Переобчислення з місцевої системи координат МСК {msk_number.strip()}"
 
                     layer.blockSignals(True)
 
-                    self.show_message(
-                        "Спосіб обчислення площі ділянки:", new_label)
+                    self.show_message("Спосіб обчислення площі ділянки:", new_label)
                     layer.changeAttributeValue(fid, field_index, new_label)
 
                     layer.blockSignals(False)
@@ -381,21 +380,18 @@ class xmlUaLayers:
                     log_msg(logFile, "Номер МСК не введено — зміна скасована❗")
                 return  # "Спосіб визначення площі" -> МСК
             else:
-
                 self.update_area_determination_in_tree(new_value)
             return  # інші значення "Спосіб визначення площі"
 
         if field_name == "ParcelID":
-
-            element_path = "/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID"
+            element_path = ("/InfoPart/CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo"
+                            "/Parcels/ParcelInfo/ParcelMetricInfo/ParcelID")
             element = self.tree.find(element_path)
             if element is None:
-
                 return
 
             element.text = new_value
-            self.show_message("handle_parcel_attribute_change:",
-                              f"ParcelID змінено на {new_value}")
+            self.show_message("handle_parcel_attribute_change:", f"ParcelID змінено на {new_value}")
 
         return  # інші поля
 
@@ -404,41 +400,37 @@ class xmlUaLayers:
         element_path = ".//ParcelMetricInfo/Area/DeterminationMethod"
         element = self.tree.find(element_path)
         if element is None:
-
             return
 
         for child in list(element):
             element.remove(child)
 
         if new_value.startswith("Переобчислення з місцевої системи координат"):
-
             number_MCK = new_value.split(" ")[-1]
 
             new_element = ET.fromstring(
-                f"<Calculation><CoordinateSystem><Local>{number_MCK}</Local></CoordinateSystem></Calculation>")
+                f"<Calculation><CoordinateSystem><Local>{number_MCK}</Local></CoordinateSystem></Calculation>"
+            )
 
         else:
-
             if new_value.startswith("Переобчислення з 'SC63"):
                 zona = new_value[-2]
 
                 new_element = ET.fromstring(
-                    f"<Calculation><CoordinateSystem><SC63><{zona}/></SC63></CoordinateSystem></Calculation>")
+                    f"<Calculation><CoordinateSystem><SC63><{zona}/></SC63></CoordinateSystem></Calculation>"
+                )
             if new_value.startswith("Переобчислення з 'УСК2000'"):
                 new_element = ET.fromstring(
-                    "<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>")
+                    "<Calculation><CoordinateSystem><USC2000/></CoordinateSystem></Calculation>"
+                )
             if new_value.startswith("Переобчислення з 'WGS84'"):
-                new_element = ET.fromstring(
-                    "<Calculation><CoordinateSystem><WGS84/></CoordinateSystem></Calculation>")
+                new_element = ET.fromstring("<Calculation><CoordinateSystem><WGS84/></CoordinateSystem></Calculation>")
             if new_value.startswith("Переобчислення з 'СК-42' (6 град зона)"):
-                new_element = ET.fromstring(
-                    "<Calculation><CoordinateSystem><SC42/></CoordinateSystem></Calculation>")
+                new_element = ET.fromstring("<Calculation><CoordinateSystem><SC42/></CoordinateSystem></Calculation>")
             if new_value.startswith("Переобчислення з 'СК-42' (3 град зона)"):
-                new_element = ET.fromstring(
-                    "<Calculation><CoordinateSystem><SC42_3/></CoordinateSystem></Calculation>")
+                new_element = ET.fromstring("<Calculation><CoordinateSystem><SC42_3/></CoordinateSystem></Calculation>")
             if new_value.startswith("За координатами обмінного файлу"):
-                new_element = ET.fromstring(
-                    "<ExhangeFileCoordinates></ExhangeFileCoordinates>")
+                new_element = ET.fromstring("<ExhangeFileCoordinates></ExhangeFileCoordinates>")
             if new_value.startswith("Згідно із правовстановлювальним документом"):
                 new_element = ET.fromstring("<DocExch></DocExch>")
 
@@ -449,7 +441,7 @@ class xmlUaLayers:
             header,  # Заголовок
             message,  # Текст повідомлення
             level=Qgis.Success,  # Тип повідомлення (зелений фон)
-            duration=0  # 0 секунд — повідомлення буде жити вічно, поки не закриють
+            duration=0,  # 0 секунд — повідомлення буде жити вічно, поки не закриють
         )
 
     def get_full_name(self, person_element):
@@ -457,12 +449,9 @@ class xmlUaLayers:
         if person_element is None:
             return ""  # Якщо елемент не знайдено, повертаємо порожній рядок
 
-        last_name = person_element.find("LastName").text if person_element.find(
-            "LastName") is not None else ""
-        first_name = person_element.find("FirstName").text if person_element.find(
-            "FirstName") is not None else ""
-        middle_name = person_element.find("MiddleName").text if person_element.find(
-            "MiddleName") is not None else ""
+        last_name = person_element.find("LastName").text if person_element.find("LastName") is not None else ""
+        first_name = person_element.find("FirstName").text if person_element.find("FirstName") is not None else ""
+        middle_name = person_element.find("MiddleName").text if person_element.find("MiddleName") is not None else ""
 
         full_name = f"{last_name} {first_name} {middle_name}".strip()
         return full_name
@@ -481,23 +470,22 @@ class xmlUaLayers:
         last_child = children[-1]  # Отримуємо останній дочірній вузол
         cloned_last_child = last_child.clone()  # Клонуємо останній дочірній вузол
 
-
         group.insertChildNode(0, cloned_last_child)
 
         group.removeChildNode(last_child)
 
     def removeLayer(self, layer_name, group_name=None):
         """
-            Removes a layer with the given name from a specified group 
-            or from the root of the layer tree.
+        Removes a layer with the given name from a specified group
+        or from the root of the layer tree.
 
-            Args:
-                layer_name (str): 
-                    The name of the layer to be removed.
-                group_name (str, optional): 
-                    The name of the group from which to remove the layer. 
-                    If None or "", the layer is searched for in the root 
-                    of the layer tree. Defaults to None.
+        Args:
+            layer_name (str):
+                The name of the layer to be removed.
+            group_name (str, optional):
+                The name of the group from which to remove the layer.
+                If None or "", the layer is searched for in the root
+                of the layer tree. Defaults to None.
 
         """
         root = QgsProject.instance().layerTreeRoot()
@@ -507,13 +495,10 @@ class xmlUaLayers:
         else:
             parent = root.findGroup(group_name)
             if parent is None:
-
                 return
 
         for child in parent.children():
-
             if child and isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name:
-
                 parent.removeChildNode(child)
 
                 return  # Виходимо, оскільки вузол знайдено та видалено.
@@ -526,14 +511,14 @@ class xmlUaLayers:
 
     def lines_element2polygone(self, lines_element):  # Останній варіант
         """Формує список координат замкненого полігону на основі ULID ліній
-            і їх точок.
+        і їх точок.
 
-            Parameters:
-                lines_element (xml.etree.ElementTree.Element):
-                Елемент, який містить піделементи <Line>.
+        Parameters:
+            lines_element (xml.etree.ElementTree.Element):
+            Елемент, який містить піделементи <Line>.
 
-            Returns:
-                list: Список координат замкненого полігону.
+        Returns:
+            list: Список координат замкненого полігону.
         """
 
         if lines_element is None:
@@ -541,22 +526,20 @@ class xmlUaLayers:
 
         lines = []
 
-        logstr = ''
+        logstr = ""
         i = 0
         for line in lines_element.findall(".//Line"):
             i += 1
             ulid = line.find("ULID").text
 
-            logstr += '\n\t' + ulid + '. '
+            logstr += "\n\t" + ulid + ". "
 
             if ulid and ulid in self.qgisLines:
                 lines.append((ulid, self.qgisLines[ulid]))
             elif ulid:
-                raise ValueError(
-                    f"ULID '{ulid}' не знайдено в списку координат.")
+                raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
-                raise ValueError(
-                    "Лінія не містить атрибуту унікального ідентифікатора.")
+                raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
 
         if not lines:
             return []
@@ -569,7 +552,6 @@ class xmlUaLayers:
         used_lines.add(current_line[0])
 
         while len(used_lines) < len(lines):
-
             for ulid, coords in lines:
                 if ulid in used_lines:
                     continue
@@ -584,8 +566,7 @@ class xmlUaLayers:
                     used_lines.add(ulid)
                     break
             else:
-                raise ValueError(
-                    "Неможливо сформувати замкнений полігон — деякі лінії не з'єднуються.")
+                raise ValueError("Неможливо сформувати замкнений полігон — деякі лінії не з'єднуються.")
 
         if polygon_coordinates[0] != polygon_coordinates[-1]:
             polygon_coordinates.append(polygon_coordinates[0])
@@ -611,7 +592,7 @@ class xmlUaLayers:
 
         lines = []
 
-        logstr = ''
+        logstr = ""
         i = 0
         for line in lines_element.findall(".//Line"):
             i += 1
@@ -619,21 +600,18 @@ class xmlUaLayers:
 
             if ulid and ulid in self.qgisLines:
                 lines.append((ulid, self.qgisLines[ulid]))
-                coords_str = ", ".join(
-                    [f"{point.x():.2f}, {point.y():.2f}" for point in self.qgisLines[ulid]])
+                coords_str = ", ".join([f"{point.x():.2f}, {point.y():.2f}" for point in self.qgisLines[ulid]])
                 logstr += f"{i}. {ulid}: {coords_str}\n"
             elif ulid:
-                raise ValueError(
-                    f"ULID '{ulid}' не знайдено в списку координат.")
+                raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
-                raise ValueError(
-                    "Лінія не містить атрибуту унікального ідентифікатора.")
+                raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
         if lines_element is None:
             raise ValueError("lines_element не може бути None.")
 
         lines = []
 
-        logstr = ''
+        logstr = ""
         i = 0
         for line in lines_element.findall(".//Line"):
             i += 1
@@ -641,28 +619,23 @@ class xmlUaLayers:
 
             if ulid and ulid in self.qgisLines:
                 lines.append((ulid, self.qgisLines[ulid]))
-                coords_str = ", ".join(
-                    [f"{point.x():.2f}, {point.y():.2f}" for point in self.qgisLines[ulid]])
+                coords_str = ", ".join([f"{point.x():.2f}, {point.y():.2f}" for point in self.qgisLines[ulid]])
                 logstr += f"{i}. {ulid}: {coords_str}\n"
             elif ulid:
-                raise ValueError(
-                    f"ULID '{ulid}' не знайдено в списку координат.")
+                raise ValueError(f"ULID '{ulid}' не знайдено в списку координат.")
             else:
-                raise ValueError(
-                    "Лінія не містить атрибуту унікального ідентифікатора.")
+                raise ValueError("Лінія не містить атрибуту унікального ідентифікатора.")
 
         polyline = []
 
         if not lines:
-
             QMessageBox.critical(self, "xml_ua", "Нема суміжників.")
             return None
 
         if len(lines) == 1:
             return self.lines_element2polygone(lines_element)
 
-        polyline.extend([QgsPointXY(point.x(), point.y())
-                        for point in lines[0][1]])
+        polyline.extend([QgsPointXY(point.x(), point.y()) for point in lines[0][1]])
 
         lines.pop(0)
 
@@ -674,9 +647,7 @@ class xmlUaLayers:
 
             for i, (ulid, coords) in enumerate(lines):
                 if coords[0] == polyline[-1]:
-
-                    polyline.extend([QgsPointXY(point.x(), point.y())
-                                    for point in coords[1:]])
+                    polyline.extend([QgsPointXY(point.x(), point.y()) for point in coords[1:]])
                     lines.pop(i)
                     found_next_line = True
                     break
@@ -686,9 +657,7 @@ class xmlUaLayers:
 
             for i, (ulid, coords) in enumerate(lines):
                 if coords[-1] == polyline[-1]:
-
-                    polyline.extend([QgsPointXY(point.x(), point.y())
-                                    for point in reversed(coords[:-1])])
+                    polyline.extend([QgsPointXY(point.x(), point.y()) for point in reversed(coords[:-1])])
                     lines.pop(i)
                     found_next_line = True
                     break
@@ -698,9 +667,7 @@ class xmlUaLayers:
 
             for i, (ulid, coords) in enumerate(lines):
                 if coords[-1] == polyline[0]:
-
-                    polyline = [QgsPointXY(point.x(), point.y())
-                                for point in reversed(coords[:-1])] + polyline
+                    polyline = [QgsPointXY(point.x(), point.y()) for point in reversed(coords[:-1])] + polyline
                     lines.pop(i)
                     found_next_line = True
                     break
@@ -710,9 +677,7 @@ class xmlUaLayers:
 
             for i, (ulid, coords) in enumerate(lines):
                 if coords[0] == polyline[0]:
-
-                    polyline = [QgsPointXY(point.x(), point.y())
-                                for point in coords[1:]] + polyline
+                    polyline = [QgsPointXY(point.x(), point.y()) for point in coords[1:]] + polyline
                     lines.pop(i)
                     found_next_line = True
                     break
@@ -722,9 +687,7 @@ class xmlUaLayers:
 
             for i, (ulid, coords) in enumerate(lines):
                 if coords[0] == polyline[0]:
-
-                    polyline = [QgsPointXY(point.x(), point.y())
-                                for point in coords[1:]] + polyline
+                    polyline = [QgsPointXY(point.x(), point.y()) for point in coords[1:]] + polyline
                     lines.pop(i)
                     found_next_line = True
                     break

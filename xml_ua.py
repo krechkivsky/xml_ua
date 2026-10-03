@@ -1,5 +1,3 @@
-
-
 """
 /***************************************************************************
  xml_ua
@@ -22,7 +20,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-
 
 import importlib.util
 import os
@@ -70,7 +67,7 @@ from qgis.PyQt.QtWidgets import (
     QToolButton,
 )
 
-# from qgis.utils import iface 
+# from qgis.utils import iface
 from . import resources  # noqa: F401
 from .boundary_agreement import BoundaryAgreementCreator
 from .common import PARCEL_MARGIN_FACTOR, connector, log_calls, logFile
@@ -97,29 +94,19 @@ def choose_scale_with_dialog(iface, scale_calc):
 
     nice_scales = [500, 1000, 2000, 5000]
 
-
     valid_nice = [s for s in nice_scales if s >= scale_calc]
 
     options = []
     values = []
 
-
     options.append(f"Розрахунковий (1:{scale_calc}) — максимальний")
     values.append(scale_calc)
-
 
     for s in valid_nice:
         options.append(f"Округлений 1:{s} — ділянка менша")
         values.append(s)
 
-    choice, ok = QInputDialog.getItem(
-        iface.mainWindow(),
-        "Вибір масштабу",
-        "Оберіть масштаб плану:",
-        options,
-        0,
-        False
-    )
+    choice, ok = QInputDialog.getItem(iface.mainWindow(), "Вибір масштабу", "Оберіть масштаб плану:", options, 0, False)
 
     if not ok:
         return None, False
@@ -144,16 +131,15 @@ class xml_ua:
         self.project = None
         self.xml_layers = None
         self.plugin_dir = os.path.dirname(__file__)
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir, 'i18n', f'xml_ua_{locale}.qm')
+        locale = QSettings().value("locale/userLocale")[0:2]
+        locale_path = os.path.join(self.plugin_dir, "i18n", f"xml_ua_{locale}.qm")
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
 
         self.actions = []
-        self.menu = self.tr('&xml_ua')
+        self.menu = self.tr("&xml_ua")
         self.toolbar = None
         self.pluginIsActive = False
         self.dockwidget = None
@@ -166,10 +152,8 @@ class xml_ua:
         self.existing_layer_ids = set()
         self.signal_log_setting_key = "xml_ua/debug_signal_logs"
         self.signal_log_enabled = self._read_signal_log_setting()
-        self._apply_signal_log_setting(
-            self.signal_log_enabled, persist=False, notify=False)
+        self._apply_signal_log_setting(self.signal_log_enabled, persist=False, notify=False)
 
-    
     def _read_signal_log_setting(self) -> bool:
         value = QSettings().value(self.signal_log_setting_key, True)
         if isinstance(value, bool):
@@ -178,8 +162,7 @@ class xml_ua:
             return True
         return str(value).strip().lower() in ("1", "true", "yes", "on")
 
-    def _apply_signal_log_setting(
-            self, enabled: bool, persist: bool = True, notify: bool = False):
+    def _apply_signal_log_setting(self, enabled: bool, persist: bool = True, notify: bool = False):
         global LOG
         was_enabled = self.signal_log_enabled
         self.signal_log_enabled = bool(enabled)
@@ -206,12 +189,7 @@ class xml_ua:
             if not self.signal_log_enabled:
                 message += ". Файли логування очищено"
             log_calls(logFile, message)
-            self.iface.messageBar().pushMessage(
-                "XML-UA",
-                message,
-                level=Qgis.Info,
-                duration=4
-            )
+            self.iface.messageBar().pushMessage("XML-UA", message, level=Qgis.Info, duration=4)
 
     def on_toggle_signal_log(self, checked):
         self._apply_signal_log_setting(checked, persist=True, notify=True)
@@ -234,48 +212,6 @@ class xml_ua:
             log_calls(logFile, f"{e}")
             pass
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def get_nodes_pointinfo_for_group(self, group_name: str):
         """
         Повертає список вузлів з XML:
@@ -293,7 +229,6 @@ class xml_ua:
             xml_data = None
 
         if not xml_data:
-
             for xd in getattr(self.dockwidget, "opened_xmls", []):
                 if getattr(xd, "group_name", None) == group_name:
                     xml_data = xd
@@ -303,7 +238,6 @@ class xml_ua:
             return []
 
         root = xml_data.tree.getroot()
-
 
         points = root.xpath(
             "/*[local-name()='UkrainianCadastralExchangeFile']"
@@ -315,6 +249,7 @@ class xml_ua:
 
         out = []
         for p in points:
+
             def _t(name: str) -> str:
                 r = p.xpath(f"./*[local-name()='{name}'][1]")
                 if not r:
@@ -326,21 +261,20 @@ class xml_ua:
             y = _t("Y")
             desc = _t("Description")
 
-
             if (not desc) or (desc == uidp):
                 desc = ""
-
 
             if not uidp:
                 continue
 
-            out.append({
-                "uidp": uidp,
-                "x": x,
-                "y": y,
-                "description": desc,
-            })
-
+            out.append(
+                {
+                    "uidp": uidp,
+                    "x": x,
+                    "y": y,
+                    "description": desc,
+                }
+            )
 
         def _uidp_sort_key(d):
             try:
@@ -351,7 +285,6 @@ class xml_ua:
         out.sort(key=_uidp_sort_key)
 
         return out
-
 
     def tr(self, message):  # after load QGIS, without project
         """Get the translation for a string using Qt translation API.
@@ -365,19 +298,20 @@ class xml_ua:
         :rtype: QString
         """
 
-        return QCoreApplication.translate('xml_ua', message)
+        return QCoreApplication.translate("xml_ua", message)
 
     def add_action(
-            self,
-            icon_path,
-            text,
-            callback,
-            enabled_flag=True,
-            add_to_menu=True,
-            add_to_toolbar=True,
-            status_tip=None,
-            whats_this=None,
-            parent=None):
+        self,
+        icon_path,
+        text,
+        callback,
+        enabled_flag=True,
+        add_to_menu=True,
+        add_to_toolbar=True,
+        status_tip=None,
+        whats_this=None,
+        parent=None,
+    ):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -432,9 +366,7 @@ class xml_ua:
             self.toolbar.addAction(action)
 
         if add_to_menu:
-            self.iface.addPluginToVectorMenu(
-                self.menu,
-                action)
+            self.iface.addPluginToVectorMenu(self.menu, action)
 
         self.actions.append(action)
 
@@ -470,7 +402,7 @@ class xml_ua:
         existing_dockwidgets = self.iface.mainWindow().findChildren(xml_uaDockWidget)
 
         for dw in existing_dockwidgets:
-            if hasattr(dw, 'opened_xmls') and dw.opened_xmls:
+            if hasattr(dw, "opened_xmls") and dw.opened_xmls:
                 opened_xmls_copy = list(dw.opened_xmls)
                 for xml_data in opened_xmls_copy:
                     dw.process_action_close_xml(xml_data, force_close=True)
@@ -484,9 +416,7 @@ class xml_ua:
         self.dockwidget = None  # Очищуємо основне посилання
 
         for action in self.actions:
-            self.iface.removePluginVectorMenu(
-                self.tr(u'&xml_ua'),
-                action)
+            self.iface.removePluginVectorMenu(self.tr("&xml_ua"), action)
             self.iface.removeToolBarIcon(action)
 
         if self.toolbar:
@@ -494,7 +424,6 @@ class xml_ua:
                 self.iface.mainWindow().removeToolBar(self.toolbar)
 
             except Exception as e:
-
                 log_calls(logFile, f"{e}")
                 pass
             self.toolbar = None
@@ -503,20 +432,17 @@ class xml_ua:
             QgsProject.instance().layersAdded.disconnect(self.on_layers_added)
 
         except TypeError:
-
             pass
 
     def disconnect_map_canvas_context(self):
         """Від'єднує обробник контекстного меню від полотна карти."""
-        if hasattr(self, 'map_canvas_context_handler') and self.map_canvas_context_handler:
+        if hasattr(self, "map_canvas_context_handler") and self.map_canvas_context_handler:
             canvas = self.iface.mapCanvas()
             if canvas:
                 try:
-                    canvas.contextMenuAboutToShow.disconnect(
-                        self.map_canvas_context_handler)
+                    canvas.contextMenuAboutToShow.disconnect(self.map_canvas_context_handler)
 
                 except TypeError:
-
                     pass
             self.map_canvas_context_handler = None
 
@@ -585,7 +511,10 @@ class xml_ua:
         if self.dockwidget and getattr(self.dockwidget, "_suppress_layer_to_xml_sync", False):
             return
 
-        log_calls(logFile, f"[SIGNAL] committedAttributeValuesChanges: layer_id={layer_id}, changed_features={len(changed_attrs)}")
+        log_calls(
+            logFile,
+            f"[SIGNAL] committedAttributeValuesChanges: layer_id={layer_id}, changed_features={len(changed_attrs)}",
+        )
         layer = QgsProject.instance().mapLayer(layer_id)
         if not layer or not self.dockwidget:
             return
@@ -593,8 +522,7 @@ class xml_ua:
             return
 
         self._show_dockwidget_for_layer(layer)
-        self.dockwidget.handle_committed_attribute_values_changed(
-            layer, changed_attrs)
+        self.dockwidget.handle_committed_attribute_values_changed(layer, changed_attrs)
 
     def on_geometry_changed(self, layer, feature_id, geom):
         if LOG:
@@ -640,7 +568,7 @@ class xml_ua:
 
         layer.name()
 
-        if not self.dockwidget or not hasattr(self.dockwidget, 'opened_xmls'):
+        if not self.dockwidget or not hasattr(self.dockwidget, "opened_xmls"):
             return False
 
         project = QgsProject.instance()
@@ -664,8 +592,10 @@ class xml_ua:
 
         This method performs the following actions:
         1. Logs the function call.
-        2. Checks if a QGIS project is open. If no project is open, logs a message and shows a warning to the user.
-        3. If the plugin is not active, activates the plugin and initializes the dock widget if it is not already created.
+        2. Checks if a QGIS project is open. If no project is open,
+            logs a message and shows a warning to the user.
+        3. If the plugin is not active, activates the plugin
+            and initializes the dock widget if it is not already created.
         4. Adds the dock widget to the QGIS interface and displays it.
 
         Returns:
@@ -674,20 +604,12 @@ class xml_ua:
         # log_calls(logFile, "Запуск плагіна.")
 
         if not QgsProject.instance().fileName():
-
-            self.iface.messageBar().pushMessage(
-                "XML-UA",
-                "Спочатку треба відкрити проект.",
-                level=Qgis.Warning
-            )
+            self.iface.messageBar().pushMessage("XML-UA", "Спочатку треба відкрити проект.", level=Qgis.Warning)
             return
 
         if self.dockwidget is None:
-
-            self.dockwidget = xml_uaDockWidget(
-                parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
-            self._apply_signal_log_setting(
-                self.signal_log_enabled, persist=False, notify=False)
+            self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
+            self._apply_signal_log_setting(self.signal_log_enabled, persist=False, notify=False)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.iface.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.hide()  # Явно приховуємо після створення
@@ -695,9 +617,7 @@ class xml_ua:
     def on_save_tool(self):
 
         if self.dockwidget is None:
-
-            QMessageBox.warning(self.iface.mainWindow(),
-                                "Помилка", "Док віджет не ініціалізовано.")
+            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Док віджет не ініціалізовано.")
             return
         self.dockwidget.process_action_save()
         return
@@ -705,9 +625,7 @@ class xml_ua:
     def on_save_as_template_tool(self):
 
         if self.dockwidget is None:
-
-            QMessageBox.warning(self.iface.mainWindow(),
-                                "Помилка", "Док віджет не ініціалізовано.")
+            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Док віджет не ініціалізовано.")
             return
         self.dockwidget.process_action_save_as_template()
         return
@@ -720,9 +638,7 @@ class xml_ua:
     def on_sort_by_xsd_tool(self):
 
         if self.dockwidget is None:
-
-            QMessageBox.warning(self.iface.mainWindow(),
-                                "Помилка", "Док віджет не ініціалізовано.")
+            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Док віджет не ініціалізовано.")
             return
         self.dockwidget.process_action_sort_by_xsd()
         return
@@ -730,11 +646,7 @@ class xml_ua:
     def on_open_tool(self):
 
         if not QgsProject.instance().fileName():
-            self.iface.messageBar().pushMessage(
-                "XML-UA",
-                "Спочатку треба відкрити проект.",
-                level=Qgis.Warning
-            )
+            self.iface.messageBar().pushMessage("XML-UA", "Спочатку треба відкрити проект.", level=Qgis.Warning)
             return
 
         self.run()
@@ -742,19 +654,14 @@ class xml_ua:
         if self.dockwidget:
             self.dockwidget.process_action_open()
         else:
-
             pass
 
     def on_clear_tool(self):
         """Обробляє дію "Закрити", закриваючи поточний активний XML-файл."""
         if self.dockwidget and self.dockwidget.current_xml:
-
-            self.dockwidget.process_action_close_xml(
-                self.dockwidget.current_xml)
+            self.dockwidget.process_action_close_xml(self.dockwidget.current_xml)
         else:
-
-            QMessageBox.information(self.iface.mainWindow(
-            ), "Інформація", "Немає активного файлу для закриття.")
+            QMessageBox.information(self.iface.mainWindow(), "Інформація", "Немає активного файлу для закриття.")
 
     def clear_widget_data(self):
         """Clears data from the dock widget."""
@@ -765,9 +672,7 @@ class xml_ua:
         for i in range(self.dockwidget.tabWidget.count() - 1, -1, -1):  # Зворотній порядок!
             tab_name = self.dockwidget.tabWidget.tabText(i)
             if tab_name not in tabs_to_keep:
-
                 if self.dockwidget.tabWidget.count() > 0:
-
                     self.dockwidget.tabWidget.removeTab(i)
 
         self.dockwidget.closed_tabs = []
@@ -783,20 +688,17 @@ class xml_ua:
                 model.setHorizontalHeaderLabels(["Елемент", "Значення"])
 
         except AttributeError:
-
-
             pass
 
-        self.dockwidget.setWindowTitle(
-            "XML-файл обміну кадастровою інформацією")
+        self.dockwidget.setWindowTitle("XML-файл обміну кадастровою інформацією")
         self.dockwidget.xml_file_name = ""
 
     def remove_temporary_layers(self):
         """
-            Clears all temporary layers ("memory") and 
-            empty groups (non-recursively) from the QGIS project.
+        Clears all temporary layers ("memory") and
+        empty groups (non-recursively) from the QGIS project.
 
-            Reference: on_clear_tool
+        Reference: on_clear_tool
         """
 
         project = QgsProject.instance()
@@ -804,7 +706,7 @@ class xml_ua:
 
         layers_to_remove = []
         for layer_id, layer in project.mapLayers().items():
-            if layer.dataProvider().name() == 'memory':
+            if layer.dataProvider().name() == "memory":
                 layers_to_remove.append(layer_id)
         for layer_id in layers_to_remove:
             project.removeMapLayer(layer_id)
@@ -814,12 +716,10 @@ class xml_ua:
             groups_to_remove = []
             for child in group.children():
                 if isinstance(child, QgsLayerTreeGroup):
-
                     remove_empty_groups(child)
                     if len(child.children()) == 0:
                         groups_to_remove.append(child)
             for group_to_remove in groups_to_remove:
-
                 group.removeChildNode(group_to_remove)
 
         remove_empty_groups(root)
@@ -839,11 +739,8 @@ class xml_ua:
 
         self.iface.mainWindow().findChild(xml_uaDockWidget, "")
         if self.dockwidget is None:
-
-            self.dockwidget = xml_uaDockWidget(
-                parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
-            self._apply_signal_log_setting(
-                self.signal_log_enabled, persist=False, notify=False)
+            self.dockwidget = xml_uaDockWidget(parent=self.iface.mainWindow(), iface=self.iface, plugin=self)
+            self._apply_signal_log_setting(self.signal_log_enabled, persist=False, notify=False)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.iface.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.hide()  # Завжди приховуємо після створення
@@ -855,10 +752,10 @@ class xml_ua:
                 self.dockwidget.show()
                 self.dockwidget.raise_()
         else:
-
             self.dockwidget.hide()
-            self.iface.messageBar().pushMessage("Інфо",
-                                                "Відкрийте XML-файл, щоб побачити його структуру.", level=Qgis.Info, duration=4)
+            self.iface.messageBar().pushMessage(
+                "Інфо", "Відкрийте XML-файл, щоб побачити його структуру.", level=Qgis.Info, duration=4
+            )
 
     def _missing_optional_dependencies(self):
         deps = [
@@ -888,9 +785,7 @@ class xml_ua:
         if not missing:
             return
 
-        commands = "\r\n".join(
-            f"python.exe -m pip install --upgrade {package}" for package in missing
-        ) + "\r\n"
+        commands = "\r\n".join(f"python.exe -m pip install --upgrade {package}" for package in missing) + "\r\n"
 
         msg = QMessageBox(self.iface.mainWindow())
         msg.setIcon(QMessageBox.Icon.Warning)
@@ -905,9 +800,7 @@ class xml_ua:
             "з вашою інсталяцією QGIS, виконайте наведені команди й перезапустіть QGIS."
         )
         msg.setDetailedText(commands)
-        copy_btn = msg.addButton(
-            "Скопіювати команди", QMessageBox.ButtonRole.ActionRole
-        )
+        copy_btn = msg.addButton("Скопіювати команди", QMessageBox.ButtonRole.ActionRole)
         msg.addButton("Закрити", QMessageBox.ButtonRole.AcceptRole)
         msg.setDefaultButton(copy_btn)
         msg.exec()
@@ -919,8 +812,10 @@ class xml_ua:
 
                 QApplication.clipboard().setText(commands)
                 self.iface.messageBar().pushMessage(
-                    "xml-ua", "Команди встановлення скопійовано в буфер обміну.",
-                    level=Qgis.Info, duration=5,
+                    "xml-ua",
+                    "Команди встановлення скопійовано в буфер обміну.",
+                    level=Qgis.Info,
+                    duration=5,
                 )
             except Exception as e:
                 log_calls(logFile, f"{e}")
@@ -953,50 +848,43 @@ class xml_ua:
         QgsProject.instance().layersAdded.connect(self.on_layers_added)
 
         from .map_canvas_context import setup_map_canvas_context
+
         self.disconnect_map_canvas_context()  # Спочатку від'єднуємо старе, якщо є
-        self.map_canvas_context_handler = setup_map_canvas_context(
-            self.iface, self)
+        self.map_canvas_context_handler = setup_map_canvas_context(self.iface, self)
         self._maybe_prompt_missing_dependencies()
 
     def reload_map_canvas_context(self):
         """Перезавантажує обробник контекстного меню полотна карти."""
 
         from .map_canvas_context import setup_map_canvas_context
+
         self.disconnect_map_canvas_context()
-        self.map_canvas_context_handler = setup_map_canvas_context(
-            self.iface, self)
+        self.map_canvas_context_handler = setup_map_canvas_context(self.iface, self)
 
         if self.layer_tree_menu_provider:
             try:
                 if hasattr(self.iface, "unregisterLayerTreeViewMenuProvider"):
-                    self.iface.unregisterLayerTreeViewMenuProvider(
-                        self.layer_tree_menu_provider)
+                    self.iface.unregisterLayerTreeViewMenuProvider(self.layer_tree_menu_provider)
                 elif hasattr(self.iface, "removeLayerTreeViewMenuProvider"):
-                    self.iface.removeLayerTreeViewMenuProvider(
-                        self.layer_tree_menu_provider)
+                    self.iface.removeLayerTreeViewMenuProvider(self.layer_tree_menu_provider)
                 elif hasattr(self.iface, "layerTreeView"):
                     view = self.iface.layerTreeView()
                     if view and hasattr(view, "setMenuProvider"):
                         view.setMenuProvider(None)
             except Exception as e:
-                log_calls(
-                    logFile, f"Помилка при від'єднанні menu provider для Layer Tree: {e}")
-        self.layer_tree_menu_provider = XmlUaLayerTreeMenuProvider(
-            self.dockwidget)
+                log_calls(logFile, f"Помилка при від'єднанні menu provider для Layer Tree: {e}")
+        self.layer_tree_menu_provider = XmlUaLayerTreeMenuProvider(self.dockwidget)
         try:
             if hasattr(self.iface, "registerLayerTreeViewMenuProvider"):
-                self.iface.registerLayerTreeViewMenuProvider(
-                    self.layer_tree_menu_provider)
+                self.iface.registerLayerTreeViewMenuProvider(self.layer_tree_menu_provider)
             elif hasattr(self.iface, "addLayerTreeViewMenuProvider"):
-                self.iface.addLayerTreeViewMenuProvider(
-                    self.layer_tree_menu_provider)
+                self.iface.addLayerTreeViewMenuProvider(self.layer_tree_menu_provider)
             elif hasattr(self.iface, "layerTreeView"):
                 view = self.iface.layerTreeView()
                 if view and hasattr(view, "setMenuProvider"):
                     view.setMenuProvider(self.layer_tree_menu_provider)
         except Exception as e:
-            log_calls(
-                logFile, f"Помилка при підключенні menu provider для Layer Tree: {e}")
+            log_calls(logFile, f"Помилка при підключенні menu provider для Layer Tree: {e}")
 
     def connect_picket_layer_signals(self):
         """
@@ -1009,33 +897,27 @@ class xml_ua:
         project = QgsProject.instance()
         for layer_id, layer in project.mapLayers().items():
             if layer.name() == "Вузли":
-
-                layer.editingStarted.connect(
-                    lambda l=layer: self.dockwidget.on_layer_editing_started(l))
-                layer.editingStopped.connect(
-                    lambda l=layer: self.dockwidget.on_layer_editing_stopped(l))
+                layer.editingStarted.connect(lambda _layer=layer: self.dockwidget.on_layer_editing_started(_layer))
+                layer.editingStopped.connect(lambda _layer=layer: self.dockwidget.on_layer_editing_stopped(_layer))
 
         self.create_toolbar_and_menu()  # Цей рядок був зайвим
 
     def create_menu(self):
         """Створює меню плагіна."""
 
-
     def create_toolbar_and_menu(self):
 
         existing_toolbar = self.iface.mainWindow().findChild(QToolBar, "xml_ua")
 
         if existing_toolbar:
-
             self.toolbar = existing_toolbar  # Використовуємо знайдений тулбар
         else:
-
-            self.toolbar = self.iface.addToolBar(u'xml_ua')  # Переносимо сюди
-            self.toolbar.setObjectName(u'xml_ua')  # І сюди
+            self.toolbar = self.iface.addToolBar("xml_ua")  # Переносимо сюди
+            self.toolbar.setObjectName("xml_ua")  # І сюди
 
         icon_path = os.path.join(self.plugin_dir, "images", "icon.svg")
         if not os.path.exists(icon_path):
-            icon_path = ':/plugins/xml_ua/icon.svg'
+            icon_path = ":/plugins/xml_ua/icon.svg"
 
         try:
             for act in list(self.toolbar.actions()):
@@ -1088,8 +970,7 @@ class xml_ua:
         save_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton)
         self.action_save_tool.setIcon(save_icon)
 
-        self.action_save_as_template_tool = QAction(
-            "Зберегти як шаблон...", self.iface.mainWindow())
+        self.action_save_as_template_tool = QAction("Зберегти як шаблон...", self.iface.mainWindow())
 
         save_as_icon = QIcon(QgsApplication.iconPath("mActionFileSaveAs.svg"))
         self.action_save_as_template_tool.setIcon(save_as_icon)
@@ -1107,22 +988,18 @@ class xml_ua:
         self.action_sort_by_xsd_tool.setIcon(sort_icon)
         self.action_clear_data = QAction("Закрити", self.iface.mainWindow())
 
-        close_icon = self.iface.mainWindow().style(
-        ).standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton)
+        close_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton)
         self.action_clear_data.setIcon(close_icon)
 
-        self.action_restore_backup = QAction(
-            "Відновити з резервної копії...", self.iface.mainWindow())
+        self.action_restore_backup = QAction("Відновити з резервної копії...", self.iface.mainWindow())
         restore_icon = self.iface.mainWindow().style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
-        self.action_restore_backup.setToolTip(
-            "Відновити активний файл з його резервної копії, створеної при відкритті")
+        self.action_restore_backup.setToolTip("Відновити активний файл з його резервної копії, створеної при відкритті")
         self.action_restore_backup.setIcon(restore_icon)
 
         self.action_check_tool.setEnabled(False)
         self.action_sort_by_xsd_tool.setEnabled(False)
 
-        self.action_create_document = QAction(
-            "Документація", self.iface.mainWindow())
+        self.action_create_document = QAction("Документація", self.iface.mainWindow())
         doc_icon = QgsApplication.iconPath("mActionNewReport.svg")
         self.action_create_document.setIcon(QIcon(doc_icon))
         self.action_create_document.setEnabled(False)  # Початково неактивне
@@ -1138,8 +1015,7 @@ class xml_ua:
             pass
 
         self.doc_menu.addSeparator()
-        self.action_cadastral_plan = self.doc_menu.addAction(
-            "Кадастровий план")
+        self.action_cadastral_plan = self.doc_menu.addAction("Кадастровий план")
         self.action_cadastral_plan.setEnabled(False)
         self.action_boundary_agreement = self.doc_menu.addAction("Акт погодження меж")
         self.action_boundary_agreement.setEnabled(False)
@@ -1151,8 +1027,16 @@ class xml_ua:
         self.action_signal_log.setCheckable(True)
         self.action_signal_log.setChecked(self.signal_log_enabled)
 
-        self.tools_menu.addActions([self.action_new_tool, self.action_open_tool,
-                                   self.action_save_tool, self.action_save_as_template_tool, self.action_check_tool, self.action_sort_by_xsd_tool])
+        self.tools_menu.addActions(
+            [
+                self.action_new_tool,
+                self.action_open_tool,
+                self.action_save_tool,
+                self.action_save_as_template_tool,
+                self.action_check_tool,
+                self.action_sort_by_xsd_tool,
+            ]
+        )
         self.tools_menu.addAction(self.action_clear_data)
         self.tools_menu.addAction(self.action_restore_backup)
 
@@ -1174,8 +1058,7 @@ class xml_ua:
         self.tools_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.dockwidget = None
 
-        self.action_cadastral_plan.triggered.connect(
-            self.on_cadastral_plan_clicked)
+        self.action_cadastral_plan.triggered.connect(self.on_cadastral_plan_clicked)
         try:
             self.action_boundary_agreement.triggered.connect(self.on_boundary_agreement_clicked)
         except Exception as e:
@@ -1183,22 +1066,14 @@ class xml_ua:
             pass
 
         connector.connect(self.action_new_tool, "triggered", self.on_new_tool)
-        connector.connect(self.action_open_tool,
-                          "triggered", self.on_open_tool)
-        connector.connect(self.action_save_tool,
-                          "triggered", self.on_save_tool)
-        connector.connect(self.action_save_as_template_tool,
-                          "triggered", self.on_save_as_template_tool)
-        connector.connect(self.action_check_tool,
-                          "triggered", self.on_check_tool)
-        connector.connect(self.action_sort_by_xsd_tool,
-                          "triggered", self.on_sort_by_xsd_tool)
-        connector.connect(self.action_clear_data,
-                          "triggered", self.on_clear_tool)
-        connector.connect(self.action_restore_backup,
-                          "triggered", self.restore_from_copy)
-        connector.connect(self.action_signal_log,
-                          "triggered", self.on_toggle_signal_log)
+        connector.connect(self.action_open_tool, "triggered", self.on_open_tool)
+        connector.connect(self.action_save_tool, "triggered", self.on_save_tool)
+        connector.connect(self.action_save_as_template_tool, "triggered", self.on_save_as_template_tool)
+        connector.connect(self.action_check_tool, "triggered", self.on_check_tool)
+        connector.connect(self.action_sort_by_xsd_tool, "triggered", self.on_sort_by_xsd_tool)
+        connector.connect(self.action_clear_data, "triggered", self.on_clear_tool)
+        connector.connect(self.action_restore_backup, "triggered", self.restore_from_copy)
+        connector.connect(self.action_signal_log, "triggered", self.on_toggle_signal_log)
 
         self.tools_button.setObjectName("xml_ua_tools_button")
         self.toolbar.addWidget(self.tools_button)
@@ -1217,35 +1092,32 @@ class xml_ua:
 
         group_name = None
         if self.dockwidget and self.dockwidget.current_xml:
-            group_name = getattr(
-                self.dockwidget.current_xml, 'group_name', None)
+            group_name = getattr(self.dockwidget.current_xml, "group_name", None)
         if not group_name:
             group_name = "(група не визначена)"
         self.iface.messageBar().pushMessage(
-            "Кадастровий план",
-            f"Створюємо кадастровий план для групи: {group_name}...",
-            level=Qgis.Info,
-            duration=5
+            "Кадастровий план", f"Створюємо кадастровий план для групи: {group_name}...", level=Qgis.Info, duration=5
         )
 
         current_xml_data = self.dockwidget.current_xml
         xml_tree = current_xml_data.tree
         xml_root = xml_tree.getroot()
-        if '}' in xml_root.tag:
-            namespace = xml_root.tag.split('}')[0].strip('{')
+        if "}" in xml_root.tag:
+            namespace = xml_root.tag.split("}")[0].strip("{")
         else:
-            namespace = ''
-
+            namespace = ""
 
         parcel_boundary_points = []
         parcel_externals_xpath = f".//{{{namespace}}}ParcelMetricInfo/{{{namespace}}}Externals"
         parcel_externals_element = xml_root.find(parcel_externals_xpath)
         if parcel_externals_element:
             parcel_exterior_boundary_lines_elem = parcel_externals_element.find(
-                f"./{{{namespace}}}Boundary/{{{namespace}}}Lines")
+                f"./{{{namespace}}}Boundary/{{{namespace}}}Lines"
+            )
             if parcel_exterior_boundary_lines_elem is not None:
                 parcel_boundary_points = self.dockwidget.layers_obj.lines_element2polyline(
-                    parcel_exterior_boundary_lines_elem)
+                    parcel_exterior_boundary_lines_elem
+                )
 
                 if parcel_boundary_points and parcel_boundary_points[0] == parcel_boundary_points[-1]:
                     parcel_boundary_points = parcel_boundary_points[:-1]
@@ -1253,19 +1125,12 @@ class xml_ua:
         selected_layers = self.iface.layerTreeView().selectedLayers()
         parcel_layer = next((layer for layer in selected_layers if layer and layer.name() == "Ділянка"), None)
 
-        
-        
-        
-        
-        
         project = QgsProject.instance()
         root = project.layerTreeRoot()
         xml_group = root.findGroup(group_name)
         if not xml_group:
             QMessageBox.warning(
-                self.iface.mainWindow(),
-                "Помилка",
-                f"Не вдалося знайти групу '{group_name}' у дереві шарів."
+                self.iface.mainWindow(), "Помилка", f"Не вдалося знайти групу '{group_name}' у дереві шарів."
             )
             return
 
@@ -1311,9 +1176,9 @@ class xml_ua:
                     groups.extend(_collect_groups_named(ch, group_name_to_find))
             return groups
 
-
         existing_groups = _collect_groups_named(xml_group, "Кадастровий план")
         if existing_groups:
+
             def _depth(node):
                 d = 0
                 p = node.parent()
@@ -1338,19 +1203,13 @@ class xml_ua:
         if not parcel_node:
             parcel_node = _find_first_layer_node_by_name(xml_group, "Ділянка")
 
-        (xml_group.children().index(parcel_node)
-                 if parcel_node in xml_group.children()
-                 else len(xml_group.children()) - 1)
-
-
-        
-        
-        
-        
-        
+        (
+            xml_group.children().index(parcel_node)
+            if parcel_node in xml_group.children()
+            else len(xml_group.children()) - 1
+        )
 
         cadastral_plan_group = xml_group.insertGroup(0, "Кадастровий план")
-
 
         try:
             original_control_points_layer = None
@@ -1373,9 +1232,7 @@ class xml_ua:
                 if hasattr(cadastral_plan_group, "insertLayer"):
                     cadastral_plan_group.insertLayer(0, duplicated_control_points_layer)
                 else:
-                    cadastral_plan_group.insertChildNode(
-                        0, QgsLayerTreeLayer(duplicated_control_points_layer)
-                    )
+                    cadastral_plan_group.insertChildNode(0, QgsLayerTreeLayer(duplicated_control_points_layer))
         except Exception as e:
             log_calls(logFile, f"Не вдалося продублювати шар 'Закріплені вузли' для кадастрового плану: {e}")
 
@@ -1385,13 +1242,10 @@ class xml_ua:
             "Оренда": "lease_plan.qml",
             "Суборенда": "sublease_plan.qml",
             "Обмеження": "restrictions_plan.qml",
-
         }
         for layer_name, style_file in layer_style_map.items():
-
             original_layer = None
             for layer in project.mapLayers().values():
-
                 try:
                     node = root.findLayer(layer.id()) if layer else None
                     parent = node.parent() if node else None
@@ -1411,8 +1265,7 @@ class xml_ua:
 
             project.addMapLayer(duplicated_layer, False)
 
-            style_path = os.path.join(os.path.dirname(
-                __file__), "templates", style_file)
+            style_path = os.path.join(os.path.dirname(__file__), "templates", style_file)
             if os.path.exists(style_path):
                 duplicated_layer.loadNamedStyle(style_path)
                 duplicated_layer.triggerRepaint()
@@ -1422,10 +1275,12 @@ class xml_ua:
         self.create_adjacent_parcels_layer(cadastral_plan_group, group_name)
 
         parcel_ULID_list = []
-        parcel_info_path = f".//{{{namespace}}}CadastralZoneInfo/{{{namespace}}}CadastralQuarters/{{{namespace}}}CadastralQuarterInfo/{{{namespace}}}Parcels/{{{namespace}}}ParcelInfo"
+        parcel_info_path = (f".//{{{namespace}}}CadastralZoneInfo/{{{namespace}}}CadastralQuarters/"
+                            f"{{{namespace}}}CadastralQuarterInfo/{{{namespace}}}Parcels/{{{namespace}}}ParcelInfo")
         parcel_info_elements = xml_root.findall(parcel_info_path)
         for parcel_info in parcel_info_elements:
-            parcel_metric_info_path = f"./{{{namespace}}}ParcelMetricInfo/{{{namespace}}}Externals/{{{namespace}}}Boundary/{{{namespace}}}Lines/{{{namespace}}}Line"
+            parcel_metric_info_path = (f"./{{{namespace}}}ParcelMetricInfo/{{{namespace}}}Externals/"
+                                       f"{{{namespace}}}Boundary/{{{namespace}}}Lines/{{{namespace}}}Line")
             line_elements = parcel_info.findall(parcel_metric_info_path)
             for line in line_elements:
                 ulid_elem = line.find(f"./{{{namespace}}}ULID")
@@ -1435,7 +1290,6 @@ class xml_ua:
         for special_layer_name, special_style_file in [("Полілінії", "lines_plan.qml")]:
             original_layer = None
             for layer in project.mapLayers().values():
-
                 try:
                     node = root.findLayer(layer.id()) if layer else None
                     parent = node.parent() if node else None
@@ -1452,8 +1306,7 @@ class xml_ua:
             original_layer.geometryType()
             geom_type_str = QgsWkbTypes.displayString(original_layer.wkbType())
             crs = original_layer.crs().authid()
-            memory_layer = QgsVectorLayer(
-                f"{geom_type_str}?crs={crs}", special_layer_name, "memory")
+            memory_layer = QgsVectorLayer(f"{geom_type_str}?crs={crs}", special_layer_name, "memory")
             memory_layer_data = memory_layer.dataProvider()
 
             memory_layer_data.addAttributes(original_layer.fields())
@@ -1473,8 +1326,7 @@ class xml_ua:
 
             project.addMapLayer(memory_layer, False)
 
-            special_style_path = os.path.join(os.path.dirname(
-                __file__), "templates", special_style_file)
+            special_style_path = os.path.join(os.path.dirname(__file__), "templates", special_style_file)
             if os.path.exists(special_style_path):
                 memory_layer.loadNamedStyle(special_style_path)
                 memory_layer.triggerRepaint()
@@ -1488,15 +1340,10 @@ class xml_ua:
                     layer_lines.startEditing()
                     break
 
-
         self.create_parcel_nodes_layer(cadastral_plan_group)
 
-
         self.iface.messageBar().pushMessage(
-            "Кадастровий план",
-            f"Кадастровий план створено для групи: {group_name}",
-            level=Qgis.Success,
-            duration=5
+            "Кадастровий план", f"Кадастровий план створено для групи: {group_name}", level=Qgis.Success, duration=5
         )
 
         parent_group = xml_group
@@ -1506,9 +1353,6 @@ class xml_ua:
 
         self.add_adjacent_points(cadastral_plan_group, group_name)
 
-
-
-
         extent = None
         for child in cadastral_plan_group.children():
             if isinstance(child, QgsLayerTreeLayer):
@@ -1517,7 +1361,6 @@ class xml_ua:
                     extent = lyr.extent()
                     break
         if extent is None:
-
             for child in cadastral_plan_group.children():
                 if isinstance(child, QgsLayerTreeLayer):
                     lyr = child.layer()
@@ -1525,21 +1368,16 @@ class xml_ua:
                         extent = lyr.extent() if extent is None else extent.combineExtentWith(lyr.extent())
 
         if extent is None:
-            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Не вдалося визначити екстент для розрахунку масштабу.")
+            QMessageBox.warning(
+                self.iface.mainWindow(), "Помилка", "Не вдалося визначити екстент для розрахунку масштабу."
+            )
             return
 
-
-        scale_calc = compute_map_scale(
-            extent=extent,
-            map_side_mm=MAP_SIDE_MM,
-            margin_factor=PARCEL_MARGIN_FACTOR
-        )
-
+        scale_calc = compute_map_scale(extent=extent, map_side_mm=MAP_SIDE_MM, margin_factor=PARCEL_MARGIN_FACTOR)
 
         scale_value, is_calculated_scale = choose_scale_with_dialog(self.iface, scale_calc)
         if scale_value is None:
             return  # Cancel
-
 
         plan_creator = PlanLayoutCreator(self.iface, parent_group, QgsProject.instance(), plugin=self)
         plan_creator.create_layout(scale_value=scale_value, show_ruler=is_calculated_scale)
@@ -1554,7 +1392,7 @@ class xml_ua:
                 "Помилка",
                 f"Не вдалося сформувати акт погодження меж.\n{e}",
             )
-    
+
     def create_parcel_nodes_layer(self, cadastral_plan_group: QgsLayerTreeGroup):
         """
         Створює memory-шар 'Вузли ділянки', який містить
@@ -1562,7 +1400,6 @@ class xml_ua:
         """
 
         project = QgsProject.instance()
-
 
         lines_layer = None
         for ch in cadastral_plan_group.children():
@@ -1574,7 +1411,6 @@ class xml_ua:
             log_calls(logFile, "Полілінії не знайдено — Вузли ділянки не створено")
             return
 
-
         nodes_layer = None
         xml_group = cadastral_plan_group.parent() if cadastral_plan_group else None
         if isinstance(xml_group, QgsLayerTreeGroup):
@@ -1584,7 +1420,6 @@ class xml_ua:
                     if lyr and lyr.name() == "Вузли":
                         nodes_layer = lyr
                         break
-
 
         if not nodes_layer:
             root = project.layerTreeRoot()
@@ -1597,7 +1432,6 @@ class xml_ua:
             log_calls(logFile, "Шар 'Вузли' не знайдено")
             return
 
-
         parcel_vertices = set()
 
         for feat in lines_layer.getFeatures():
@@ -1606,13 +1440,11 @@ class xml_ua:
                 continue
 
             for pt in geom.vertices():
-
                 parcel_vertices.add((round(pt.x(), 6), round(pt.y(), 6)))
 
         if not parcel_vertices:
             log_calls(logFile, "Не знайдено вершин полігона ділянки")
             return
-
 
         crs = nodes_layer.crs().authid()
         mem_layer = QgsVectorLayer(f"Point?crs={crs}", "Вузли ділянки", "memory")
@@ -1632,30 +1464,20 @@ class xml_ua:
         prov.addFeatures(feats_to_add)
         mem_layer.updateExtents()
 
+        style_path = os.path.join(os.path.dirname(__file__), "templates", "points_parcel_plan.qml")
 
-        style_path = os.path.join(
-            os.path.dirname(__file__),
-            "templates",
-            "points_parcel_plan.qml"
-        )
-    
         if os.path.exists(style_path):
             mem_layer.loadNamedStyle(style_path)
             mem_layer.triggerRepaint()
         else:
             log_calls(logFile, f"Стиль не знайдено: {style_path}")
 
-
         project.addMapLayer(mem_layer, False)
         cadastral_plan_group.addLayer(mem_layer)
 
         log_calls(logFile, f"Створено шар 'Вузли ділянки': {len(feats_to_add)} точок")
 
-
     def create_adjacent_parcels_layer(self, cadastral_plan_group, group_name):
-
-
-
         """
         Створює новий шар "Суміжники" у дочірній групі "Кадастровий план".
         Тимчасово дублює оригінальний шар "Суміжники" та логує object_shape.
@@ -1681,8 +1503,7 @@ class xml_ua:
                 break
 
         if not original_layer:
-            log_calls(
-                logFile, f"Оригінальний шар '{adj_layer_name}' не знайдено в групі '{group_name}'.")
+            log_calls(logFile, f"Оригінальний шар '{adj_layer_name}' не знайдено в групі '{group_name}'.")
             return
 
         duplicated_layer = original_layer.clone()
@@ -1691,8 +1512,7 @@ class xml_ua:
         project.addMapLayer(duplicated_layer, False)
         cadastral_plan_group.addLayer(duplicated_layer)
 
-        style_path = os.path.join(os.path.dirname(
-            __file__), "templates", adj_style_file)
+        style_path = os.path.join(os.path.dirname(__file__), "templates", adj_style_file)
         if os.path.exists(style_path):
             duplicated_layer.loadNamedStyle(style_path)
             duplicated_layer.triggerRepaint()
@@ -1700,14 +1520,15 @@ class xml_ua:
         xml_data_for_group = self.dockwidget.get_xml_data_for_group(group_name)
 
         if xml_data_for_group and xml_data_for_group.shapes:
-
             for shape_info in xml_data_for_group.shapes:
                 if shape_info.layer_id == original_layer.id():
-
                     pass
         else:
             log_calls(
-                logFile, f"Не знайдено xml_data або shapes для групи '{group_name}'/'{adj_layer_name}' для логування object_shape.")
+                logFile,
+                (f"Не знайдено xml_data або shapes для групи "
+                 f"'{group_name}'/'{adj_layer_name}' для логування object_shape."),
+            )
 
     def add_adjacent_points(self, cadastral_plan_group, group_name):
         """
@@ -1721,26 +1542,23 @@ class xml_ua:
         xml_tree = current_xml_data.tree
         xml_root = xml_tree.getroot()
 
-        ns = ''
-        if '}' in xml_root.tag:
-            ns = xml_root.tag.split('}')[0].strip('{')
-        ns_map = {'ns': ns} if ns else None
-        ns_prefix = 'ns:' if ns else ''
+        ns = ""
+        if "}" in xml_root.tag:
+            ns = xml_root.tag.split("}")[0].strip("{")
+        ns_map = {"ns": ns} if ns else None
+        ns_prefix = "ns:" if ns else ""
 
         parcel_boundary_uidps = []
         parcel_metric_info_xpath = f".//{ns_prefix}ParcelMetricInfo"
-        parcel_metric_info = xml_root.find(
-            parcel_metric_info_xpath, namespaces=ns_map)
+        parcel_metric_info = xml_root.find(parcel_metric_info_xpath, namespaces=ns_map)
         if parcel_metric_info:
             externals_boundary_lines_relative_path = f"{ns_prefix}Externals/{ns_prefix}Boundary/{ns_prefix}Lines"
-            externals_lines = parcel_metric_info.find(
-                externals_boundary_lines_relative_path, namespaces=ns_map)
+            externals_lines = parcel_metric_info.find(externals_boundary_lines_relative_path, namespaces=ns_map)
             if externals_lines is not None:
                 processor = GeometryProcessor(xml_tree)
-                shape_str = processor._get_polyline_object_shape(
-                    externals_lines)
+                shape_str = processor._get_polyline_object_shape(externals_lines)
                 if shape_str:
-                    parcel_boundary_uidps = shape_str.split('-')
+                    parcel_boundary_uidps = shape_str.split("-")
         if not parcel_boundary_uidps:
             return
         parcel_boundary_uidps_set = set(parcel_boundary_uidps)
@@ -1748,13 +1566,14 @@ class xml_ua:
         points_to_literate_set = set()
         adjacent_units_xpath = f".//{ns_prefix}AdjacentUnits/{ns_prefix}AdjacentUnitInfo"
         for adj_unit in xml_root.findall(adjacent_units_xpath, namespaces=ns_map):
-            lines_container = adj_unit.find(
-                f".//{ns_prefix}AdjacentBoundary/{ns_prefix}Lines", namespaces=ns_map)
+            lines_container = adj_unit.find(f".//{ns_prefix}AdjacentBoundary/{ns_prefix}Lines", namespaces=ns_map)
             if lines_container is not None:
                 for line in lines_container.findall(f"{ns_prefix}Line", namespaces=ns_map):
                     ulid = line.findtext(f"{ns_prefix}ULID", namespaces=ns_map)
                     line_data = next(
-                        (item for item in self.dockwidget.layers_obj.lines_handler.xml_lines if item["ULID"] == ulid), None)
+                        (item for item in self.dockwidget.layers_obj.lines_handler.xml_lines if item["ULID"] == ulid),
+                        None,
+                    )
                     if line_data and len(line_data["Points"]) == 2:
                         p1_uidp, p2_uidp = line_data["Points"]
                         p1_on_boundary = p1_uidp in parcel_boundary_uidps_set
@@ -1768,8 +1587,7 @@ class xml_ua:
         if not points_to_literate_set:
             return
 
-        final_points_to_literate = [
-            uidp for uidp in parcel_boundary_uidps if uidp in points_to_literate_set]
+        final_points_to_literate = [uidp for uidp in parcel_boundary_uidps if uidp in points_to_literate_set]
 
         if not final_points_to_literate:
             return
@@ -1784,6 +1602,7 @@ class xml_ua:
                 else:
                     yield alphabet[(count // n) - 1] + alphabet[count % n]
                 count += 1
+
         letter_generator = generate_letters()
 
         layer_name = "Вузли суміжників"
@@ -1802,13 +1621,11 @@ class xml_ua:
 
         for uidp in final_points_to_literate:
             if uidp in qgis_points:
-                point_data = next(
-                    (p for p in points_handler.xmlPoints if p["UIDP"] == uidp), None)
+                point_data = next((p for p in points_handler.xmlPoints if p["UIDP"] == uidp), None)
                 if point_data:
                     feature = QgsFeature(fields)
                     qgs_point = qgis_points[uidp]
-                    feature.setGeometry(QgsGeometry.fromPointXY(
-                        QgsPointXY(qgs_point.y(), qgs_point.x())))
+                    feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(qgs_point.y(), qgs_point.x())))
                     litera = next(letter_generator)
                     feature.setAttributes([point_data.get("PN", ""), litera])
                     features_to_add.append(feature)
@@ -1817,14 +1634,13 @@ class xml_ua:
         if features_to_add:
             provider.addFeatures(features_to_add)
 
-        style_path = os.path.join(os.path.dirname(
-            __file__), "templates", "points_plan.qml")
+        style_path = os.path.join(os.path.dirname(__file__), "templates", "points_plan.qml")
         if os.path.exists(style_path):
             layer.loadNamedStyle(style_path)
             labeling = layer.labeling()
             if labeling:
                 settings = labeling.settings()
-                settings.fieldName = 'LITERA'
+                settings.fieldName = "LITERA"
                 labeling.setSettings(settings)
                 layer.setLabeling(labeling)
         QgsProject.instance().addMapLayer(layer, False)
@@ -1833,8 +1649,7 @@ class xml_ua:
     def on_create_document(self, doc_type, template_name):
         """Обробник для генерації документів."""
         if not self.dockwidget:
-            QMessageBox.warning(self.iface.mainWindow(),
-                                "Помилка", "Док-віджет не ініціалізовано.")
+            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Док-віджет не ініціалізовано.")
             return
 
         doc_generator = DocumentGenerator(self.dockwidget)
@@ -1917,40 +1732,42 @@ class xml_ua:
                 # if LOG:
                 #     log_calls(logFile, f"[SIGNAL] connect layer signals: '{layer.name()}' ({layer.id()})")
 
-                layer.featureAdded.connect(
-                    lambda fid, l=layer: self.on_feature_added(l, fid))
-                layer.featureDeleted.connect(
-                    lambda fid, l=layer: self.on_feature_removed(l, fid))
+                layer.featureAdded.connect(lambda fid, _layer=layer: self.on_feature_added(_layer, fid))
+                layer.featureDeleted.connect(lambda fid, _layer=layer: self.on_feature_removed(_layer, fid))
                 layer.committedFeaturesRemoved.connect(
-                    lambda l, fids: self.on_committed_features_removed(l, fids))
+                    lambda _layer, fids: self.on_committed_features_removed(_layer, fids))
                 layer.committedFeaturesAdded.connect(
-                    lambda l, feats: self.on_committed_features_added(l, feats))
+                    lambda _layer, feats: self.on_committed_features_added(_layer, feats))
                 layer.committedAttributeValuesChanges.connect(
-                    lambda l, changed: self.on_committed_attribute_values_changed(l, changed))
+                    lambda _layer, changed: self.on_committed_attribute_values_changed(_layer, changed)
+                )
                 layer.geometryChanged.connect(
-                    lambda fid, geom, l=layer: self.on_geometry_changed(l, fid, geom))
+                    lambda fid, geom, _layer=layer: self.on_geometry_changed(_layer, fid, geom))
                 layer.selectionChanged.connect(
-                    lambda selected, deselected, clear_and_select, l=layer:
-                    self.on_layer_selection_changed(l, selected, deselected, clear_and_select))
+                    lambda selected, deselected, clear_and_select, _layer=layer: self.on_layer_selection_changed(
+                        _layer, selected, deselected, clear_and_select
+                    )
+                )
 
                 if self.dockwidget:
                     try:
-
-                        layer.editingStarted.connect(lambda l=layer: log_calls(logFile, f"Користувач ввімкнув режим редагування шару: '{l.name()}'"))  # noqa
                         layer.editingStarted.connect(
-                            lambda l=layer: self.dockwidget.on_layer_editing_started(l))
+                            lambda _layer=layer: log_calls(
+                                logFile, f"Користувач ввімкнув режим редагування шару: '{_layer.name()}'"
+                            )
+                        )  # noqa
+                        layer.editingStarted.connect(
+                            lambda _layer=layer: self.dockwidget.on_layer_editing_started(_layer))
                         layer.editingStopped.connect(
-                            lambda l=layer: self.dockwidget.on_layer_editing_stopped(l))
+                            lambda _layer=layer: self.dockwidget.on_layer_editing_stopped(_layer))
                     except Exception as e:
-                        log_calls(
-                            logFile, f"Помилка при підключенні editingStopped для шару '{layer.name()}': {e}")
+                        log_calls(logFile, f"Помилка при підключенні editingStopped для шару '{layer.name()}': {e}")
 
     def restore_from_copy(self):
         """Відновлює активний XML-файл з його резервної копії."""
 
         if not self.dockwidget or not self.dockwidget.current_xml:
-            QMessageBox.warning(self.iface.mainWindow(
-            ), "Помилка", "Немає активного файлу для відновлення.")
+            QMessageBox.warning(self.iface.mainWindow(), "Помилка", "Немає активного файлу для відновлення.")
             return
 
         active_xml = self.dockwidget.current_xml
@@ -1958,37 +1775,40 @@ class xml_ua:
         backup_path = active_xml.backup_path
 
         if not backup_path or not os.path.exists(backup_path):
-            QMessageBox.warning(self.iface.mainWindow(
-            ), "Помилка", f"Резервну копію не знайдено за шляхом:\n{backup_path}")
+            QMessageBox.warning(
+                self.iface.mainWindow(), "Помилка", f"Резервну копію не знайдено за шляхом:\n{backup_path}"
+            )
             return
 
         if not backup_path or not os.path.exists(backup_path):
-            QMessageBox.warning(self.iface.mainWindow(
-            ), "Помилка", f"Резервну копію не знайдено за шляхом:\n{backup_path}")
+            QMessageBox.warning(
+                self.iface.mainWindow(), "Помилка", f"Резервну копію не знайдено за шляхом:\n{backup_path}"
+            )
             return
 
-        reply = QMessageBox.question(self.iface.mainWindow(), "Підтвердження відновлення",
-                                     f"Ви впевнені, що хочете відновити файл\n'{os.path.basename(original_path)}'\nз його резервної копії? Усі незбережені зміни буде втрачено.",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self.iface.mainWindow(),
+            "Підтвердження відновлення",
+            (f"Ви впевнені, що хочете відновити файл\n'{os.path.basename(original_path)}'\n"
+                "з його резервної копії? Усі незбережені зміни буде втрачено."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
 
         if reply == QMessageBox.StandardButton.No:
-
             return
 
         try:
-
-            self.dockwidget.process_action_close_xml(
-                active_xml, force_close=True)
+            self.dockwidget.process_action_close_xml(active_xml, force_close=True)
 
             shutil.copy2(backup_path, original_path)
 
             self.dockwidget.open_xml_file(original_path)
-            self.iface.messageBar().pushMessage("Диск:",
-                                                f"Файл '{os.path.basename(original_path)}' успішно відновлено.", level=Qgis.Success, duration=5)
+            self.iface.messageBar().pushMessage(
+                "Диск:", f"Файл '{os.path.basename(original_path)}' успішно відновлено.", level=Qgis.Success, duration=5
+            )
         except Exception as e:
-
-            QMessageBox.critical(self.iface.mainWindow(
-            ), "Помилка відновлення", f"Сталася помилка: {e}")
+            QMessageBox.critical(self.iface.mainWindow(), "Помилка відновлення", f"Сталася помилка: {e}")
 
     def on_new_tool(self):
         """Обробник для створення нового XML-файлу."""
@@ -2010,23 +1830,17 @@ class xml_ua:
             if not xml_data.shapes:
                 result.append("  (немає відстежуваних об'єктів)")
             else:
-
-                layer_order = [
-                    "Суміжники", "Обмеження", "Суборенда", "Оренда", "Угіддя", "Ділянка"
-                ]
+                layer_order = ["Суміжники", "Обмеження", "Суборенда", "Оренда", "Угіддя", "Ділянка"]
 
                 def get_sort_key(shape):
                     layer = QgsProject.instance().mapLayer(shape.layer_id)
                     layer_name = layer.name() if layer else ""
 
-                    order_index = layer_order.index(
-                        layer_name) if layer_name in layer_order else len(layer_order)
+                    order_index = layer_order.index(layer_name) if layer_name in layer_order else len(layer_order)
 
                     try:
-
                         sort_id = int(shape.object_id)
                     except (ValueError, TypeError):
-
                         sort_id = 0
                     return (order_index, layer_name, sort_id)
 
@@ -2034,14 +1848,10 @@ class xml_ua:
 
                 for shape in sorted_shapes:
                     layer = QgsProject.instance().mapLayer(shape.layer_id)
-                    layer_name = layer.name(
-                    ) if layer else f"UnknownLID({shape.layer_id})"
+                    layer_name = layer.name() if layer else f"UnknownLID({shape.layer_id})"
 
                     delete_str = " { - }" if shape.delete else ""
 
-                    result.append(
-                        f"  {layer_name}: OID:{shape.object_id}, "
-                        f"'{shape.object_shape}'{delete_str}"
-                    )
+                    result.append(f"  {layer_name}: OID:{shape.object_id}, '{shape.object_shape}'{delete_str}")
 
         return "\n".join(result) + "\n"

@@ -1,5 +1,3 @@
-
-
 """
 /***************************************************************************
  xml_uaDockWidget
@@ -22,8 +20,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-
-
 import copy
 import os
 import re
@@ -31,6 +27,7 @@ import shutil
 from datetime import datetime
 
 from lxml import etree
+import qgis
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -43,6 +40,7 @@ from qgis.core import (
     QgsTask,
     QgsVectorLayer,
     QgsWkbTypes,
+    QgsLineString
 )
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import (
@@ -115,22 +113,20 @@ class BackupTask(QgsTask):
 
         iface = self.dockwidget.iface if self.dockwidget else qgis.utils.iface
         if result:
-
-            iface.messageBar().pushMessage("Інфо",
-                                           f"Створено резервну копію: {os.path.basename(self.dest_path)}", level=Qgis.Info, duration=3)
+            iface.messageBar().pushMessage(
+                "Інфо", f"Створено резервну копію: {os.path.basename(self.dest_path)}", level=Qgis.Info, duration=3
+            )
         else:
             if self.exception:
-                log_calls(
-                    logFile, f"Не вдалося створити резервну копію для {self.source_path}: {self.exception}")
-                QMessageBox.warning(iface.mainWindow(
-                ), "Помилка", f"Не вдалося створити резервну копію файлу: {self.exception}")
+                log_calls(logFile, f"Не вдалося створити резервну копію для {self.source_path}: {self.exception}")
+                QMessageBox.warning(
+                    iface.mainWindow(), "Помилка", f"Не вдалося створити резервну копію файлу: {self.exception}"
+                )
             else:
-                log_calls(
-                    logFile, f"Створення резервної копії скасовано: {self.source_path}")
+                log_calls(logFile, f"Створення резервної копії скасовано: {self.source_path}")
 
 
-FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'xml_ua_dockwidget_base.ui'))
+FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), "xml_ua_dockwidget_base.ui"))
 
 
 class xml_uaDockWidget(QDockWidget, FORM_CLASS):
@@ -142,12 +138,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         updated_any = False
         total_updated = 0
-        for xml_data in self.opened_xmls:
-            tree = getattr(xml_data, 'tree', None)
+        for opened_xml in self.opened_xmls:
+            tree = getattr(opened_xml, "tree", None)
             if tree is None:
                 continue
             parcels = tree.findall(
-                ".//CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/ParcelInfo/LandsParcel/LandParcelInfo"
+                ".//CadastralZoneInfo/CadastralQuarters/CadastralQuarterInfo/Parcels/"
+                "ParcelInfo/LandsParcel/LandParcelInfo"
             )
             if not parcels:
                 continue
@@ -156,29 +153,30 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 if cadastral_code_elem is not None:
                     cadastral_code_elem.text = str(idx)
                 else:
-                    cadastral_code_elem = etree.SubElement(
-                        land_parcel, "CadastralCode")
+                    cadastral_code_elem = etree.SubElement(land_parcel, "CadastralCode")
                     cadastral_code_elem.text = str(idx)
 
-            xml_data.changed = True
+            opened_xml.changed = True
 
-            tree_view = getattr(xml_data, 'tree_view', None)
+            tree_view = getattr(opened_xml, "tree_view", None)
             if tree_view:
                 tree_view.rebuild_tree_view()
 
-            self.save_specific_xml(xml_data)
+            self.save_specific_xml(opened_xml)
             updated_any = True
             total_updated += len(parcels)
         if updated_any:
             self.iface.messageBar().pushMessage(
                 "Кадастрові коди",
-                f"Коди для {total_updated} ділянок у всіх відкритих XML перенумеровано, збережено та оновлено у віджеті.",
+                (f"Коди для {total_updated} ділянок у всіх відкритих XML перенумеровано, "
+                 "збережено та оновлено у віджеті."),
                 level=Qgis.Success,
-                duration=5
+                duration=5,
             )
         else:
             QMessageBox.information(
-                self, "Інформація", "Не знайдено жодного елемента LandParcelInfo для перенумерації у відкритих XML.")
+                self, "Інформація", "Не знайдено жодного елемента LandParcelInfo для перенумерації у відкритих XML."
+            )
 
     closingPlugin = pyqtSignal()
 
@@ -206,12 +204,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.current_xml = None
         self._suppress_layer_to_xml_sync = False
         self._suppress_close_on_layer_remove = False
-        connector.connect(self.tabWidget, "currentChanged",
-                          self.on_tab_changed)
+        connector.connect(self.tabWidget, "currentChanged", self.on_tab_changed)
 
         self.connect_layer_tree_signals()
-        connector.connect(QgsProject.instance(),
-                          "layerWillBeRemoved", self.on_layer_will_be_removed)
+        connector.connect(QgsProject.instance(), "layerWillBeRemoved", self.on_layer_will_be_removed)
 
         self.save_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton)
         self.tab_save_buttons = {}
@@ -222,18 +218,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             "Обмеження": ".//ParcelInfo/Restrictions",
             "Суборенда": ".//ParcelInfo/Subleases",
             "Оренда": ".//ParcelInfo/Leases",
-            "Угіддя": ".//ParcelInfo/LandsParcel"
+            "Угіддя": ".//ParcelInfo/LandsParcel",
         }
         self.XML_INFO_TAG_TO_LAYER_NAME = {
             "AdjacentUnitInfo": "Суміжники",
             "RestrictionInfo": "Обмеження",
             "SubleaseInfo": "Суборенда",
             "LeaseInfo": "Оренда",
-            "LandParcelInfo": "Угіддя"
+            "LandParcelInfo": "Угіддя",
         }
-        self.PROTECTED_LAYERS = [
-            "Ділянка", "Кадастровий квартал", "Кадастрова зона", "Полілінії", "Вузли"
-        ]
+        self.PROTECTED_LAYERS = ["Ділянка", "Кадастровий квартал", "Кадастрова зона", "Полілінії", "Вузли"]
 
     def _signal_log(self, message: str):
         """Умовне логування обробників сигналів редагування."""
@@ -294,19 +288,15 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
     def connect_layer_tree_signals(self):
         """Підключає сигнали від дерева шарів до слотів цього віджета."""
 
-        connector.connect(self.iface.layerTreeView(),
-                          "doubleClicked", self.double_clicked)
+        connector.connect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
         connector.connect(self.iface.layerTreeView(), "clicked", self.clicked)
 
     def disconnect_layer_tree_signals(self):
         """Відключає сигнали від дерева шарів."""
         log_calls(logFile, "Відключення сигналів дерева шарів.")
-        connector.disconnect(self.iface.layerTreeView(),
-                             "doubleClicked", self.double_clicked)
-        connector.disconnect(QgsProject.instance(
-        ), "layerWillBeRemoved", self.on_layer_will_be_removed)
-        connector.disconnect(self.iface.layerTreeView(),
-                             "clicked", self.clicked)
+        connector.disconnect(self.iface.layerTreeView(), "doubleClicked", self.double_clicked)
+        connector.disconnect(QgsProject.instance(), "layerWillBeRemoved", self.on_layer_will_be_removed)
+        connector.disconnect(self.iface.layerTreeView(), "clicked", self.clicked)
 
     def load_data(self, xml_path, tree=None):
 
@@ -331,9 +321,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if timer is None:
             timer = QTimer(tree_view)
             timer.setSingleShot(True)
-            timer.timeout.connect(
-                lambda view=tree_view: self._validate_tree_silently(view)
-            )
+            timer.timeout.connect(lambda view=tree_view: self._validate_tree_silently(view))
             tree_view._validation_timer = timer
         timer.start(300)
 
@@ -375,9 +363,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     tree_view.xml_tree,
                     lands_layer=getattr(lands_handler, "layer", None),
                 )
-                tree_view.mark_land_coverage_errors(
-                    land_result["land_errors"], land_result["block_errors"]
-                )
+                tree_view.mark_land_coverage_errors(land_result["land_errors"], land_result["block_errors"])
             tree_view.apply_proximity_errors()
         except Exception as e:
             log_calls(logFile, f"Automatic XML validation failed: {e}")
@@ -436,14 +422,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         current_tab_widget = self.tabWidget.currentWidget()
         if not self.current_xml or not current_tab_widget:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для перевірки.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для перевірки.")
             return
 
         tree_view = current_tab_widget.findChild(CustomTreeView)
         if not tree_view:
-            QMessageBox.warning(
-                self, "Помилка", "Не знайдено дерево XML для перевірки.")
+            QMessageBox.warning(self, "Помилка", "Не знайдено дерево XML для перевірки.")
             return
 
         # log_calls(
@@ -481,11 +465,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             set_progress(10)
 
-            local_errors = tree_view._validate_and_color_tree(
-                generate_report=True
-            )
+            local_errors = tree_view._validate_and_color_tree(generate_report=True)
             set_progress(45)
-
 
             xsd_tree = None
             try:
@@ -532,32 +513,28 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 lands_layer=getattr(lands_handler, "layer", None),
             )
             land_errors = land_result["errors"]
-            tree_view.mark_land_coverage_errors(
-                land_result["land_errors"], land_result["block_errors"]
-            )
+            tree_view.mark_land_coverage_errors(land_result["land_errors"], land_result["block_errors"])
             errors_list = xsd_errors + local_errors + adjacent_errors + land_errors
 
             if errors_list:
-                report_path = os.path.join(os.path.dirname(
-                    self.current_xml.path), f"Check_{os.path.basename(self.current_xml.path)}.txt")
+                report_path = os.path.join(
+                    os.path.dirname(self.current_xml.path), f"Check_{os.path.basename(self.current_xml.path)}.txt"
+                )
                 try:
-                    with open(report_path, 'w', encoding='utf-8') as f:
-                        f.write(
-                            f"Звіт про помилки для файлу: {self.current_xml.path}\n")
-                        f.write("="*50 + "\n")
+                    with open(report_path, "w", encoding="utf-8") as f:
+                        f.write(f"Звіт про помилки для файлу: {self.current_xml.path}\n")
+                        f.write("=" * 50 + "\n")
                         for i, error in enumerate(errors_list, 1):
                             f.write(f"{i}. {error}\n")
                 except Exception as e:
-                    log_calls(
-                        logFile, f"Не вдалося зберегти звіт про помилки: {e}")
-                    QMessageBox.critical(
-                        self, "Помилка", f"Не вдалося зберегти звіт про помилки: {e}")
+                    log_calls(logFile, f"Не вдалося зберегти звіт про помилки: {e}")
+                    QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти звіт про помилки: {e}")
             else:
                 self.iface.messageBar().pushMessage(
                     "xml_ua:",
                     f"Перевірку файлу '{os.path.basename(self.current_xml.path)}' завершено. Помилок не знайдено.",
                     level=Qgis.Success,
-                    duration=5
+                    duration=5,
                 )
                 log_calls(logFile, "Валідацію завершено. Помилок не знайдено.")
 
@@ -577,20 +554,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         current_tab_widget = self.tabWidget.currentWidget()
         if not self.current_xml or not current_tab_widget:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для впорядкування.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для впорядкування.")
             return
 
         tree_view = current_tab_widget.findChild(CustomTreeView)
         if not tree_view:
-            QMessageBox.warning(
-                self, "Помилка", "Не знайдено дерево XML для впорядкування.")
+            QMessageBox.warning(self, "Помилка", "Не знайдено дерево XML для впорядкування.")
             return
 
         message_bar = self.iface.messageBar()
-        progress_message = message_bar.createMessage(
-            "XML-UA", "Впорядкування за XSD..."
-        )
+        progress_message = message_bar.createMessage("XML-UA", "Впорядкування за XSD...")
         progress_bar = QProgressBar()
         progress_bar.setRange(0, 100)
         progress_bar.setValue(0)
@@ -630,9 +603,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 reloaded_tree = etree.parse(self.current_xml.path)
                 self.current_xml.tree = reloaded_tree
                 tree_view.load_xml_to_tree_view(
-                    xml_path=self.current_xml.path,
-                    path_to_xsd=xsd_path,
-                    tree=reloaded_tree
+                    xml_path=self.current_xml.path, path_to_xsd=xsd_path, tree=reloaded_tree
                 )
                 tree_view.setColumnWidth(0, 300)
                 QTimer.singleShot(0, tree_view.expand_initial_elements)
@@ -644,24 +615,20 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     "XML-UA",
                     f"Порядок елементів у '{self.current_xml.group_name}' впорядковано за XSD, збережено та оновлено.",
                     level=Qgis.Success,
-                    duration=5
+                    duration=5,
                 )
             else:
                 set_progress(100)
                 simulated_timer.stop()
                 message_bar.popWidget(progress_message)
                 self.iface.messageBar().pushMessage(
-                    "XML-UA",
-                    "Порядок елементів вже відповідає XSD.",
-                    level=Qgis.Info,
-                    duration=4
+                    "XML-UA", "Порядок елементів вже відповідає XSD.", level=Qgis.Info, duration=4
                 )
         except Exception as e:
             simulated_timer.stop()
             message_bar.popWidget(progress_message)
             log_calls(logFile, f"Помилка впорядкування за XSD: {e}")
-            QMessageBox.critical(
-                self, "Помилка", f"Не вдалося впорядкувати структуру за XSD:\n{e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося впорядкувати структуру за XSD:\n{e}")
 
     def process_action_open(self):
         """
@@ -680,8 +647,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             None
         """
 
-        xml_path, _ = QFileDialog.getOpenFileName(
-            self, "Відкрити XML файл", "", "XML файли (*.xml)")
+        xml_path, _ = QFileDialog.getOpenFileName(self, "Відкрити XML файл", "", "XML файли (*.xml)")
 
         if not xml_path:
             QMessageBox.warning(self, "Помилка", "Файл не вибрано.")
@@ -697,23 +663,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         original_path = xml_path
 
         if match:
-
             base_name = match.group(1)
             old_timestamp_str = match.group(2)
 
-            if old_timestamp_str == now.strftime('%Y.%m.%d.%H.%M'):
-
-                new_timestamp = now.strftime('%Y.%m.%d.%H.%M.%S')
+            if old_timestamp_str == now.strftime("%Y.%m.%d.%H.%M"):
+                new_timestamp = now.strftime("%Y.%m.%d.%H.%M.%S")
             else:
-                new_timestamp = now.strftime('%Y.%m.%d.%H.%M')
-            backup_path = os.path.join(
-                dir_name, f"{base_name}_{new_timestamp}{ext}")
+                new_timestamp = now.strftime("%Y.%m.%d.%H.%M")
+            backup_path = os.path.join(dir_name, f"{base_name}_{new_timestamp}{ext}")
             original_path = os.path.join(dir_name, f"{base_name}{ext}")
         else:
-
-            new_timestamp = now.strftime('%Y.%m.%d.%H.%M')
-            backup_path = os.path.join(
-                dir_name, f"{file_basename}_{new_timestamp}{ext}")
+            new_timestamp = now.strftime("%Y.%m.%d.%H.%M")
+            backup_path = os.path.join(dir_name, f"{file_basename}_{new_timestamp}{ext}")
             original_path = xml_path
 
         task_description = f"Створення резервної копії для {os.path.basename(xml_path)}"
@@ -730,11 +691,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         datetime.now().strftime("%H:%M:%S")
 
         if backup_path is None:
-
             pass
 
-        new_xml_data = xml_data(
-            path=xml_path, tree=None, group_name="", backup_path=backup_path)  # type: ignore
+        new_xml_data = xml_data(path=xml_path, tree=None, group_name="", backup_path=backup_path)  # type: ignore
         new_xml_data.original_path = original_path
         self.current_xml = new_xml_data
 
@@ -815,17 +774,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 backup_hint = ""
                 if self.current_xml.backup_path:
-                    backup_hint = f"\n\nАрхівна копія (резервна) буде збережена як: {os.path.basename(self.current_xml.backup_path)}"
+                    backup_hint = ("\n\nАрхівна копія (резервна) буде збережена як: "
+                                   f"{os.path.basename(self.current_xml.backup_path)}")
 
                 report_hint = f"\n\nЗвіт: {os.path.basename(report_path)}" if report_path else ""
 
                 bullets = []
                 if result.comma_hits_count:
-                    bullets.append(f"1) Десяткова кома у числових полях: {result.comma_hits_count} (виправлено в дереві).")
+                    bullets.append(
+                        f"1) Десяткова кома у числових полях: {result.comma_hits_count} (виправлено в дереві)."
+                    )
                 if result.parcel_area_fixed:
                     bullets.append("2) Площа ділянки в XML не відповідала геометрії (виправлено в дереві).")
                 if result.lands_fixed:
-                    bullets.append(f"3) Площі угідь не відповідали геометрії (виправлено: {result.lands_fixed}/{result.lands_checked}).")
+                    bullets.append(
+                        f"3) Площі угідь не відповідали геометрії (виправлено: "
+                        f"{result.lands_fixed}/{result.lands_checked})."
+                    )
                 if result.balance_diff_q4_ha is not None and result.balance_diff_q4_ha != Decimal("0.0000"):
                     bullets.append("4) Юридичний баланс площ не сходиться (деталі у звіті).")
 
@@ -873,17 +838,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         except Exception as e:
             log_calls(logFile, f"Помилка перевірки площ/ком при відкритті XML: {e}")
 
-        removed_object_ids = self._remove_object_id_attributes_from_tree(
-            self.current_xml.tree
-        )
+        removed_object_ids = self._remove_object_id_attributes_from_tree(self.current_xml.tree)
         was_object_ids_cleaned = removed_object_ids > 0
         if was_object_ids_cleaned:
             self.load_data(xml_path, tree=self.current_xml.tree)
 
         was_reordered = False
-        parcel_info_element = self.current_xml.tree.find('.//ParcelInfo')
+        parcel_info_element = self.current_xml.tree.find(".//ParcelInfo")
         if parcel_info_element is not None:
             from .common import sort_children_in_parcel_info
+
             was_reordered = sort_children_in_parcel_info(parcel_info_element)
             if was_reordered:
                 # log_calls(
@@ -891,18 +855,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 self.mark_as_changed()
 
-
-
         was_renumbered = False
         try:
-            from .numbering_report import (
-                build_geometry_numbering_report,
-                snapshot_geometry_numbering,
-                write_numbering_report,
-            )
             from .topology import GeometryProcessor
 
-            before_numbering = snapshot_geometry_numbering(self.current_xml.tree)
             processor = GeometryProcessor(self.current_xml.tree)
             was_renumbered = processor.cleanup_and_renumber_geometry()
             if was_renumbered:
@@ -926,12 +882,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             counts = {}
             for pn in pn_values:
                 counts[pn] = counts.get(pn, 0) + 1
-            duplicate_pn = [pn for pn, c in counts.items() if c > 1]
 
             # PN diagnostics are displayed by live tree validation.
         except Exception as e:
             log_calls(logFile, f"{e}")
-            pass
 
         try:
             from .proximity_checks import (
@@ -939,7 +893,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             )
 
             result = run_proximity_checks(
-                xml_tree=self.current_xml.tree, threshold_m=0.3,
+                xml_tree=self.current_xml.tree,
+                threshold_m=0.3,
             )
             proximity_uidps = {hit.uidp for hit in result.close_hits}
             proximity_uidps.update(hit.uidp for hit in result.near_line_hits)
@@ -953,8 +908,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self._suppress_layer_to_xml_sync = True
         try:
             self.layers_obj = xmlUaLayers(
-                xml_path, new_xml_data.tree, plugin=self.plugin,
-                xml_data=new_xml_data, context="open")
+                xml_path, new_xml_data.tree, plugin=self.plugin, xml_data=new_xml_data, context="open"
+            )
         finally:
             self._suppress_layer_to_xml_sync = previous_layer_sync_suppression
         self.current_xml = new_xml_data
@@ -966,7 +921,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.tabWidget.setTabToolTip(index, xml_path)
 
         if not self.isVisible():
-
             self.tabWidget.setCurrentIndex(-1)
 
         self.setup_custom_tab_buttons()
@@ -976,12 +930,24 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.current_xml.was_ever_changed = True
 
         self.update_tab_save_button_state(
-            index, is_enabled=(was_object_ids_cleaned or was_reordered or was_renumbered or was_decimal_normalized or was_areas_fixed))
+            index,
+            is_enabled=(
+                was_object_ids_cleaned or was_reordered or was_renumbered or was_decimal_normalized or was_areas_fixed
+            ),
+        )
         self.opened_xmls.append(self.current_xml)
 
         self.update_all_actions_state(is_file_open=True)  # type: ignore
         self.update_changed_actions_state(
-            is_changed=(was_object_ids_cleaned or was_reordered or was_renumbered or was_decimal_normalized or was_areas_fixed or area_changed_on_open))
+            is_changed=(
+                was_object_ids_cleaned
+                or was_reordered
+                or was_renumbered
+                or was_decimal_normalized
+                or was_areas_fixed
+                or area_changed_on_open
+            )
+        )
 
         tree_view.setColumnWidth(0, 300)
 
@@ -994,6 +960,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         try:
             from .validators import compute_parcel_area
+
             tree = self.current_xml.tree
 
             area_m2 = compute_parcel_area(tree)
@@ -1008,6 +975,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 for size_elem in area_elements:
                     try:
                         from .common import parse_float
+
                         xml_area_ha = parse_float(size_elem.text, default=None)
                         if xml_area_ha is None:
                             show_dialog = True
@@ -1019,26 +987,19 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         show_dialog = True  # Показуємо, якщо значення площі некоректне
 
             message_lines = []
-            message_lines.append(
-                f"Площа обчислена за координатами вузлів: {area_str} га")
+            message_lines.append(f"Площа обчислена за координатами вузлів: {area_str} га")
 
-            exchange_coords_elem = tree.find(
-                ".//ParcelMetricInfo/Area/DeterminationMethod/ExhangeFileCoordinates")
+            exchange_coords_elem = tree.find(".//ParcelMetricInfo/Area/DeterminationMethod/ExhangeFileCoordinates")
             if exchange_coords_elem is not None:
                 size = tree.findtext(".//ParcelMetricInfo/Area/Size", "N/A")
-                unit = tree.findtext(
-                    ".//ParcelMetricInfo/Area/MeasurementUnit", "")
-                message_lines.append(
-                    f"За координатами обмінного файлу: {size} {unit}".strip())
+                unit = tree.findtext(".//ParcelMetricInfo/Area/MeasurementUnit", "")
+                message_lines.append(f"За координатами обмінного файлу: {size} {unit}".strip())
 
-            doc_exch_elem = tree.find(
-                ".//ParcelMetricInfo/Area/DeterminationMethod/DocExch")
+            doc_exch_elem = tree.find(".//ParcelMetricInfo/Area/DeterminationMethod/DocExch")
             if doc_exch_elem is not None:
                 size = tree.findtext(".//ParcelMetricInfo/Area/Size", "N/A")
-                unit = tree.findtext(
-                    ".//ParcelMetricInfo/Area/MeasurementUnit", "")
-                message_lines.append(
-                    f"Згідно із правовстановлювальним документом: {size} {unit}".strip())
+                unit = tree.findtext(".//ParcelMetricInfo/Area/MeasurementUnit", "")
+                message_lines.append(f"Згідно із правовстановлювальним документом: {size} {unit}".strip())
 
             polylines = {}
             for pl in tree.findall(".//MetricInfo/Polyline/PL"):
@@ -1072,8 +1033,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                                 ordered_uidp.append(candidate)
                                 break
 
-            nodes_text = ", ".join(
-                ordered_uidp) if ordered_uidp else "не знайдено."
+            nodes_text = ", ".join(ordered_uidp) if ordered_uidp else "не знайдено."
             message_lines.append(f"Номери вузлів: {nodes_text}")
 
             title = f"Площа ділянки: {os.path.basename(self.current_xml.path)}"
@@ -1081,8 +1041,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if show_dialog:
                 QMessageBox.information(self, title, full_message)
         except Exception as e:
-            log_calls(
-                logFile, f"Помилка під час показу інформації про площу ділянки: {e}")
+            log_calls(logFile, f"Помилка під час показу інформації про площу ділянки: {e}")
 
     def log_opened_xmls(self):
         """
@@ -1092,8 +1051,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         pass
 
     def process_action_new(self, xml_path, tree):
-        """
-        """
+        """ """
 
         log_calls(logFile)
 
@@ -1123,8 +1081,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self._suppress_layer_to_xml_sync = True
         try:
             self.layers_obj = xmlUaLayers(
-                xml_path, new_xml_data.tree, plugin=self.plugin,
-                xml_data=new_xml_data, context="new")
+                xml_path, new_xml_data.tree, plugin=self.plugin, xml_data=new_xml_data, context="new"
+            )
         finally:
             self._suppress_layer_to_xml_sync = previous_layer_sync_suppression
         self.current_xml = new_xml_data
@@ -1148,12 +1106,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         tree_view.setColumnWidth(0, 300)
 
         QTimer.singleShot(0, tree_view.expand_initial_elements)
-        QTimer.singleShot(
-            0, lambda view=tree_view: self._run_proximity_check_for_tree(view)
-        )
+        QTimer.singleShot(0, lambda view=tree_view: self._run_proximity_check_for_tree(view))
 
-        log_calls(
-            logFile, f"Стан shapes після створення нового файлу:\n{self.plugin.shapes_state_string()}")
+        log_calls(logFile, f"Стан shapes після створення нового файлу:\n{self.plugin.shapes_state_string()}")
 
         layers_root = QgsProject.instance().layerTreeRoot()
         group = layers_root.findGroup(self.current_xml.group_name)
@@ -1162,8 +1117,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             group_index = tree_view.node2index(group)
             if group_index.isValid():
                 tree_view.setCurrentIndex(group_index)
-                log_calls(
-                    logFile, f"Новостворену групу '{self.current_xml.group_name}' виділено.")
+                log_calls(logFile, f"Новостворену групу '{self.current_xml.group_name}' виділено.")
 
         return
 
@@ -1176,7 +1130,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
     def update_window_title(self, file_name=""):
         """
-        Оновлює заголовок віджета, враховуючи доступну ширину та 
+        Оновлює заголовок віджета, враховуючи доступну ширину та
         обрізаючи назву файлу, якщо потрібно.
         """
         self.setWindowTitle("xml_ua")
@@ -1196,7 +1150,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         for i in range(self.tabWidget.count()):
             if self.tabWidget.tabText(i) == group_name:
-
                 self.update_tab_save_button_state(i, is_enabled=is_changed)
                 return True
 
@@ -1234,52 +1187,53 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             processor = GeometryProcessor(xml_to_save.tree)
             if processor.cleanup_and_renumber_geometry():
-                log_calls(
-                    logFile, "Перед збереженням було виправлено нумерацію геометрії.")
+                log_calls(logFile, "Перед збереженням було виправлено нумерацію геометрії.")
                 xml_to_save.changed = True  # Позначаємо, що були зміни
-                self.update_tab_style_by_group_name(
-                    xml_to_save.group_name, is_changed=True)
+                self.update_tab_style_by_group_name(xml_to_save.group_name, is_changed=True)
                 self.update_changed_actions_state(is_changed=True)
                 QMessageBox.information(
-                    self, "Автоматичне виправлення",
-                    "Порушення нумерації геометрії було виправлено перед збереженням."
+                    self, "Автоматичне виправлення", "Порушення нумерації геометрії було виправлено перед збереженням."
                 )
         except Exception as e:
-            log_calls(
-                logFile, f"Помилка під час перенумерації перед збереженням: {e}")
+            log_calls(logFile, f"Помилка під час перенумерації перед збереженням: {e}")
 
-        self.sync_parcel_area_size(
-            xml_to_save,
-            trigger="збереження XML",
-            notify=True
-        )
+        self.sync_parcel_area_size(xml_to_save, trigger="збереження XML", notify=True)
 
         reply = QMessageBox.StandardButton.Yes
         if xml_to_save.changed:
             reply = QMessageBox.question(
-                self, 'Підтвердження збереження', f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+                self,
+                "Підтвердження збереження",
+                f"Зберегти зміни для групи '{xml_to_save.group_name}' у файл:\n\n{xml_to_save.path}?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
 
         if reply == QMessageBox.StandardButton.Yes:
-
-            xml_to_save.tree_view.save_xml_tree(
-                xml_to_save.tree, xml_to_save.path)
-            log_calls(
-                logFile, f"Файл, що редагується, збережено: {xml_to_save.path}")
+            xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.path)
+            log_calls(logFile, f"Файл, що редагується, збережено: {xml_to_save.path}")
 
             if xml_to_save.original_path and xml_to_save.original_path != xml_to_save.path:
-                xml_to_save.tree_view.save_xml_tree(
-                    xml_to_save.tree, xml_to_save.original_path)
-                log_calls(
-                    logFile, f"Оригінальний файл оновлено: {xml_to_save.original_path}")
-                self.iface.messageBar().pushMessage("Диск:",
-                                                    f"Файли '{os.path.basename(xml_to_save.original_path)}' та '{os.path.basename(xml_to_save.path)}' збережено.", level=Qgis.Success, duration=5)
+                xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.original_path)
+                log_calls(logFile, f"Оригінальний файл оновлено: {xml_to_save.original_path}")
+                self.iface.messageBar().pushMessage(
+                    "Диск:",
+                    (f"Файли '{os.path.basename(xml_to_save.original_path)}' "
+                     f"та '{os.path.basename(xml_to_save.path)}' збережено."),
+                    level=Qgis.Success,
+                    duration=5,
+                )
             else:
                 self.iface.messageBar().pushMessage(
-                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
+                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5
+                )
 
             xml_to_save.changed = False
 
-            if self.update_tab_style_by_group_name(xml_to_save.group_name, is_changed=False) and xml_to_save == self.current_xml:
+            if (
+                self.update_tab_style_by_group_name(xml_to_save.group_name, is_changed=False)
+                and xml_to_save == self.current_xml
+            ):
                 self.update_changed_actions_state(is_changed=False)
             self.update_window_title(xml_to_save.path)
 
@@ -1296,8 +1250,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         xml_to_save = self.current_xml
         if not xml_to_save:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного файлу для створення шаблону.")
+            QMessageBox.warning(self, "Помилка", "Немає активного файлу для створення шаблону.")
             return
 
         prompt_text = (
@@ -1305,38 +1258,34 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             "Наприклад, назва <Рада>_<зона>_<орендар> дозволить у майбутньому легко знайти збережений шаблон\n"
             "у списку і створити новий обмінний файл без повторного заповнення атрибутів."
         )
-        template_name, ok = QInputDialog.getText(
-            self, "Зберегти як шаблон", prompt_text)
+        template_name, ok = QInputDialog.getText(self, "Зберегти як шаблон", prompt_text)
 
         if not ok or not template_name.strip():
             log_calls(logFile, "Створення шаблону скасовано користувачем.")
             return
 
-        tree_string = etree.tostring(
-            xml_to_save.tree.getroot(), encoding='utf-8', xml_declaration=True)
+        tree_string = etree.tostring(xml_to_save.tree.getroot(), encoding="utf-8", xml_declaration=True)
         template_tree = etree.ElementTree(etree.fromstring(tree_string))
 
         self._create_template_from_tree(template_tree)
 
-        templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
+        templates_dir = os.path.join(os.path.dirname(__file__), "templates")
         if not os.path.exists(templates_dir):
             os.makedirs(templates_dir)
 
-        template_path = os.path.join(
-            templates_dir, f"{template_name.strip()}.xml")
+        template_path = os.path.join(templates_dir, f"{template_name.strip()}.xml")
 
         try:
-            template_tree.write(
-                template_path, encoding="utf-8", xml_declaration=True)
-            self.iface.messageBar().pushMessage("Диск:",
-                                                f"Шаблон '{template_name}' успішно збережено.", level=Qgis.Success, duration=5)
+            template_tree.write(template_path, encoding="utf-8", xml_declaration=True)
+            self.iface.messageBar().pushMessage(
+                "Диск:", f"Шаблон '{template_name}' успішно збережено.", level=Qgis.Success, duration=5
+            )
             log_calls(logFile, f"Шаблон збережено: {template_path}")
 
             self.plugin.reload_map_canvas_context()
         except Exception as e:
             log_calls(logFile, f"Помилка при збереженні шаблону: {e}")
-            QMessageBox.critical(
-                self, "Помилка", f"Не вдалося зберегти шаблон: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти шаблон: {e}")
 
     def _create_template_from_tree(self, tree):
         """Обнуляє геометрію в XML-дереві, залишаючи атрибути."""
@@ -1357,7 +1306,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             ".//ParcelInfo/Leases",
             ".//ParcelInfo/Subleases",
             ".//ParcelInfo/Restrictions",
-            ".//ParcelInfo/AdjacentUnits"
+            ".//ParcelInfo/AdjacentUnits",
         ]
         for path in paths_to_remove:
             for element_to_remove in root.xpath(path):
@@ -1373,20 +1322,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(logFile, "")
         count = self.tabWidget.count()
         if count == 0:
-            QMessageBox.warning(
-                self, "Помилка", "Немає відкритих XML-файлів для збереження.")
+            QMessageBox.warning(self, "Помилка", "Немає відкритих XML-файлів для збереження.")
             return None
 
         if count > 1:
             tab_names = [self.tabWidget.tabText(i) for i in range(count)]
             current_tab_index = self.tabWidget.currentIndex()
 
-            tab_to_save, ok = QInputDialog.getItem(self, title,
-                                                   "Виберіть вкладку, яку потрібно зберегти:",
-                                                   tab_names, current_tab_index, False)
+            tab_to_save, ok = QInputDialog.getItem(
+                self, title, "Виберіть вкладку, яку потрібно зберегти:", tab_names, current_tab_index, False
+            )
             if not ok or not tab_to_save:
-                log_calls(
-                    logFile, "Збереження скасовано користувачем (вибір вкладки).")
+                log_calls(logFile, "Збереження скасовано користувачем (вибір вкладки).")
                 return None
 
             for i in range(count):
@@ -1417,22 +1364,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 try:
                     processor = GeometryProcessor(xml_to_close.tree)
                     if processor.cleanup_and_renumber_geometry():
-                        log_calls(
-                            logFile, "Перед закриттям було виправлено нумерацію геометрії.")
+                        log_calls(logFile, "Перед закриттям було виправлено нумерацію геометрії.")
                         xml_to_close.changed = True
-                        self.update_tab_style_by_group_name(
-                            xml_to_close.group_name, is_changed=True)
+                        self.update_tab_style_by_group_name(xml_to_close.group_name, is_changed=True)
                         QMessageBox.information(
-                            self, "Автоматичне виправлення",
-                            "Порушення нумерації геометрії було виправлено.\n\n"
-                            "Рекомендується зберегти файл."
+                            self,
+                            "Автоматичне виправлення",
+                            "Порушення нумерації геометрії було виправлено.\n\nРекомендується зберегти файл.",
                         )
                 except Exception as e:
-                    log_calls(
-                        logFile, f"Помилка під час перенумерації перед закриттям: {e}")
-                reply = QMessageBox.question(self, 'Підтвердження закриття',
-                                             f"Файл для групи '{xml_to_close.group_name}' має незбережені зміни. \n\nЗакрити без збереження?",
-                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+                    log_calls(logFile, f"Помилка під час перенумерації перед закриттям: {e}")
+                reply = QMessageBox.question(
+                    self,
+                    "Підтвердження закриття",
+                    f"Файл для групи '{xml_to_close.group_name}' має незбережені зміни. \n\nЗакрити без збереження?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
                 if reply == QMessageBox.StandardButton.No:
                     self._is_closing = False
                     return
@@ -1442,12 +1390,19 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     if xml_to_close.backup_path and os.path.exists(xml_to_close.backup_path):
                         os.remove(xml_to_close.backup_path)
                         #  log_calls(
-                        #     logFile, f"Резервну копію '{xml_to_close.backup_path}' видалено, оскільки файл не було змінено.")
-                        self.iface.messageBar().pushMessage("Інфо",
-                                                            f"Резервну копію для '{os.path.basename(xml_to_close.path)}' видалено.", level=Qgis.Info, duration=3)
+                        #     logFile, f"Резервну копію '{xml_to_close.backup_path}' видалено, файл не змінено.")
+                        self.iface.messageBar().pushMessage(
+                            "Інфо",
+                            f"Резервну копію для '{os.path.basename(xml_to_close.path)}' видалено.",
+                            level=Qgis.Info,
+                            duration=3,
+                        )
                 except (OSError, TypeError) as e:
                     log_calls(
-                        logFile, f"Не вдалося видалити резервну копію '{xml_to_close.backup_path if xml_to_close.backup_path else 'None'}': {e}")
+                        logFile,
+                        ("Не вдалося видалити резервну копію "
+                         f"'{xml_to_close.backup_path if xml_to_close.backup_path else 'None'}': {e}"),
+                    )
 
             tab_index_to_remove = -1
             for i in range(self.tabWidget.count()):
@@ -1468,8 +1423,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         child_node.layer().rollBack()
 
             if not group_already_removed:
-                group_to_remove = layers_root.findGroup(
-                    xml_to_close.group_name)
+                group_to_remove = layers_root.findGroup(xml_to_close.group_name)
                 if group_to_remove:
                     layers_root.removeChildNode(group_to_remove)
                     # log_calls(
@@ -1528,8 +1482,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.close()
 
     def showEvent(self, event):
-        """ 
-            Відновлення вкладок при відкритті вікна 
+        """
+        Відновлення вкладок при відкритті вікна
 
         """
 
@@ -1559,9 +1513,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         tab_bar = self.tabWidget.tabBar()
 
         for i in range(self.tabWidget.count()):
-            
             if tab_bar.tabButton(i, QTabBar.ButtonPosition.RightSide) is None:
-
                 buttons_widget = QWidget()
                 buttons_layout = QHBoxLayout(buttons_widget)
 
@@ -1605,11 +1557,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 tab_page = self.tabWidget.widget(i)
                 save_button.clicked.connect(
-                    lambda _, page=tab_page: self.on_custom_tab_save_button_clicked(
-                        self.tabWidget.indexOf(page)))
-                close_button.clicked.connect(
-                    lambda _, page=tab_page: self.close_tab(
-                        self.tabWidget.indexOf(page)))
+                    lambda _, page=tab_page: self.on_custom_tab_save_button_clicked(self.tabWidget.indexOf(page))
+                )
+                close_button.clicked.connect(lambda _, page=tab_page: self.close_tab(self.tabWidget.indexOf(page)))
 
                 buttons_layout.addWidget(save_button)
                 buttons_layout.addWidget(close_button)
@@ -1632,7 +1582,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if getattr(self, "_suppress_close_on_layer_remove", False):
             return
 
-
         layer = QgsProject.instance().mapLayer(layer_id)
         if not layer:
             log_calls(logFile, f"Шар з ID '{str(layer_id)}' не знайдено.")
@@ -1643,47 +1592,46 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         xml_data = self.find_xml_data_for_layer(layer)
 
         if not xml_data:
-
             return
 
         group_name_from_layer = layer.customProperty("xml_group_name")
 
         if not group_name_from_layer:
             log_calls(
-                logFile, f"Шар '{layer_name}' не має властивості 'xml_group_name'. Пропускаємо перевірку видалення групи.")
+                logFile,
+                f"Шар '{layer_name}' не має властивості 'xml_group_name'. Пропускаємо перевірку видалення групи.",
+            )
 
             if layer_name in self.PROTECTED_LAYERS:
-                log_calls(
-                    logFile, f"Шар '{layer_name}' є захищеним і не має 'xml_group_name'.")
+                log_calls(logFile, f"Шар '{layer_name}' є захищеним і не має 'xml_group_name'.")
             return
 
         log_calls(
-            logFile, f"Батьківська група для шару '{layer_name}' (з властивості): '{group_name_from_layer}'. Очікувана група: '{xml_data.group_name}'.")
+            logFile,
+            (f"Батьківська група для шару '{layer_name}' (з властивості): "
+             f"'{group_name_from_layer}'. Очікувана група: '{xml_data.group_name}'."),
+        )
 
         if group_name_from_layer == xml_data.group_name:
             root = QgsProject.instance().layerTreeRoot()
             parent_group = root.findGroup(group_name_from_layer)
             if not parent_group:
                 log_calls(
-                    logFile, f"Групу '{group_name_from_layer}' вже видалено з дерева. Припускаємо, що це видалення групи.")
-                self.process_action_close_xml(
-                    xml_data, group_already_removed=True)
+                    logFile,
+                    f"Групу '{group_name_from_layer}' вже видалено з дерева. Припускаємо, що це видалення групи.",
+                )
+                self.process_action_close_xml(xml_data, group_already_removed=True)
                 return
 
             children_count = len(parent_group.children())
-            log_calls(
-                logFile, f"Кількість дочірніх елементів у групі: {children_count}.")
+            log_calls(logFile, f"Кількість дочірніх елементів у групі: {children_count}.")
             if children_count == 1:
-                log_calls(
-                    logFile, f"Видаляється останній шар ('{layer_name}') з групи '{parent_group.name()}'.")
-                log_calls(
-                    logFile, f"Виклик process_action_close_xml для групи '{xml_data.group_name}'.")
-                self.process_action_close_xml(
-                    xml_data, group_already_removed=True)
+                log_calls(logFile, f"Видаляється останній шар ('{layer_name}') з групи '{parent_group.name()}'.")
+                log_calls(logFile, f"Виклик process_action_close_xml для групи '{xml_data.group_name}'.")
+                self.process_action_close_xml(xml_data, group_already_removed=True)
                 return  # Виходимо, щоб не обробляти видалення окремих елементів
 
-        log_calls(
-            logFile, f"Шар '{layer_name}' видаляється, але XML-дані НЕ будуть змінені.")
+        log_calls(logFile, f"Шар '{layer_name}' видаляється, але XML-дані НЕ будуть змінені.")
 
     def delete_xml_section_from_layer_tree(self, xml_tag_to_delete: str, group_name: str):
         """
@@ -1700,16 +1648,15 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     layer_name = qgis_layer_name
                     break
             if not layer_name:
-                log_calls(
-                    logFile, f"Не знайдено відповідний шар QGIS для XML-тегу контейнера '{xml_tag_to_delete}'.")
+                log_calls(logFile, f"Не знайдено відповідний шар QGIS для XML-тегу контейнера '{xml_tag_to_delete}'.")
                 QMessageBox.warning(
-                    self, "Помилка видалення", f"Не знайдено відповідний шар QGIS для '{xml_tag_to_delete}'.")
+                    self, "Помилка видалення", f"Не знайдено відповідний шар QGIS для '{xml_tag_to_delete}'."
+                )
                 return
         else:
             layer_name = layer.name()
 
-        log_calls(
-            logFile, f"Запит на видалення розділу XML для шару: '{layer_name}'.")
+        log_calls(logFile, f"Запит на видалення розділу XML для шару: '{layer_name}'.")
 
         xml_data = None
         for data in self.opened_xmls:
@@ -1717,21 +1664,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 xml_data = data
                 break
         if not xml_data:
-            log_calls(
-                logFile, f"Не знайдено відповідний xml_data для групи '{group_name}'.")
-            QMessageBox.warning(self, "Помилка видалення",
-                                "Не вдалося знайти відповідний XML-файл.")
+            log_calls(logFile, f"Не знайдено відповідний xml_data для групи '{group_name}'.")
+            QMessageBox.warning(self, "Помилка видалення", "Не вдалося знайти відповідний XML-файл.")
             return
 
-        reply = QMessageBox.question(self, "Підтвердження видалення",
-                                     f"Ви впевнені, що хочете видалити ВЕСЬ розділ '{layer_name}' з XML-файлу '{os.path.basename(xml_data.path)}' та відповідний шар?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self,
+            "Підтвердження видалення",
+            (f"Ви впевнені, що хочете видалити ВЕСЬ розділ '{layer_name}' з "
+             f"XML-файлу '{os.path.basename(xml_data.path)}' та відповідний шар?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
         if reply == QMessageBox.StandardButton.No:
             log_calls(logFile, "Видалення розділу XML скасовано користувачем.")
             return
 
-        xml_container_xpath = self.LAYER_NAME_TO_XML_CONTAINER_PATH.get(
-            layer_name)
+        xml_container_xpath = self.LAYER_NAME_TO_XML_CONTAINER_PATH.get(layer_name)
 
         root_element = xml_data.tree.getroot()
 
@@ -1742,8 +1691,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             parent_element = element_to_delete.getparent()
             if parent_element is not None:
                 parent_element.remove(element_to_delete)
-                log_calls(
-                    logFile, f"Розділ '{element_to_delete.tag}' видалено з XML-дерева.")
+                log_calls(logFile, f"Розділ '{element_to_delete.tag}' видалено з XML-дерева.")
                 xml_data.tree_view.mark_as_changed()
 
                 xml_data.tree_view.rebuild_tree_view()
@@ -1760,26 +1708,22 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                             break
                 if qgis_layer_to_remove:
                     QgsProject.instance().removeMapLayer(layer_id_to_remove)
-                    log_calls(
-                        logFile, f"Шар '{layer_name}' видалено з проекту.")
+                    log_calls(logFile, f"Шар '{layer_name}' видалено з проекту.")
 
                 from .topology import GeometryProcessor
+
                 processor = GeometryProcessor(xml_data.tree)
                 # processor.cleanup_geometry([element_to_delete])
                 processor.cleanup_and_renumber_geometry()
-                log_calls(
-                    logFile, f"Виконано очищення геометрії після видалення розділу '{layer_name}'.")
+                log_calls(logFile, f"Виконано очищення геометрії після видалення розділу '{layer_name}'.")
 
                 if layer_id_to_remove:
-                    xml_data.shapes = [
-                        si for si in xml_data.shapes if si.layer_id != layer_id_to_remove]
+                    xml_data.shapes = [si for si in xml_data.shapes if si.layer_id != layer_id_to_remove]
 
-                log_calls(
-                    logFile, f"Видалено ShapeInfo об'єкти для шару '{layer_name}'.")
+                log_calls(logFile, f"Видалено ShapeInfo об'єкти для шару '{layer_name}'.")
 
         else:
-            log_calls(
-                logFile, f"Розділ за шляхом '{xml_container_path}' не знайдено в XML для видалення.")
+            log_calls(logFile, f"Розділ за шляхом '{xml_tag_to_delete}' не знайдено в XML для видалення.")
 
     def delete_qgis_feature_from_xml_element(self, xml_element_to_delete, layer_name):
         """
@@ -1787,11 +1731,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         коли XML-елемент (наприклад, AdjacentUnitInfo) видаляється з дерева XML.
         """
         if self.current_xml is None:
-            log_calls(
-                logFile, "Немає активного XML-файлу. Неможливо видалити об'єкт QGIS.")
+            log_calls(logFile, "Немає активного XML-файлу. Неможливо видалити об'єкт QGIS.")
             return
 
-        item_tag = xml_element_to_delete.tag
         feature_to_delete_object_id = xml_element_to_delete.get("object_id")
 
         if not feature_to_delete_object_id:
@@ -1800,7 +1742,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         log_calls(
-            logFile, f"Запит на видалення об'єкта з object_id='{feature_to_delete_object_id}' з шару '{layer_name}'.")
+            logFile, f"Запит на видалення об'єкта з object_id='{feature_to_delete_object_id}' з шару '{layer_name}'."
+        )
 
         qgis_layer = None
         group = QgsProject.instance().layerTreeRoot().findGroup(self.current_xml.group_name)
@@ -1841,7 +1784,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             if "object_id" not in qgis_layer.fields().names():
                 log_calls(
-                    logFile, f"ПОМИЛКА: Шар '{layer_name}' не має поля 'object_id'. Неможливо синхронізувати видалення.")
+                    logFile, f"ПОМИЛКА: Шар '{layer_name}' не має поля 'object_id'. Неможливо синхронізувати видалення."
+                )
                 if started_editing and qgis_layer.isEditable():
                     qgis_layer.rollBack()
                 return
@@ -1879,22 +1823,28 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 finally:
                     self._suppress_layer_to_xml_sync = prev_suppress
                 log_calls(
-                    logFile, f"Об'єкт з object_id='{feature_to_delete_object_id}' видалено з шару '{layer_name}'.")
+                    logFile, f"Об'єкт з object_id='{feature_to_delete_object_id}' видалено з шару '{layer_name}'."
+                )
 
                 target_oid_text = str(feature_to_delete_object_id).strip()
-                self.current_xml.shapes = [si for si in self.current_xml.shapes if not (
-                    si.layer_id == qgis_layer.id() and (
-                        str(si.object_id).strip() == target_oid_text
-                        or (target_shape and str(si.object_shape).strip() == str(target_shape).strip())
-                    ))]
-                log_calls(
-                    logFile, f"Видалено ShapeInfo об'єкт для object_id='{feature_to_delete_object_id}'.")
+                self.current_xml.shapes = [
+                    si
+                    for si in self.current_xml.shapes
+                    if not (
+                        si.layer_id == qgis_layer.id()
+                        and (
+                            str(si.object_id).strip() == target_oid_text
+                            or (target_shape and str(si.object_shape).strip() == str(target_shape).strip())
+                        )
+                    )
+                ]
+                log_calls(logFile, f"Видалено ShapeInfo об'єкт для object_id='{feature_to_delete_object_id}'.")
             else:
                 log_calls(
-                    logFile, f"Не знайдено об'єкта з object_id='{feature_to_delete_object_id}' у шарі '{layer_name}'.")
+                    logFile, f"Не знайдено об'єкта з object_id='{feature_to_delete_object_id}' у шарі '{layer_name}'."
+                )
         else:
-            log_calls(
-                logFile, f"Шар '{layer_name}' не знайдено в проекті QGIS для видалення об'єкта.")
+            log_calls(logFile, f"Шар '{layer_name}' не знайдено в проекті QGIS для видалення об'єкта.")
 
     def on_tab_changed(self, index):
         """Синхронізує активну вкладку з деревом шарів."""
@@ -1933,8 +1883,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.plugin.action_check_tool.setEnabled(is_file_open)
             self.plugin.action_sort_by_xsd_tool.setEnabled(is_file_open)
             self.plugin.action_clear_data.setEnabled(is_file_open)
-            self.plugin.action_create_document.setEnabled(
-                is_file_open)  # Оновлюємо стан кнопки "Документ"
+            self.plugin.action_create_document.setEnabled(is_file_open)  # Оновлюємо стан кнопки "Документ"
             if not is_file_open:
                 self.update_changed_actions_state(False)
 
@@ -1945,8 +1894,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         for index in range(self.tabWidget.count()):
             container = tab_bar.tabButton(index, QTabBar.ButtonPosition.RightSide)
             buttons = container.findChildren(QPushButton) if container else []
-            buttons = [button for button in buttons
-                       if button.property("xmlUaSaveButton") is True]
+            buttons = [button for button in buttons if button.property("xmlUaSaveButton") is True]
             if buttons:
                 remapped[index] = buttons[0]
         self.tab_save_buttons = remapped
@@ -1980,13 +1928,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         item = self.iface.layerTreeView().index2node(index)
 
         if item is None:
-            log_calls(logFile, f"item is None")
+            log_calls(logFile, "item is None")
             return
 
         if isinstance(item, QgsLayerTreeGroup):
             layers_obj_name = item.name()
-            log_calls(
-                logFile, f"layers_obj_name = {layers_obj_name}")
+            log_calls(logFile, f"layers_obj_name = {layers_obj_name}")
 
     def clicked(self, index):
         """
@@ -2021,21 +1968,19 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         item = self.iface.layerTreeView().index2node(index)
 
         if item is None:
-            log_calls(logFile, f"item is None")
+            log_calls(logFile, "item is None")
             return
 
         if isinstance(item, QgsLayerTreeGroup):
             self.process_group_click(item.name())
 
         if isinstance(item, QgsLayerTreeLayer):
-
             group = self.find_parent_group(item)  # type: ignore
             if group:
                 group_name = group.name()
 
                 self.process_group_click(group_name)
             else:
-
                 pass
 
     def find_parent_group(self, item: QgsLayerTreeLayer) -> QgsLayerTreeGroup:
@@ -2080,18 +2025,24 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         if hasattr(self, "opened_xmls") and self.opened_xmls:
             # 1. Пошук за group_name
-            for xml_data in self.opened_xmls:
-                if xml_data and getattr(xml_data, "group_name", None) == tab_name:
-                    return xml_data
+            for opened_xml in self.opened_xmls:
+                if opened_xml and getattr(opened_xml, "group_name", None) == tab_name:
+                    return opened_xml
 
             # 2. Пошук за path або original_path з tooltip
             if tab_tooltip:
-                for xml_data in self.opened_xmls:
-                    if xml_data and (getattr(xml_data, "path", None) == tab_tooltip or getattr(xml_data, "original_path", None) == tab_tooltip):
-                        return xml_data
+                for opened_xml in self.opened_xmls:
+                    if opened_xml and (
+                        getattr(opened_xml, "path", None) == tab_tooltip
+                        or getattr(opened_xml, "original_path", None) == tab_tooltip
+                    ):
+                        return opened_xml
 
             # 3. Fallback: якщо current_xml відповідає цій вкладці
-            if self.current_xml and (getattr(self.current_xml, "group_name", None) == tab_name or (tab_tooltip and getattr(self.current_xml, "path", None) == tab_tooltip)):
+            if self.current_xml and (
+                getattr(self.current_xml, "group_name", None) == tab_name
+                or (tab_tooltip and getattr(self.current_xml, "path", None) == tab_tooltip)
+            ):
                 return self.current_xml
 
             # 4. Fallback за індексом, якщо список синхронізований
@@ -2131,28 +2082,24 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             "CadastralQuarterInfo",
             "CadastralQuarterNumber",
             "ParcelInfo",
-            "ParcelMetricInfo"
+            "ParcelMetricInfo",
         ]
         try:
-
             tree = etree.parse(xml_path)
             root = tree.getroot()
 
             if root is None:
-                log_calls(
-                    logFile, "Error: No root element found in the XML file.")
+                log_calls(logFile, "Error: No root element found in the XML file.")
                 return False
 
             if root.tag != "UkrainianCadastralExchangeFile":
-                log_calls(
-                    logFile, f"Error: Root element is '{root.tag}', expected 'UkrainianCadastralExchangeFile'.")
+                log_calls(logFile, f"Error: Root element is '{root.tag}', expected 'UkrainianCadastralExchangeFile'.")
                 return False
 
             for element_name in mandatory_elements:
                 element = root.find(".//" + element_name)
                 if element is None:
-                    log_calls(
-                        logFile, f"Error: Mandatory element '{element_name}' is missing.")
+                    log_calls(logFile, f"Error: Mandatory element '{element_name}' is missing.")
                     return False
         except Exception as e:
             log_calls(logFile, f"Error during XML structure validation: {e}")
@@ -2166,36 +2113,32 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         try:
-            removed_object_ids = self._remove_object_id_attributes_from_tree(
-                xml_to_save.tree
-            )
+            removed_object_ids = self._remove_object_id_attributes_from_tree(xml_to_save.tree)
             if removed_object_ids > 0 and xml_to_save.tree_view:
                 xml_to_save.tree_view.load_xml_to_tree_view(
-                    xml_path=xml_to_save.path,
-                    path_to_xsd=xsd_path,
-                    tree=xml_to_save.tree
+                    xml_path=xml_to_save.path, path_to_xsd=xsd_path, tree=xml_to_save.tree
                 )
                 xml_to_save.tree_view.setColumnWidth(0, 300)
                 QTimer.singleShot(0, xml_to_save.tree_view.expand_initial_elements)
 
-            self.sync_parcel_area_size(
-                xml_to_save,
-                trigger="збереження XML",
-                notify=True
-            )
+            self.sync_parcel_area_size(xml_to_save, trigger="збереження XML", notify=True)
 
-            xml_to_save.tree_view.save_xml_tree(
-                xml_to_save.tree, xml_to_save.path)
+            xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.path)
 
             if xml_to_save.original_path and xml_to_save.original_path != xml_to_save.path:
-                xml_to_save.tree_view.save_xml_tree(
-                    xml_to_save.tree, xml_to_save.original_path)
+                xml_to_save.tree_view.save_xml_tree(xml_to_save.tree, xml_to_save.original_path)
 
-                self.iface.messageBar().pushMessage("Диск:",
-                                                    f"Файли '{os.path.basename(xml_to_save.original_path)}' та '{os.path.basename(xml_to_save.path)}' збережено.", level=Qgis.Success, duration=5)
+                self.iface.messageBar().pushMessage(
+                    "Диск:",
+                    (f"Файли '{os.path.basename(xml_to_save.original_path)}' "
+                     f"та '{os.path.basename(xml_to_save.path)}' збережено."),
+                    level=Qgis.Success,
+                    duration=5,
+                )
             else:
                 self.iface.messageBar().pushMessage(
-                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5)
+                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5
+                )
 
             try:
                 self.recreate_layers_for_xml_data(xml_to_save)
@@ -2206,8 +2149,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             # after this technical refresh has finished.
             xml_to_save.changed = False
             tab_index = next(
-                (i for i in range(self.tabWidget.count())
-                 if self.get_xml_data_for_tab_index(i) is xml_to_save),
+                (i for i in range(self.tabWidget.count()) if self.get_xml_data_for_tab_index(i) is xml_to_save),
                 -1,
             )
             if tab_index >= 0:
@@ -2216,10 +2158,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.update_changed_actions_state(is_changed=False)
             self.update_window_title(xml_to_save.path)
         except Exception as e:
-            log_calls(
-                logFile, f"Помилка при збереженні файлу '{xml_to_save.path}': {e}")
-            QMessageBox.critical(self, "Помилка збереження",
-                                 f"Не вдалося зберегти файл:\n{e}")
+            log_calls(logFile, f"Помилка при збереженні файлу '{xml_to_save.path}': {e}")
+            QMessageBox.critical(self, "Помилка збереження", f"Не вдалося зберегти файл:\n{e}")
 
     def process_group_click(self, group_name):
         """
@@ -2262,7 +2202,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 for i in range(self.tabWidget.count()):
                     tab_text = self.tabWidget.tabText(i)
                     tab_tooltip = self.tabWidget.tabToolTip(i)
-                    
+
                     # Безпечне порівняння без прямого виклику xml_data.path
                     if tab_text == xml_group_name or (xml_path and tab_tooltip == xml_path):
                         if self.tabWidget.currentIndex() != i:
@@ -2500,34 +2440,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         Оновлює XML-дерево, коли геометрія точки змінюється в QGIS.
         """
-        log_calls(
-            logFile, f"Оновлення XML для шару: {layer.name()}, ID фічі: {feature_id}")
+        log_calls(logFile, f"Оновлення XML для шару: {layer.name()}, ID фічі: {feature_id}")
 
         xml_data = self.find_xml_data_for_layer(layer)
         if not xml_data:
-            log_calls(
-                logFile, f"Не знайдено відповідний XML для шару '{layer.name()}'.")
+            log_calls(logFile, f"Не знайдено відповідний XML для шару '{layer.name()}'.")
             return
 
         self.ensure_visible_for_xml_data(xml_data)
 
         if layer.name() != "Вузли":
-            log_calls(
-                logFile, f"Шар '{layer.name()}' не є шаром пікетів. Оновлення геометрії ігнорується.")
+            log_calls(logFile, f"Шар '{layer.name()}' не є шаром пікетів. Оновлення геометрії ігнорується.")
             return
 
         feature = layer.getFeature(feature_id)
         if not feature:
-            log_calls(
-                logFile, f"Фіча з ID {feature_id} не знайдена в шарі {layer.name()}.")
+            log_calls(logFile, f"Фіча з ID {feature_id} не знайдена в шарі {layer.name()}.")
             return
         new_geometry = feature.geometry()
         point_geom = new_geometry.asPoint()
         uidp = feature.attribute("UIDP")
 
         if not uidp:
-            log_calls(
-                logFile, f"Фіча з ID {feature_id} не має атрибута 'UIDP'.")
+            log_calls(logFile, f"Фіча з ID {feature_id} не має атрибута 'UIDP'.")
             return
 
         tree = xml_data.tree
@@ -2539,8 +2474,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         point_element.find("X").text = f"{point_geom.y():.3f}"
         point_element.find("Y").text = f"{point_geom.x():.3f}"
-        log_calls(
-            logFile, f"Оновлено координати для точки UIDP='{uidp}' в XML.")
+        log_calls(logFile, f"Оновлено координати для точки UIDP='{uidp}' в XML.")
 
         self.recalculate_line_lengths(tree, uidp)
 
@@ -2555,11 +2489,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             log_calls(logFile, f"{e}")
             pass
 
-        if not hasattr(xml_data, 'temp_tree_state') or xml_data.temp_tree_state is None:
-
+        if not hasattr(xml_data, "temp_tree_state") or xml_data.temp_tree_state is None:
             self.iface.messageBar().pushMessage(
-                "Інформація", f"Вузол '{uidp}' було переміщено. Збережіть зміни, щоб оновити XML та шари.",
-                level=Qgis.Info, duration=5
+                "Інформація",
+                f"Вузол '{uidp}' було переміщено. Збережіть зміни, щоб оновити XML та шари.",
+                level=Qgis.Info,
+                duration=5,
             )
 
             original_tree = etree.parse(xml_data.path)
@@ -2601,8 +2536,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 return None
             try:
                 val = qgs_feature.attribute(field_name)
-                return None if val == None else val
-            except Exception:
+                return val
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 return None
 
         def _set_text(parent, tag, value, default_text=" "):
@@ -2640,7 +2576,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 pending_attr_updates[feature_id] = updates
 
         try:
-            self._signal_log(f"[SIGNAL] committedFeaturesAdded start: layer='{layer_name}', count={len(added_features)}")
+            self._signal_log(
+                f"[SIGNAL] committedFeaturesAdded start: layer='{layer_name}', count={len(added_features)}"
+            )
             changed = False
             processor = GeometryProcessor(xml_data.tree)
 
@@ -2662,13 +2600,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 if layer_name == "Угіддя":
                     if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
                         continue
-                    
+
                     externals, _, _, object_shape = processor.process_new_geometry(geometry)
                     if externals is None:
                         continue
 
                     # 2. ПЕРЕВІРКА: Перевірка на існування такого ж object_shape в XML
-                    if xml_data.tree.find(f".//LandParcelInfo[MetricInfo/Space/National/object_shape='{object_shape}']") is not None:
+                    if (
+                        xml_data.tree.find(
+                            f".//LandParcelInfo[MetricInfo/Space/National/object_shape='{object_shape}']"
+                        )
+                        is not None
+                    ):
                         continue
 
                     # 3. ПЕРЕВІРКА: Перевірка у локальному списку shapes
@@ -2677,7 +2620,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                     land_code = _safe_text(_try_attribute(feature, "LandCode"))
                     size_ha = float(_area_ha_text(geometry))
-                    
+
                     # Створення нового запису
                     object_id = processor.add_land_parcel_info(externals, land_code, size_ha, object_shape)
                     _append_shape_info(object_id, object_shape)
@@ -2703,8 +2646,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     lease_agreement = lease_info.find("LeaseAgreement")
                     if lease_agreement is not None:
                         _set_text(lease_agreement, "Area", _area_ha_text(geometry), default_text="0.0000")
-                        _set_text(lease_agreement, "RegistrationDate", _try_attribute(feature, "RegistrationDate"), default_text="1900-01-01")
-                        
+                        _set_text(
+                            lease_agreement,
+                            "RegistrationDate",
+                            _try_attribute(feature, "RegistrationDate"),
+                            default_text="1900-01-01",
+                        )
+
                         lease_term = lease_agreement.find("LeaseTerm")
                         if lease_term is None:
                             lease_term = etree.SubElement(lease_agreement, "LeaseTerm")
@@ -2742,7 +2690,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         updated = False
 
-
         if layer.name() == "Вузли":
             field_names = [f.name() for f in layer.fields()]
             point_fields = {"PN", "H", "MX", "MY", "MH", "Description"}
@@ -2777,7 +2724,6 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             xml_data.tree_view.update_view_from_tree()
             self.mark_xml_data_as_changed(xml_data)
         else:
-
             self.mark_xml_data_as_changed(xml_data)
 
     def add_lands(self):
@@ -2787,8 +2733,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(logFile, "Нове угіддя додається з виділеного полігону.")
 
         if not self.current_xml:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для додавання угідь.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання угідь.")
             return
 
         selected_features = []
@@ -2798,15 +2743,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 selected_features.extend(layer.selectedFeatures())
 
         if len(selected_features) != 1:
-            QMessageBox.warning(
-                self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
         feature = selected_features[0]
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
-            QMessageBox.warning(
-                self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
         tree = self.current_xml.tree
@@ -2822,12 +2765,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers_root = QgsProject.instance().layerTreeRoot()
         group = layers_root.findGroup(self.current_xml.group_name)
         if not group:
-            log_calls(
-                logFile, f"Група '{self.current_xml.group_name}' не знайдена.")
+            log_calls(logFile, f"Група '{self.current_xml.group_name}' не знайдена.")
             return
         else:
-            log_calls(
-                logFile, f"Група '{self.current_xml.group_name}' знайдена.")
+            log_calls(logFile, f"Група '{self.current_xml.group_name}' знайдена.")
 
         layer_name = "Угіддя"
         lands_layer = None
@@ -2837,18 +2778,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 break
 
         if lands_layer is None:
-            log_calls(
-                logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий шар.")
+            log_calls(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий шар.")
             lands_layer = QgsVectorLayer(
-                f"MultiPolygon?crs={self.iface.mapCanvas().mapSettings().destinationCrs().authid()}", layer_name, "memory")
-            lands_layer.loadNamedStyle(os.path.join(
-                os.path.dirname(__file__), "templates", "lands_parcel.qml"))
+                f"MultiPolygon?crs={self.iface.mapCanvas().mapSettings().destinationCrs().authid()}",
+                layer_name,
+                "memory",
+            )
+            lands_layer.loadNamedStyle(os.path.join(os.path.dirname(__file__), "templates", "lands_parcel.qml"))
             lands_layer.dataProvider()
             ensure_object_layer_fields(lands_layer)
             QgsProject.instance().addMapLayer(lands_layer, False)
             group.insertChildNode(0, QgsLayerTreeLayer(lands_layer))
-            log_calls(
-                logFile, f"Створено новий шар '{layer_name}' у групі '{group.name()}'.")
+            log_calls(logFile, f"Створено новий шар '{layer_name}' у групі '{group.name()}'.")
 
         new_feature = QgsFeature(lands_layer.fields())
         new_feature.setGeometry(geom)
@@ -2856,18 +2797,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         land_code_delegate = self.current_xml.tree_view.land_code_delegate
         land_code_items = land_code_delegate.items
 
-        land_code_selection, ok = QInputDialog.getItem(self, "Вибір коду угіддя",
-                                                       "Виберіть код угіддя:", land_code_items, 0, False)
+        land_code_selection, ok = QInputDialog.getItem(
+            self, "Вибір коду угіддя", "Виберіть код угіддя:", land_code_items, 0, False
+        )
 
         if not ok or not land_code_selection:
             log_calls(logFile, "Додавання угіддя скасовано користувачем.")
             return
 
-        land_code = land_code_delegate.reverse_land_codes.get(
-            land_code_selection)  # type: ignore
+        land_code = land_code_delegate.reverse_land_codes.get(land_code_selection)  # type: ignore
         if not land_code:
-            log_calls(
-                logFile, f"Не вдалося отримати код для '{land_code_selection}'.")
+            log_calls(logFile, f"Не вдалося отримати код для '{land_code_selection}'.")
             return
 
         size_ha = geom.area() / 10000.0
@@ -2876,26 +2816,23 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         for si in self.current_xml.shapes:
             if si.layer_id == lands_layer.id() and si.object_shape == object_shape:
                 QMessageBox.warning(
-                    self, "Помилка додавання", f"Угіддя з такою геометрією вже існує.\nShape: {object_shape}")
-                log_calls(
-                    logFile, f"Спроба додати дублікат угіддя з object_shape: {object_shape}")
+                    self, "Помилка додавання", f"Угіддя з такою геометрією вже існує.\nShape: {object_shape}"
+                )
+                log_calls(logFile, f"Спроба додати дублікат угіддя з object_shape: {object_shape}")
                 return
 
         root = tree.getroot()
         parcel_info_element = root.find(".//ParcelInfo")
         if parcel_info_element is None:
-            QMessageBox.critical(self, "Критична помилка",
-                                 "Не знайдено елемент ParcelInfo в XML.")
+            QMessageBox.critical(self, "Критична помилка", "Не знайдено елемент ParcelInfo в XML.")
             return
 
         lands_parcel_element = parcel_info_element.find("LandsParcel")
         if lands_parcel_element is None:
             log_calls(logFile, "Розділ 'LandsParcel' відсутній. Створюємо новий.")
-            lands_parcel_element = etree.SubElement(
-                parcel_info_element, "LandsParcel")
+            lands_parcel_element = etree.SubElement(parcel_info_element, "LandsParcel")
 
-        land_parcel_info = etree.SubElement(
-            lands_parcel_element, "LandParcelInfo")
+        land_parcel_info = etree.SubElement(lands_parcel_element, "LandParcelInfo")
 
         object_id = next_object_id_in_container(lands_parcel_element, "LandParcelInfo")
         land_parcel_info.set("object_id", object_id)
@@ -2917,8 +2854,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         shape_info = ShapeInfo(lands_layer.id(), object_id, object_shape)
         self.current_xml.shapes.append(shape_info)
-        log_calls(
-            logFile, f"Додано новий об'єкт до shapes: LID:{shape_info.layer_id}, OID:{shape_info.object_id}")
+        log_calls(logFile, f"Додано новий об'єкт до shapes: LID:{shape_info.layer_id}, OID:{shape_info.object_id}")
 
         self.current_xml.tree_view.rebuild_tree_view()
         self.mark_as_changed()
@@ -2927,14 +2863,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         processor = GeometryProcessor(self.current_xml.tree)
         if processor.cleanup_and_renumber_geometry():
-            log_calls(
-                logFile, "Геометрію було перенумеровано після додавання угіддя.")
+            log_calls(logFile, "Геометрію було перенумеровано після додавання угіддя.")
 
-        if not hasattr(self.current_xml, 'temp_tree_state') or self.current_xml.temp_tree_state is None:
-
+        if not hasattr(self.current_xml, "temp_tree_state") or self.current_xml.temp_tree_state is None:
             self.iface.messageBar().pushMessage(
-                "Інформація", f"Угіддя з кодом '{land_code}' було додано. Збережіть зміни, щоб оновити XML та шари.",
-                level=Qgis.Info, duration=25
+                "Інформація",
+                f"Угіддя з кодом '{land_code}' було додано. Збережіть зміни, щоб оновити XML та шари.",
+                level=Qgis.Info,
+                duration=25,
             )
 
             original_tree = etree.parse(self.current_xml.path)
@@ -2947,8 +2883,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(logFile, "Спроба додати оренду до активного XML.")
 
         if not self.current_xml:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для додавання оренди.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання оренди.")
             return
 
         selected_features = []
@@ -2958,35 +2893,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 selected_features.extend(layer.selectedFeatures())
 
         if len(selected_features) != 1:
-            QMessageBox.warning(
-                self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
         feature = selected_features[0]
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
-            QMessageBox.warning(
-                self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
         tree = self.current_xml.tree
         processor = GeometryProcessor(tree)
 
         try:
-
             processor.process_lease_geometry(geom)
-            log_calls(
-                logFile, "Геометрію для нової оренди оброблено та додано до XML.")
+            log_calls(logFile, "Геометрію для нової оренди оброблено та додано до XML.")
         except ValueError as e:
             QMessageBox.critical(self, "Критична помилка топології", str(e))
             return
 
-            log_calls(
-                logFile, "Геометрію для нової оренди оброблено та додано до XML.")
+            log_calls(logFile, "Геометрію для нової оренди оброблено та додано до XML.")
         except Exception as e:
             log_calls(logFile, f"Помилка при обробці геометрії оренди: {e}")
-            QMessageBox.critical(
-                self, "Помилка", f"Не вдалося додати оренду: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати оренду: {e}")
             return
 
         self.current_xml.tree_view.rebuild_tree_view()
@@ -2997,8 +2926,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         self.redraw_current_group()
 
-        log_calls(
-            logFile, f"Оренду додано до XML для групи '{self.current_xml.group_name}'.")
+        log_calls(logFile, f"Оренду додано до XML для групи '{self.current_xml.group_name}'.")
 
     def add_sublease(self):
         """
@@ -3007,8 +2935,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(logFile, "Спроба додати суборенду до активного XML.")
 
         if not self.current_xml:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для додавання суборенди.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання суборенди.")
             return
 
         selected_features = []
@@ -3018,35 +2945,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 selected_features.extend(layer.selectedFeatures())
 
         if len(selected_features) != 1:
-            QMessageBox.warning(
-                self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
         feature = selected_features[0]
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
-            QMessageBox.warning(
-                self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
         tree = self.current_xml.tree
         processor = GeometryProcessor(tree)
 
         try:
-
             processor.process_sublease_geometry(geom)
-            log_calls(
-                logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
+            log_calls(logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
         except ValueError as e:
             QMessageBox.critical(self, "Критична помилка топології", str(e))
             return
 
-            log_calls(
-                logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
+            log_calls(logFile, "Геометрію для нової суборенди оброблено та додано до XML.")
         except Exception as e:
             log_calls(logFile, f"Помилка при обробці геометрії суборенди: {e}")
-            QMessageBox.critical(
-                self, "Помилка", f"Не вдалося додати суборенду: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати суборенду: {e}")
             return
 
         self.current_xml.tree_view.rebuild_tree_view()
@@ -3057,8 +2978,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         self.redraw_current_group()
 
-        log_calls(
-            logFile, f"Суборенду додано до XML для групи '{self.current_xml.group_name}'.")
+        log_calls(logFile, f"Суборенду додано до XML для групи '{self.current_xml.group_name}'.")
 
     def add_restriction(self):
         """
@@ -3067,8 +2987,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(logFile, "Спроба додати обмеження до активного XML.")
 
         if not self.current_xml:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для додавання обмеження.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання обмеження.")
             return
 
         selected_features = []
@@ -3078,35 +2997,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 selected_features.extend(layer.selectedFeatures())
 
         if len(selected_features) != 1:
-            QMessageBox.warning(
-                self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
+            QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
         feature = selected_features[0]
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
-            QMessageBox.warning(
-                self, "Помилка", "Вибраний об'єкт не є полігоном.")
+            QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
         tree = self.current_xml.tree
         processor = GeometryProcessor(tree)
 
         try:
-
             processor.process_restriction_geometry(geom)
-            log_calls(
-                logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
+            log_calls(logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
         except ValueError as e:
             QMessageBox.critical(self, "Критична помилка топології", str(e))
             return
 
-            log_calls(
-                logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
+            log_calls(logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
         except Exception as e:
             log_calls(logFile, f"Помилка при обробці геометрії обмеження: {e}")
-            QMessageBox.critical(
-                self, "Помилка", f"Не вдалося додати обмеження: {e}")
+            QMessageBox.critical(self, "Помилка", f"Не вдалося додати обмеження: {e}")
             return
 
         self.current_xml.tree_view.rebuild_tree_view()
@@ -3115,28 +3028,32 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers_root = QgsProject.instance().layerTreeRoot()
         group = layers_root.findGroup(self.current_xml.group_name)
         if not group:
-            log_calls(
-                logFile, f"Група '{self.current_xml.group_name}' не знайдена для додавання шару обмежень.")
+            log_calls(logFile, f"Група '{self.current_xml.group_name}' не знайдена для додавання шару обмежень.")
             return
 
         layer_name = "Обмеження"
-        restrictions_layer = next((child.layer() for child in group.children(
-        ) if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name), None)
+        restrictions_layer = next(
+            (
+                child.layer()
+                for child in group.children()
+                if isinstance(child, QgsLayerTreeLayer) and child.name() == layer_name
+            ),
+            None,
+        )
 
         from .restrictions import Restrictions
+
         restrictions_handler = Restrictions(
             root=self.current_xml.tree.getroot(),
             crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
             group=group,
             plugin_dir=self.plugin.plugin_dir,  # type: ignore
-            lines_to_coords_func=lambda elem: self.layers_obj.linesToCoordinates(
-                elem),  # type: ignore
-            xml_ua_layers_instance=self.layers_obj
+            lines_to_coords_func=lambda elem: self.layers_obj.linesToCoordinates(elem),  # type: ignore
+            xml_ua_layers_instance=self.layers_obj,
         )
 
         if restrictions_layer is None:
-            log_calls(
-                logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий.")
+            log_calls(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий.")
             restrictions_layer = restrictions_handler.add_restrictions_layer()
             if not restrictions_layer:
                 log_calls(logFile, f"Не вдалося створити шар '{layer_name}'.")
@@ -3146,8 +3063,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             restrictions_handler.redraw_restrictions_layer(restrictions_layer)
 
-        log_calls(
-            logFile, f"Обмеження додано до XML для групи '{self.current_xml.group_name}'.")
+        log_calls(logFile, f"Обмеження додано до XML для групи '{self.current_xml.group_name}'.")
 
     def _get_parcel_ordered_points_for_adjacent(self, tree):
         """
@@ -3158,9 +3074,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         порядок вершин Ділянки.
         """
         processor = GeometryProcessor(tree)
-        boundary_lines = tree.find(
-            ".//ParcelMetricInfo/Externals/Boundary/Lines"
-        )
+        boundary_lines = tree.find(".//ParcelMetricInfo/Externals/Boundary/Lines")
         if boundary_lines is None:
             return []
 
@@ -3245,8 +3159,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         log_calls(logFile, "Додавання суміжника до активного XML.")
 
         if not self.current_xml:
-            QMessageBox.warning(
-                self, "Помилка", "Немає активного XML-файлу для додавання суміжника.")
+            QMessageBox.warning(self, "Помилка", "Немає активного XML-файлу для додавання суміжника.")
             return
 
         selected_features = []
@@ -3256,14 +3169,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 selected_features.extend(layer.selectedFeatures())
 
         if len(selected_features) != 1:
-
             return
 
         feature = selected_features[0]
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
-            QMessageBox.warning(
-                self, "Помилка додавання суміжника", "Вибраний об'єкт не є полілінією.")
+            QMessageBox.warning(self, "Помилка додавання суміжника", "Вибраний об'єкт не є полілінією.")
             return
 
         if geom.wkbType() == QgsWkbTypes.MultiLineString:
@@ -3274,9 +3185,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         if len(polyline_points) < 2:
             QMessageBox.warning(
-                self,
-                "Помилка додавання суміжника",
-                "Не вдалося отримати послідовність точок виділеної лінії."
+                self, "Помилка додавання суміжника", "Не вдалося отримати послідовність точок виділеної лінії."
             )
             return
 
@@ -3284,39 +3193,19 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         # PointInfo у реальному XML до визначення напрямку.
         preview_tree = copy.deepcopy(self.current_xml.tree)
         preview_processor = GeometryProcessor(preview_tree)
-        shape_uidps = [
-            preview_processor._get_or_create_point(p)
-            for p in polyline_points
-        ]
+        shape_uidps = [preview_processor._get_or_create_point(p) for p in polyline_points]
         object_shape = "-".join(shape_uidps)
 
-        log_calls(
-            logFile,
-            f"Початковий object_shape Суміжника: '{object_shape}'"
-        )
+        log_calls(logFile, f"Початковий object_shape Суміжника: '{object_shape}'")
 
         # Напрямок визначаємо ДО фактичного додавання Суміжника в XML.
-        parcel_pts = self._get_parcel_ordered_points_for_adjacent(
-            self.current_xml.tree
-        )
-        should_invert = self._should_invert_adjacent(
-            shape_uidps, parcel_pts
-        )
+        parcel_pts = self._get_parcel_ordered_points_for_adjacent(self.current_xml.tree)
+        should_invert = self._should_invert_adjacent(shape_uidps, parcel_pts)
 
         parcel_set = set(parcel_pts)
-        log_calls(
-            logFile,
-            f"Точки межі Ділянки для перевірки: {parcel_pts}"
-        )
-        log_calls(
-            logFile,
-            f"Спільні внутрішні точки Суміжника: "
-            f"{[p for p in shape_uidps if p in parcel_set]}"
-        )
-        log_calls(
-            logFile,
-            f"Напрямок Суміжника протилежний напрямку Ділянки: {should_invert}"
-        )
+        log_calls(logFile, f"Точки межі Ділянки для перевірки: {parcel_pts}")
+        log_calls(logFile, f"Спільні внутрішні точки Суміжника: {[p for p in shape_uidps if p in parcel_set]}")
+        log_calls(logFile, f"Напрямок Суміжника протилежний напрямку Ділянки: {should_invert}")
 
         if should_invert:
             polyline_points = list(reversed(polyline_points))
@@ -3324,26 +3213,20 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             object_shape = "-".join(shape_uidps)
             geom = QgsGeometry.fromPolylineXY(polyline_points)
 
-            log_calls(
-                logFile,
-                f"Суміжник інвертовано. Новий object_shape: '{object_shape}'"
-            )
+            log_calls(logFile, f"Суміжник інвертовано. Новий object_shape: '{object_shape}'")
 
         adj_units_before = self.current_xml.tree.find(".//AdjacentUnits")
         if adj_units_before is None:
             log_calls(logFile, "(до обробки): Розділ 'AdjacentUnits' ВІДСУТНІЙ.")
         else:
             count = len(adj_units_before.findall("AdjacentUnitInfo"))
-            log_calls(
-                logFile, f"(до обробки): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
+            log_calls(logFile, f"(до обробки): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
 
         tree = self.current_xml.tree
-        log_calls(
-            logFile, f"Обробка геометрії. ID дерева XML до обробки: {id(tree)}")
+        log_calls(logFile, f"Обробка геометрії. ID дерева XML до обробки: {id(tree)}")
         processor = GeometryProcessor(tree)
 
         try:
-
             processor.process_adjacent_unit_geometry(geom)
         except ValueError as e:
             QMessageBox.critical(self, "Критична помилка топології", str(e))
@@ -3359,13 +3242,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         processor = GeometryProcessor(tree)
         if processor.cleanup_and_renumber_geometry():
-            log_calls(
-                logFile, "Геометрію було перенумеровано після додавання суміжника.")
+            log_calls(logFile, "Геометрію було перенумеровано після додавання суміжника.")
 
-        if not hasattr(self.current_xml, 'temp_tree_state') or self.current_xml.temp_tree_state is None:
-
-            log_calls(
-                logFile, f"Стан shapes після додавання суміжника:\n{self.plugin.shapes_state_string()}")
+        if not hasattr(self.current_xml, "temp_tree_state") or self.current_xml.temp_tree_state is None:
+            log_calls(logFile, f"Стан shapes після додавання суміжника:\n{self.plugin.shapes_state_string()}")
 
             original_tree = etree.parse(self.current_xml.path)
             self.current_xml.temp_tree_state = original_tree
@@ -3382,6 +3262,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if ulid and length_element is not None and length_element.text:
                 try:
                     from .common import parse_float
+
                     lengths[ulid] = parse_float(length_element.text, default=0.0)
                 except (ValueError, TypeError):
                     pass
@@ -3395,6 +3276,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if length_element is not None and length_element.text:
                 try:
                     from .common import parse_float
+
                     total_length += parse_float(length_element.text, default=0.0)
                 except (ValueError, TypeError):
                     pass
@@ -3406,6 +3288,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if area_element is not None and area_element.text:
             try:
                 from .common import parse_float
+
                 return parse_float(area_element.text, default=0.0)
             except (ValueError, TypeError):
                 pass
@@ -3534,7 +3417,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             same_value = False
             if old_text:
                 try:
-                    same_value = (round(float(old_text), 4) == round(area_ha, 4))
+                    same_value = round(float(old_text), 4) == round(area_ha, 4)
                 except (TypeError, ValueError):
                     same_value = False
 
@@ -3551,15 +3434,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         reason_suffix = f" ({trigger})" if trigger else ""
         log_calls(
-            logFile,
-            f"Оновлено ParcelMetricInfo/Area/Size{reason_suffix}: '{old_text_for_msg}' -> '{new_text}' га."
+            logFile, f"Оновлено ParcelMetricInfo/Area/Size{reason_suffix}: '{old_text_for_msg}' -> '{new_text}' га."
         )
         if notify:
             self.iface.messageBar().pushMessage(
                 "XML-UA",
                 f"Площа ділянки в XML оновлена: {old_text_for_msg or 'N/A'} -> {new_text} га",
                 level=Qgis.Info,
-                duration=6
+                duration=6,
             )
         return True
 
@@ -3572,8 +3454,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         committed = not layer.isModified()
-        log_calls(
-            logFile, f"Зупинено редагування шару '{layer.name()}', committed: {committed}")
+        log_calls(logFile, f"Зупинено редагування шару '{layer.name()}', committed: {committed}")
 
         xml_data = self.find_xml_data_for_layer(layer)
         if not xml_data:
@@ -3588,7 +3469,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     xml_data.tree,
                     xml_data_obj=xml_data,
                     trigger=f"завершення редагування шару '{layer.name()}'",
-                    notify=(layer.name() == "Ділянка")
+                    notify=(layer.name() == "Ділянка"),
                 )
                 comparison_state = edit_start_state
                 if comparison_state is None:
@@ -3598,21 +3479,22 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         comparison_state = None
                 changed_during_edit = bool(
                     comparison_state is not None
-                    and etree.tostring(comparison_state.getroot())
-                    != etree.tostring(xml_data.tree.getroot())
+                    and etree.tostring(comparison_state.getroot()) != etree.tostring(xml_data.tree.getroot())
                 )
                 if changed_during_edit:
                     self.mark_xml_data_as_changed(xml_data)
             except Exception as e:
                 log_calls(logFile, f"Помилка при синхронізації після commit: {e}")
                 self.iface.messageBar().pushMessage(
-                    "Помилка", f"Не вдалося синхронізувати зміни: {e}", level=Qgis.Critical)
+                    "Помилка", f"Не вдалося синхронізувати зміни: {e}", level=Qgis.Critical
+                )
 
         else:  # Зміни було відкинуто користувачем
             log_calls(
-                logFile, f"Зміни для '{xml_data.group_name}' відкинуто користувачем. Відновлюємо попередній стан.")
+                logFile, f"Зміни для '{xml_data.group_name}' відкинуто користувачем. Відновлюємо попередній стан."
+            )
 
-            if hasattr(xml_data, 'temp_tree_state') and xml_data.temp_tree_state is not None:  # noqa
+            if hasattr(xml_data, "temp_tree_state") and xml_data.temp_tree_state is not None:  # noqa
                 xml_data.tree = xml_data.temp_tree_state  # Revert to the state before editing
                 if xml_data.tree_view is not None:
                     xml_data.tree_view.xml_tree = xml_data.tree
@@ -3646,8 +3528,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         delete_str = " { - }" if si.delete else ""
 
-        return (f"  {layer_name}: OID:{si.object_id}, "
-                f"'{si.object_shape}'{delete_str}")
+        return f"  {layer_name}: OID:{si.object_id}, '{si.object_shape}'{delete_str}"
 
     def on_feature_removed(self, layer, feature_id):
         """
@@ -3663,15 +3544,20 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return  # type: ignore
 
         for shape_info in xml_data.shapes:
-
             if shape_info.layer_id == layer.id():
                 shape_info.delete = True
                 log_calls(
-                    logFile, f"Користувач видалив об'єкт з {layer.name()}: {feature_id}). \nПоточний стан shapes:\n{self.plugin.shapes_state_string()}")
+                    logFile,
+                    (f"Користувач видалив об'єкт з {layer.name()}: {feature_id}). \n"
+                     f"Поточний стан shapes:\n{self.plugin.shapes_state_string()}"),
+                )
                 break
         else:  # Цей блок else відноситься до циклу for
             log_calls(
-                logFile, f"ПОПЕРЕДЖЕННЯ: Не знайдено запис для видаленого об'єкта {feature_id} з шару '{layer.name()}' у xml_data.shapes.")
+                logFile,
+                (f"ПОПЕРЕДЖЕННЯ: Не знайдено запис для видаленого об'єкта {feature_id} "
+                 f"з шару '{layer.name()}' у xml_data.shapes.")
+            )
 
     def handle_committed_features_removed(self, layer, feature_ids):
         """Обробляє подію ПІСЛЯ видалення об'єктів з шару."""
@@ -3682,20 +3568,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             return
 
         layer_name = layer.name()
-        self._signal_log(
-            f"[SIGNAL] committedFeaturesRemoved start: layer='{layer_name}', count={len(feature_ids)}"
-        )
+        self._signal_log(f"[SIGNAL] committedFeaturesRemoved start: layer='{layer_name}', count={len(feature_ids)}")
         supported_layers = {
             "Суміжники": ".//AdjacentUnitInfo",
             "Угіддя": ".//LandParcelInfo",
             "Оренда": ".//LeaseInfo",
             "Суборенда": ".//SubleaseInfo",
-            "Обмеження": ".//RestrictionInfo"
+            "Обмеження": ".//RestrictionInfo",
         }
 
         if layer_name not in supported_layers:
-            log_calls(
-                logFile, f"Шар '{layer_name}' не підтримується для синхронізації видалення.")
+            log_calls(logFile, f"Шар '{layer_name}' не підтримується для синхронізації видалення.")
             return
 
         xml_data = self.find_xml_data_for_layer(layer)
@@ -3704,14 +3587,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         self.ensure_visible_for_xml_data(xml_data)
 
-        log_calls(
-            logFile, f"Підтвердження видалення: {len(feature_ids)} об'єкт(ів) з шару '{layer_name}'.")
+        log_calls(logFile, f"Підтвердження видалення: {len(feature_ids)} об'єкт(ів) з шару '{layer_name}'.")
 
         elements_to_delete = []
         shapes_to_remove_from_list = []
         processor = GeometryProcessor(xml_data.tree)
-
-
 
         layer_field_names = layer.fields().names()
         if "object_shape" in layer_field_names:
@@ -3746,13 +3626,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         for shape_info in xml_data.shapes:
             if shape_info.layer_id == layer.id() and shape_info.delete:
-                log_calls(
-                    logFile, f"Знайдено об'єкт, позначений для видалення:\n{self.format_shape_info(shape_info)}")
+                log_calls(logFile, f"Знайдено об'єкт, позначений для видалення:\n{self.format_shape_info(shape_info)}")
 
                 xml_tag_path = supported_layers[layer_name]
 
-                found_elements = xml_data.tree.xpath(
-                    f"{xml_tag_path}[@object_id='{shape_info.object_id}']")
+                found_elements = xml_data.tree.xpath(f"{xml_tag_path}[@object_id='{shape_info.object_id}']")
                 if not found_elements and shape_info.object_shape:
                     for candidate in xml_data.tree.xpath(xml_tag_path):
                         if _extract_shape_from_xml_element(candidate, layer_name) == shape_info.object_shape:
@@ -3763,7 +3641,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     shapes_to_remove_from_list.append(shape_info)
                 else:
                     log_calls(
-                        logFile, f"ПОМИЛКА: Не знайдено XML елемент з object_id='{shape_info.object_id}' для видалення.")
+                        logFile, f"ПОМИЛКА: Не знайдено XML елемент з object_id='{shape_info.object_id}' для видалення."
+                    )
 
         if not elements_to_delete:
             log_calls(logFile, "Не знайдено елементів для видалення з XML.")
@@ -3776,8 +3655,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         for element in elements_to_delete:
             parent = element.getparent()
             if parent is not None:
-                log_calls(
-                    logFile, f"Видалення елемента дерева: '{element.tag}'.")
+                log_calls(logFile, f"Видалення елемента дерева: '{element.tag}'.")
                 parent.remove(element)
 
         log_calls(logFile, "Очистка геометрії: запуск.")
@@ -3786,8 +3664,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         xml_data.tree_view.rebuild_tree_view()
         self.mark_xml_data_as_changed(xml_data)
 
-        log_calls(
-            logFile, f"Стан shapes після видалення елемента:\n{self.plugin.shapes_state_string()}")
+        log_calls(logFile, f"Стан shapes після видалення елемента:\n{self.plugin.shapes_state_string()}")
 
         self._signal_log(
             f"[SIGNAL] committedFeaturesRemoved done: layer='{layer_name}', redraw_current_group skipped for safety"
@@ -3834,7 +3711,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         Що логує:
         - Повідомлення, якщо вхідний шар є `None`.
         - Повідомлення про успішне знаходження `xml_data` через custom property.
-        - Попередження, якщо шар має ID, але відповідний об'єкт `xml_data` не знайдено у списку `opened_xmls` (може свідчити про розсинхронізацію стану).
+        - Попередження, якщо шар має ID, але відповідний об'єкт `xml_data` не знайдено у \
+            списку `opened_xmls` (може свідчити про розсинхронізацію стану).
         - Повідомлення, якщо шар не має необхідної властивості `xml_data_object_id`.
         """
         if not layer:
@@ -3843,9 +3721,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         xml_data_object_id = layer.customProperty("xml_data_object_id")
         if xml_data_object_id is not None and getattr(self, "opened_xmls", None):
-            for xml_data in self.opened_xmls:
-                if id(xml_data) == int(xml_data_object_id):
-                    return xml_data
+            for opened_xml in self.opened_xmls:
+                if id(opened_xml) == int(xml_data_object_id):
+                    return opened_xml
 
         # Fallback: пошук через дерево шарів за батьківською групою
         try:
@@ -3875,22 +3753,16 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         break
             if target_xml_data is None:
                 return False
-            return self.sync_parcel_area_size(
-                target_xml_data,
-                trigger=trigger,
-                notify=notify
-            )
+            return self.sync_parcel_area_size(target_xml_data, trigger=trigger, notify=notify)
         except Exception as e:
             log_calls(logFile, f"Помилка при перерахунку площі ділянки: {e}")
             return False
 
     def recalculate_line_lengths(self, tree, changed_point_uidp):
         """Перераховує довжини всіх ліній, які містять змінену точку."""
-        log_calls(
-            logFile, f"Перерахунок довжин ліній для точки UIDP='{changed_point_uidp}'.")
+        log_calls(logFile, f"Перерахунок довжин ліній для точки UIDP='{changed_point_uidp}'.")
 
-        lines_to_update = tree.xpath(
-            f".//Polyline/PL[Points/P='{changed_point_uidp}']")
+        lines_to_update = tree.xpath(f".//Polyline/PL[Points/P='{changed_point_uidp}']")
 
         for pl_element in lines_to_update:
             point_refs = pl_element.findall("Points/P")
@@ -3905,31 +3777,25 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             if p1_elem is not None and p2_elem is not None:
                 try:
+                    x1, y1 = float(p1_elem.find("Y").text), float(p1_elem.find("X").text)
+                    x2, y2 = float(p2_elem.find("Y").text), float(p2_elem.find("X").text)
 
-                    x1, y1 = float(p1_elem.find("Y").text), float(
-                        p1_elem.find("X").text)
-                    x2, y2 = float(p2_elem.find("Y").text), float(
-                        p2_elem.find("X").text)
-
-                    length = ((x2 - x1)**2 + (y2 - y1)**2)**0.5
+                    length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
 
                     length_element = pl_element.find("Length")
                     length_element.text = f"{length:.2f}"
                     ulid = pl_element.find("ULID").text
-                    log_calls(
-                        logFile, f"Оновлено довжину для лінії ULID='{ulid}' до {length:.2f} м.")
+                    log_calls(logFile, f"Оновлено довжину для лінії ULID='{ulid}' до {length:.2f} м.")
                 except (ValueError, TypeError) as e:
                     log_calls(logFile, f"Помилка при перерахунку довжини: {e}")
 
     def redraw_layers(self, xml_data):
         """Перемальовує шари для даного XML, зберігаючи існуючу групу."""
-        log_calls(
-            logFile, f"Повне перемалювання шарів для групи '{xml_data.group_name}'.")
+        log_calls(logFile, f"Повне перемалювання шарів для групи '{xml_data.group_name}'.")
         layers_root = QgsProject.instance().layerTreeRoot()
         group = layers_root.findGroup(xml_data.group_name)
         if not group:
-            log_calls(
-                logFile, f"Група '{xml_data.group_name}' не знайдена для перемалювання.")
+            log_calls(logFile, f"Група '{xml_data.group_name}' не знайдена для перемалювання.")
             return
 
         group.removeChildren(0, len(group.children()))
@@ -3938,24 +3804,21 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         project = QgsProject.instance()
         layer_ids_to_remove = []
         for layer_id, layer in project.mapLayers().items():
-
             if project.layerTreeRoot().findLayer(layer_id) is None:
                 layer_ids_to_remove.append(layer_id)
 
         if layer_ids_to_remove:
             project.removeMapLayers(layer_ids_to_remove)
-            log_calls(
-                logFile, f"Видалено {len(layer_ids_to_remove)} осиротілих шарів з проекту.")
+            log_calls(logFile, f"Видалено {len(layer_ids_to_remove)} осиротілих шарів з проекту.")
 
         self.layers_obj = xmlUaLayers(
             xmlFilePath=xml_data.path,
             tree=xml_data.tree,
             plugin=self.plugin,
-            xml_data=xml_data  # Передаємо xml_data для збереження зв'язку
+            xml_data=xml_data,  # Передаємо xml_data для збереження зв'язку
         )
 
-        log_calls(
-            logFile, f"Шари для групи '{xml_data.group_name}' успішно перемальовано.")
+        log_calls(logFile, f"Шари для групи '{xml_data.group_name}' успішно перемальовано.")
 
     def recreate_layers_for_xml_data(self, xml_data_obj):
         """
@@ -3980,13 +3843,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 log_calls(logFile, f"Група '{old_group_name}' не знайдена для перестворення шарів.")
                 return
 
-
             try:
                 xml_data_obj.shapes = []
             except Exception as e:
                 log_calls(logFile, f"{e}")
                 pass
-
 
             layer_ids_to_remove = []
             try:
@@ -4056,9 +3917,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         """
         Перемальовує конкретний шар у групі, не зачіпаючи інші.
         """
-        log_calls(
-
-            logFile, f"Перемалювання шару '{layer_name}' для групи '{xml_data.group_name}'.")
+        log_calls(logFile, f"Перемалювання шару '{layer_name}' для групи '{xml_data.group_name}'.")
 
         group = QgsProject.instance().layerTreeRoot().findGroup(xml_data.group_name)
         if not group:
@@ -4072,8 +3931,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 break
 
         if not existing_layer:
-            log_calls(
-                logFile, f"Шар '{layer_name}' не знайдено в групі для перемалювання.")
+            log_calls(logFile, f"Шар '{layer_name}' не знайдено в групі для перемалювання.")
             return
 
         existing_layer.startEditing()
@@ -4104,8 +3962,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         from .lands import LandsParcels
         from .topology import GeometryProcessor
-        lands_handler = LandsParcels(xml_data.tree.getroot(), self.iface.mapCanvas().mapSettings().destinationCrs().authid(
-        ), self.layers_obj.group, self.layers_obj.plugin_dir, QgsProject.instance().layerTreeRoot(), self.layers_obj.linesToCoordinates, self.layers_obj, xml_data=xml_data)
+
+        lands_handler = LandsParcels(
+            xml_data.tree.getroot(),
+            self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+            self.layers_obj.group,
+            self.layers_obj.plugin_dir,
+            QgsProject.instance().layerTreeRoot(),
+            self.layers_obj.linesToCoordinates,
+            self.layers_obj,
+            xml_data=xml_data,
+        )
         processor = GeometryProcessor(xml_data.tree)
 
         root = xml_data.tree.getroot()
@@ -4117,31 +3984,36 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         for lands_parcel in root.findall(".//LandsParcel/LandParcelInfo/MetricInfo"):
             land_parcel_info = lands_parcel.getparent()
-            object_id_text = str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
+            object_id_text = (
+                str(land_parcel_info.get("object_id") or "").strip() if land_parcel_info is not None else ""
+            )
             size_element = lands_parcel.find("./Area/Size")
             from .common import parse_float
+
             parse_float(size_element.text, default=None) if size_element is not None else None
 
             externals_element = lands_parcel.find("Externals")
-            externals_lines = externals_element.find(
-                "Boundary/Lines") if externals_element is not None else None
-            external_coords = lines_to_coords_func(
-                externals_lines, "modify") if externals_lines is not None else []
+            externals_lines = externals_element.find("Boundary/Lines") if externals_element is not None else None
+            external_coords = lines_to_coords_func(externals_lines, "modify") if externals_lines is not None else []
 
             internals_container = lands_parcel.find("Internals")
             internal_coords_list = []
             if internals_container is not None:
-                internal_coords_list = [lines_to_coords_func(b.find(
-                    'Lines'), "modify") for b in internals_container.findall("Boundary") if b.find('Lines') is not None]
+                internal_coords_list = [
+                    lines_to_coords_func(b.find("Lines"), "modify")
+                    for b in internals_container.findall("Boundary")
+                    if b.find("Lines") is not None
+                ]
 
             object_shape = ""
             if processor and externals_element is not None:
-                exterior_shape = processor._get_polyline_object_shape(
-                    externals_element.find("Boundary/Lines"))
+                exterior_shape = processor._get_polyline_object_shape(externals_element.find("Boundary/Lines"))
                 interior_shapes = []
                 if internals_container is not None:
-                    interior_shapes = [processor._get_polyline_object_shape(internal.find(
-                        "Boundary/Lines")) for internal in internals_container.findall("Boundary")]
+                    interior_shapes = [
+                        processor._get_polyline_object_shape(internal.find("Boundary/Lines"))
+                        for internal in internals_container.findall("Boundary")
+                    ]
                 all_rings = [exterior_shape] + interior_shapes
                 object_shape = "|".join(filter(None, all_rings))
 
@@ -4149,8 +4021,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if not polygon.isEmpty():
                 for internal_coords in internal_coords_list:
                     if internal_coords:
-                        interior_ring = QgsLineString(
-                            [QgsPointXY(p.y(), p.x()) for p in internal_coords])
+                        interior_ring = QgsLineString([QgsPointXY(p.y(), p.x()) for p in internal_coords])
                         polygon.addInteriorRing(interior_ring)
 
             feature = QgsFeature(layer.fields())
@@ -4170,14 +4041,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         Це найнадійніший спосіб оновити всі шари після зміни геометрії.
         """
         if not self.current_xml:
-            log_calls(
-                logFile, "Помилка: немає активного XML для перемалювання групи.")
+            log_calls(logFile, "Помилка: немає активного XML для перемалювання групи.")
             return
 
         xml_data = self.current_xml
         group_name = xml_data.group_name  # type: ignore
-        log_calls(
-            logFile, f"Запуск повного перемалювання групи '{group_name}'.")
+        log_calls(logFile, f"Запуск повного перемалювання групи '{group_name}'.")
 
         prev_suppress = getattr(self, "_suppress_close_on_layer_remove", False)
         self._suppress_close_on_layer_remove = True
@@ -4185,29 +4054,25 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             layers_root = QgsProject.instance().layerTreeRoot()
             group_to_remove = layers_root.findGroup(group_name)
             if group_to_remove:
-
                 for child_node in group_to_remove.children():
                     if isinstance(child_node, QgsLayerTreeLayer):
                         child_node.layer().rollBack()
                 layers_root.removeChildNode(group_to_remove)
-                log_calls(
-                    logFile, f"Стару групу '{group_name}' та всі її шари видалено.")
+                log_calls(logFile, f"Стару групу '{group_name}' та всі її шари видалено.")
 
             self.layers_obj = xmlUaLayers(
                 xmlFilePath=xml_data.path,  # type: ignore
                 tree=xml_data.tree,  # type: ignore
                 plugin=self.plugin,
                 xml_data=xml_data,
-                context="redraw"
+                context="redraw",
             )
         finally:
             self._suppress_close_on_layer_remove = prev_suppress
 
         processor = GeometryProcessor(xml_data.tree)
         if processor.cleanup_and_renumber_geometry():
-            log_calls(
-                logFile, "Геометрію було перенумеровано після повного перемалювання групи.")
+            log_calls(logFile, "Геометрію було перенумеровано після повного перемалювання групи.")
 
         self.iface.mapCanvas().refresh()
-        log_calls(
-            logFile, f"Шари для групи '{group_name}' успішно перемальовано, карта оновлена.")
+        log_calls(logFile, f"Шари для групи '{group_name}' успішно перемальовано, карта оновлена.")
