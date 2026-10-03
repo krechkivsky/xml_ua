@@ -1,6 +1,9 @@
 # Журнал змін
 
 
+## v0.9.8 (2026-10-02)
+- **Security:** Open generated DOCX files through the operating system instead of launching Word with `subprocess`.
+
 ## v0.9.7 (2026-10-02)
 - **Fixed:** Removed insecure standard-library XML parser fallbacks; XML handling now consistently uses lxml.
 

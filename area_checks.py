@@ -6,6 +6,9 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Iterable
 
+from common import log_msg, logFile
+
+
 
 def _parse_float(value, default=None):
     """
@@ -76,7 +79,8 @@ def _find_decimal_comma_numbers_in_tree(xml_tree, numeric_names=None, limit: int
         return []
     try:
         root = xml_tree.getroot()
-    except Exception:
+    except Exception as e:
+        log_msg(logFile,f"Error while getting root {e}")
         return []
     if root is None:
         return []
@@ -85,7 +89,8 @@ def _find_decimal_comma_numbers_in_tree(xml_tree, numeric_names=None, limit: int
     for el in root.xpath(".//*"):
         try:
             txt = el.text
-        except Exception:
+        except Exception as e:
+            log_msg(logFile,f"Error while getting element text {e}")
             continue
         if txt is None:
             continue
@@ -102,7 +107,8 @@ def _normalize_decimal_commas_in_tree(xml_tree, numeric_names=None):
         return []
     try:
         root = xml_tree.getroot()
-    except Exception:
+    except Exception as e:
+        log_msg(logFile,f"Error while getting root {e}")
         return []
     if root is None:
         return []
@@ -111,7 +117,8 @@ def _normalize_decimal_commas_in_tree(xml_tree, numeric_names=None):
     for el in root.xpath(".//*"):
         try:
             old = el.text
-        except Exception:
+        except Exception as e:
+            log_msg(logFile,f"Error while getting element text {e}")
             continue
         if old is None:
             continue
@@ -120,7 +127,8 @@ def _normalize_decimal_commas_in_tree(xml_tree, numeric_names=None):
             continue
         try:
             el.text = new
-        except Exception:
+        except Exception as e:
+            log_msg(logFile,f"Error while setting element text {e}")
             continue
         changes.append({"tag": getattr(el, "tag", ""), "old": str(old), "new": str(new)})
     return changes
@@ -279,7 +287,8 @@ def run_area_checks_and_fix_tree(
                     ):
                         try:
                             size_el.text = parcel_area_new_text
-                        except Exception:
+                        except Exception as e:
+                            log_msg(logFile,f"{e}")
                             pass
                     parcel_area_fixed = True
                 except Exception:
@@ -414,6 +423,7 @@ def run_area_checks_and_fix_tree(
                         size_el.text = new_text
                         updated_any = True
                     except Exception:
+                        log_msg(logFile,f"Error: {e}")
                         pass
 
             if updated_any:

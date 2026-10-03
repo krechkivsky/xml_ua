@@ -3,8 +3,6 @@
 import datetime
 import os
 import re
-import shutil
-import subprocess
 
 try:
     from docxtpl import DocxTemplate
@@ -14,6 +12,7 @@ except Exception:
     DOCXTPL_AVAILABLE = False
 from lxml import etree
 from qgis.PyQt.QtCore import QStandardPaths, QUrl
+from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtWidgets import QDialog, QInputDialog, QMessageBox
 
 from .cases import bornPIB, to_genitive
@@ -30,7 +29,6 @@ class DocumentGenerator:
         self.dockwidget = dockwidget
         self.iface = dockwidget.iface
         self.plugin_dir = dockwidget.plugin.plugin_dir
-        self._warned_word_missing = False
         self._warned_bad_filename = False
 
     def generate_document(self, doc_type, template_name):
@@ -152,63 +150,11 @@ class DocumentGenerator:
         tmpl_stem = os.path.splitext(os.path.basename(str(template_name or "")))[0]
         return f"{xml_stem}_{tmpl_stem}.docx"
 
-    def _find_winword_path(self) -> str:
-        """
-        Повертає шлях до WINWORD.EXE або порожній рядок, якщо MS Word не знайдено.
-        """
-        try:
-            import winreg  # type: ignore
-
-            reg_paths = [
-                r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\WINWORD.EXE",
-                r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\WINWORD.EXE",
-            ]
-            for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-                for key_path in reg_paths:
-                    try:
-                        with winreg.OpenKey(hive, key_path) as k:
-                            val, _ = winreg.QueryValueEx(k, "")
-                            if val and os.path.exists(val):
-                                return str(val)
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-        try:
-            p = shutil.which("winword") or shutil.which("winword.exe")
-            if p and os.path.exists(p):
-                return str(p)
-        except Exception:
-            pass
-
-        return ""
-
     def _open_in_word_or_warn(self, file_path: str) -> bool:
-        """
-        Прагне відкрити документ в MS Word. Якщо Word не встановлено — показує попередження
-        (1 раз за сесію) і повертає False.
-        """
-        winword = self._find_winword_path()
-        if not winword:
-            if not self._warned_word_missing:
-                self._warned_word_missing = True
-                QMessageBox.warning(
-                    self.dockwidget,
-                    "MS Word не знайдено",
-                    "Не знайдено Microsoft Word (WINWORD.EXE).\n\n"
-                    "Встановіть MS Word, щоб відкривати та редагувати шаблони docx.",
-                )
-            return False
-
+        """Open the document with the operating system default application."""
         try:
-            p = os.path.normpath(os.path.abspath(str(file_path)))
-        except Exception:
-            p = str(file_path)
-
-        try:
-            subprocess.Popen([winword, "/n", p], close_fds=True)
-            return True
+            path = os.path.normpath(os.path.abspath(str(file_path)))
+            return bool(QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
         except Exception:
             return False
 
