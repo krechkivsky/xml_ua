@@ -183,7 +183,7 @@
 					<xsd:appinfo>Регіон</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
-			<xsd:element name="District" type="xsd:string">
+			<xsd:element name="District" type="xsd:string" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Назва району регіону</xsd:documentation>
 					<xsd:appinfo>Район ⋮</xsd:appinfo>
