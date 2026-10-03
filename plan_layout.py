@@ -560,7 +560,8 @@ class PlanLayoutCreator:
                         if m:
                             zone = int(m.group(1))
                             epsg_dst = 6381 + (zone - 1)
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
 
                 # Fallback: infer zone from easting (~1.25M..7.25M false eastings).
@@ -572,7 +573,8 @@ class PlanLayoutCreator:
                             zone = int(float(c.x()) // 1_000_000.0)
                             if 1 <= zone <= 7:
                                 epsg_dst = 6381 + (zone - 1)
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
 
                 if epsg_dst:
@@ -1031,7 +1033,8 @@ class PlanLayoutCreator:
             w = float(tbl.rect().width())
             h = float(tbl.rect().height())
             log_calls(logFile, f"Nodes table size (p1): {w:.2f}x{h:.2f} mm, rows={int(nrows)}")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def _add_nodes_coordinates_table_page2(
@@ -1072,7 +1075,8 @@ class PlanLayoutCreator:
         head.setText("Таблиця координат точок повороту межі земельної ділянки")
         try:
             head.setFont(QFont(font))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         layout.addLayoutItem(head)
         head_h = float(NODES_TABLE_TITLE_H_MM)
@@ -1096,7 +1100,8 @@ class PlanLayoutCreator:
         tbl.setText(nodes_html)
         try:
             tbl.setFont(QFont(font))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         tbl.setObjectName("Таблиця координат:p2")
         tbl.setId("Таблиця координат:p2")
@@ -1116,7 +1121,8 @@ class PlanLayoutCreator:
                 logFile,
                 f"Nodes table size (p2): expected {expected_w:.2f}x{expected_h:.2f} mm, item {tw:.2f}x{th:.2f} mm, rows={int(nrows)}",
             )
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         tbl.attemptMove(QgsLayoutPoint(tbl_x, tbl_y, QgsUnitTypes.LayoutMillimeters))
 
@@ -1135,7 +1141,8 @@ class PlanLayoutCreator:
                 bhead.setText("Опис меж з суміжниками")
                 try:
                     bhead.setFont(QFont(font))
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 layout.addLayoutItem(bhead)
                 bhead_h = float(NODES_TABLE_TITLE_H_MM)
@@ -1151,7 +1158,8 @@ class PlanLayoutCreator:
                 btbl.setText(boundary_html)
                 try:
                     btbl.setFont(QFont(font))
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 btbl.setObjectName("Опис меж:p2")
                 btbl.setId("Опис меж:p2")
@@ -1175,7 +1183,8 @@ class PlanLayoutCreator:
                     etitle.setText("Експлікація угідь")
                     try:
                         etitle.setFont(QFont(font))
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
                     layout.addLayoutItem(etitle)
                     etitle_h = float(NODES_TABLE_TITLE_H_MM)
@@ -1198,7 +1207,8 @@ class PlanLayoutCreator:
                         etbl.setText(ehtml)
                         try:
                             etbl.setFont(QFont(font))
-                        except Exception:
+                        except Exception as e:
+                            log_calls(logFile, f"{e}")
                             pass
                         etbl.setObjectName("Експлікація угідь:p2")
                         etbl.setId("Експлікація угідь:p2")
@@ -1237,7 +1247,8 @@ class PlanLayoutCreator:
                                 rtitle.setText("Перелік частин ділянки з обмеженнями")
                                 try:
                                     rtitle.setFont(QFont(font))
-                                except Exception:
+                                except Exception as e:
+                                    log_calls(logFile, f"{e}")
                                     pass
                                 layout.addLayoutItem(rtitle)
                                 rtitle_h = float(NODES_TABLE_TITLE_H_MM)
@@ -1253,7 +1264,8 @@ class PlanLayoutCreator:
                                 rtbl.setText(rhtml)
                                 try:
                                     rtbl.setFont(QFont(font))
-                                except Exception:
+                                except Exception as e:
+                                    log_calls(logFile, f"{e}")
                                     pass
                                 rtbl.setObjectName("Обмеження:p2")
                                 rtbl.setId("Обмеження:p2")
@@ -1271,7 +1283,8 @@ class PlanLayoutCreator:
                                 ltitle.setText("Перелік частин ділянки переданих в оренду")
                                 try:
                                     ltitle.setFont(QFont(font))
-                                except Exception:
+                                except Exception as e:
+                                    log_calls(logFile, f"{e}")
                                     pass
                                 layout.addLayoutItem(ltitle)
                                 ltitle_h = float(NODES_TABLE_TITLE_H_MM)
@@ -1294,7 +1307,8 @@ class PlanLayoutCreator:
                                     ltbl.setText(lhtml)
                                     try:
                                         ltbl.setFont(QFont(font))
-                                    except Exception:
+                                    except Exception as e:
+                                        log_calls(logFile, f"{e}")
                                         pass
                                     ltbl.setObjectName("Оренда:p2")
                                     ltbl.setId("Оренда:p2")
@@ -1312,7 +1326,8 @@ class PlanLayoutCreator:
                                 stitle.setText("Перелік частин ділянки переданих у суборенду")
                                 try:
                                     stitle.setFont(QFont(font))
-                                except Exception:
+                                except Exception as e:
+                                    log_calls(logFile, f"{e}")
                                     pass
                                 layout.addLayoutItem(stitle)
                                 stitle_h = float(NODES_TABLE_TITLE_H_MM)
@@ -1335,7 +1350,8 @@ class PlanLayoutCreator:
                                     stbl.setText(shtml)
                                     try:
                                         stbl.setFont(QFont(font))
-                                    except Exception:
+                                    except Exception as e:
+                                        log_calls(logFile, f"{e}")
                                         pass
                                     stbl.setObjectName("Суборенда:p2")
                                     stbl.setId("Суборенда:p2")
@@ -1389,7 +1405,8 @@ class PlanLayoutCreator:
                 p2 = QgsLayoutItemPage(layout)
                 p2.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutMillimeters))
                 pc.addPage(p2)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
 
@@ -1561,7 +1578,8 @@ class PlanLayoutCreator:
         layout.addLayoutItem(sig)
         try:
             sig.setWordWrap(False)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         sig_h = TITLE_H_MM
         sig_y = PAGE_H_MM - MARGIN_BOTTOM_MM - sig_h
@@ -1634,7 +1652,8 @@ class PlanLayoutCreator:
                         geom = ftr.geometry()
                         if geom is None or geom.isEmpty():
                             continue
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         continue
                     oid = None
                     try:
@@ -1645,7 +1664,8 @@ class PlanLayoutCreator:
                         continue
                     try:
                         oid_int = int(str(oid).strip())
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         continue
                     if oid_int in seen_ids:
                         continue
@@ -1687,7 +1707,8 @@ class PlanLayoutCreator:
                 paragraph.setFont(pfont)
                 try:
                     paragraph.setWordWrap(True)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 layout.addLayoutItem(paragraph)
                 paragraph.attemptResize(QgsLayoutSize(content_w, available_h, QgsUnitTypes.LayoutMillimeters))
@@ -1770,7 +1791,8 @@ class PlanLayoutCreator:
                     if item and getattr(item, "id", lambda: "")() == "ParcelTextBlock":
                         parcel_text_font = item.font()
                         break
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     continue
             if page_count >= 2:
                 restrictions_layer = None
@@ -1807,7 +1829,8 @@ class PlanLayoutCreator:
 
         try:
             title.setText(f"{sheet_title} (аркуш 1 з {page_count})")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         for page_idx in range(2, page_count + 1):
@@ -1820,7 +1843,8 @@ class PlanLayoutCreator:
             bg.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
             try:
                 bg.setSymbol(title_bg_symbol)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             bg.setObjectName(f"TitleBg:p{page_idx}")
             bg.setId(f"TitleBg:p{page_idx}")
@@ -1845,7 +1869,8 @@ class PlanLayoutCreator:
             layout.addLayoutItem(s)
             try:
                 s.setWordWrap(False)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             s.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
             s.setHAlign(Qt.AlignmentFlag.AlignLeft)

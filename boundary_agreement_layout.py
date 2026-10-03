@@ -287,7 +287,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         # Neighbor letters (same as cadastral plan)
         try:
             self.add_neighbor_letters(layout, map_item)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         # Text block under map
@@ -314,7 +315,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         info.setFont(QFont(fnt))
         try:
             info.setWordWrap(True)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         layout.addLayoutItem(info)
         info_h = float(NODES_TABLE_TITLE_H_MM) * 3.0
@@ -354,7 +356,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
             tbl.setText(html)
             try:
                 tbl.setFont(QFont(table_font))
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             tbl.setObjectName("Акт погодження меж:таблиця")
             tbl.setId("Акт погодження меж:таблиця")
@@ -379,7 +382,8 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         layout.addLayoutItem(sig)
         try:
             sig.setWordWrap(False)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
         sig.setHAlign(Qt.AlignmentFlag.AlignLeft)

@@ -16,7 +16,7 @@ from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtWidgets import QDialog, QInputDialog, QMessageBox
 
 from .cases import bornPIB, to_genitive
-from .common import config, log_msg, logFile
+from .common import config, log_msg, logFile, log_calls
 from .date_dialog import DateInputDialog
 
 
@@ -110,11 +110,13 @@ class DocumentGenerator:
         candidates = []
         try:
             candidates.append(getattr(current_xml, "original_path", "") or "")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         try:
             candidates.append(getattr(current_xml, "path", "") or "")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         for p in candidates:
@@ -124,7 +126,8 @@ class DocumentGenerator:
                 d = os.path.dirname(os.path.abspath(str(p)))
                 if d and os.path.isdir(d):
                     return d
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 continue
 
         try:
@@ -155,7 +158,8 @@ class DocumentGenerator:
         try:
             path = os.path.normpath(os.path.abspath(str(file_path)))
             return bool(QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             return False
 
     def _generate_restoration_title1(self, template_name):
@@ -599,7 +603,8 @@ class DocumentGenerator:
                     "Скоротіть назви або перемістіть XML у папку з коротшим шляхом.",
                 )
                 return
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         saved_successfully = False
@@ -617,7 +622,8 @@ class DocumentGenerator:
                             "Перевірте шлях та права доступу.",
                         )
                         return
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
 
                 opened_in_word = self._open_in_word_or_warn(output_path)
@@ -626,7 +632,8 @@ class DocumentGenerator:
                         from qgis.PyQt.QtGui import QDesktopServices
 
                         QDesktopServices.openUrl(QUrl.fromLocalFile(output_path))
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
 
             except PermissionError:

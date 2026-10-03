@@ -750,7 +750,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.current_xml.tree_view = tree_view  # type: ignore
         try:
             tree_view.dataChangedInTree.connect(self.on_tree_data_changed)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.load_data(xml_path, tree=None)  # type: ignore
@@ -780,7 +781,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.current_xml.was_ever_changed = True
                 try:
                     self.load_data(xml_path, tree=self.current_xml.tree)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
 
             report_path = ""
@@ -906,7 +908,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if was_renumbered:
                 self.mark_as_changed()
 
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         try:
@@ -926,7 +929,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             duplicate_pn = [pn for pn, c in counts.items() if c > 1]
 
             # PN diagnostics are displayed by live tree validation.
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         try:
@@ -941,7 +945,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             proximity_uidps.update(hit.uidp for hit in result.near_line_hits)
             tree_view.mark_proximity_errors(proximity_uidps)
 
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         previous_layer_sync_suppression = self._suppress_layer_to_xml_sync
@@ -1107,7 +1112,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.current_xml.tree_view = tree_view
         try:
             tree_view.dataChangedInTree.connect(self.on_tree_data_changed)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.load_data(xml_path, tree=tree)
@@ -2008,7 +2014,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.plugin.action_cadastral_plan.setEnabled(enable_docs_actions)
         try:
             self.plugin.action_boundary_agreement.setEnabled(enable_docs_actions)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         item = self.iface.layerTreeView().index2node(index)
@@ -2544,7 +2551,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.mark_xml_data_as_changed(xml_data)
         try:
             self._sync_control_points_layer(xml_data)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         if not hasattr(xml_data, 'temp_tree_state') or xml_data.temp_tree_state is None:
@@ -3848,7 +3856,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     group_data = self.get_xml_data_for_group(parent_group.name())
                     if group_data:
                         return group_data
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         # log_calls(
@@ -3974,7 +3983,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             try:
                 xml_data_obj.shapes = []
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
 
@@ -3984,9 +3994,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     if isinstance(child_node, QgsLayerTreeLayer):
                         try:
                             layer_ids_to_remove.append(child_node.layerId())
-                        except Exception:
+                        except Exception as e:
+                            log_calls(logFile, f"{e}")
                             pass
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
             try:
@@ -3998,7 +4010,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if layer_ids_to_remove:
                 try:
                     QgsProject.instance().removeMapLayers(layer_ids_to_remove)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
 
             new_layers_obj = xmlUaLayers(
@@ -4014,7 +4027,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         try:
             xml_data_obj.layers_obj = new_layers_obj  # type: ignore
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         if xml_data_obj is self.current_xml:
@@ -4028,12 +4042,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     if self.tabWidget.tabText(i) == old_group_name:
                         self.tabWidget.setTabText(i, new_group_name)
                         break
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         try:
             self.iface.mapCanvas().refresh()
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def redraw_specific_layer(self, xml_data, layer_name):

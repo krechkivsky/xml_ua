@@ -167,7 +167,8 @@ class CustomTreeView(QTreeView):
                 if handled:
                     event.accept()
                     return
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         super().mouseDoubleClickEvent(event)
 
@@ -723,12 +724,14 @@ class CustomTreeView(QTreeView):
         item.setText(selected_code)
         try:
             item.setData(selected_code, Qt.ItemDataRole.EditRole)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         try:
             if selected_name:
                 item.setToolTip(str(selected_name))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         if item.parent():
@@ -888,7 +891,8 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(selection))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def handle_land_purpose_edit(self, index: QModelIndex):
@@ -972,7 +976,8 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(sub_sel))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def handle_ownership_code_edit(self, index: QModelIndex):
@@ -1034,7 +1039,8 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(selection))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def handle_documentation_type_edit(self, index: QModelIndex):
@@ -1096,13 +1102,15 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(selection))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
 
         try:
             self.on_documentation_type_changed(str(code), index)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def handle_document_list_edit(self, index: QModelIndex):
@@ -1153,7 +1161,8 @@ class CustomTreeView(QTreeView):
                 it.setToolTip(str(friendly) if friendly else str(selection))
                 it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
@@ -1214,7 +1223,8 @@ class CustomTreeView(QTreeView):
                 it.setToolTip(str(selection))
                 it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
@@ -1281,7 +1291,8 @@ class CustomTreeView(QTreeView):
                 it.setToolTip(str(selection))
                 it.setData(str(selected_code), Qt.ItemDataRole.EditRole)
                 return
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.model.setData(index, str(selected_code), Qt.ItemDataRole.EditRole)
@@ -1428,7 +1439,8 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(selection))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def handle_region_edit(self, index: QModelIndex):
@@ -1470,7 +1482,8 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(selection))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def handle_proprietor_code_edit(self, index: QModelIndex):
@@ -1528,7 +1541,8 @@ class CustomTreeView(QTreeView):
             it = self.model.itemFromIndex(index)
             if it:
                 it.setToolTip(str(selection))
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
 
@@ -1643,7 +1657,8 @@ class CustomTreeView(QTreeView):
         try:
 
             self.dataChangedInTree.emit(full_child_path, new_xml_element.text or "")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def delete_element(self, item):
@@ -1742,7 +1757,8 @@ class CustomTreeView(QTreeView):
         try:
 
             self.dataChangedInTree.emit(item_path, "")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
     def _find_xml_element_by_path(self, path):
@@ -2486,7 +2502,8 @@ class CustomTreeView(QTreeView):
         if schema_path.endswith("DocumentList"):
             try:
                 value_item.setData(raw_value_text, Qt.ItemDataRole.EditRole)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
         is_leaf = len(element) == 0
@@ -2523,7 +2540,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_reason_act_doc:
             try:
@@ -2539,7 +2557,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_restriction_code:
             try:
@@ -2550,7 +2569,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_category:
             try:
@@ -2562,7 +2582,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_purpose:
             try:
@@ -2574,7 +2595,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_ownership_code:
             try:
@@ -2586,7 +2608,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_doc_type:
             try:
@@ -2598,7 +2621,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         if is_land_code:
             try:
@@ -2610,7 +2634,8 @@ class CustomTreeView(QTreeView):
                         value_item.setToolTip(f"{tip}\n{friendly}")
                     else:
                         value_item.setToolTip(friendly)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
         return name_item, value_item
@@ -2632,7 +2657,8 @@ class CustomTreeView(QTreeView):
             for node in root_to_write.xpath(".//*[@object_id]"):
                 try:
                     del node.attrib["object_id"]
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
 
 
@@ -3302,14 +3328,16 @@ class CustomTreeView(QTreeView):
             nm = flat.get(code, "")
             if nm:
                 return str(nm)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         try:
             for section in (self.restrictions_data or {}).values():
                 if code in section:
                     return str(section.get(code) or "")
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         return ""
 

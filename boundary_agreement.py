@@ -61,7 +61,8 @@ class BoundaryAgreementCreator:
         if getattr(self.plugin, "dockwidget", None):
             try:
                 self.plugin.dockwidget.renumber_cadastral_codes()
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
         group_name = None
@@ -93,7 +94,8 @@ class BoundaryAgreementCreator:
         if layout is not None:
             try:
                 self.iface.openLayoutDesigner(layout)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         return layout
 
@@ -245,7 +247,8 @@ class BoundaryAgreementCreator:
         def _register_layer(layer):
             try:
                 layer.setCustomProperty(self._ROLE_PROP_KEY, self._ROLE_PROP_VALUE)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
         def _attach_layer(group: QgsLayerTreeGroup, layer, index: int | None = None) -> bool:
@@ -262,7 +265,8 @@ class BoundaryAgreementCreator:
             except Exception:
                 try:
                     project.removeMapLayer(layer.id())
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 return False
 
@@ -271,7 +275,8 @@ class BoundaryAgreementCreator:
                     project.removeMapLayer(layer.id())
                     try:
                         group.removeChildNode(node)
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
                     return False
             except Exception:
@@ -306,7 +311,8 @@ class BoundaryAgreementCreator:
                     if layer and layer.name() == "Закріплені вузли" and parent and parent.name() == group_name:
                         original_control_points_layer = layer
                         break
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     continue
 
             if original_control_points_layer:
@@ -342,7 +348,8 @@ class BoundaryAgreementCreator:
                     if layer and layer.name() == layer_name and parent and parent.name() == group_name:
                         original_layer = layer
                         break
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     continue
 
             if not original_layer:
@@ -493,7 +500,8 @@ class BoundaryAgreementCreator:
                 return
             try:
                 mem.startEditing()
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
         except Exception as e:
             log_calls(logFile, f"BoundaryAgreement: lines layer failed: {e}")
@@ -671,7 +679,8 @@ class BoundaryAgreementCreator:
             # У плані останній дубль видаляється — повторюємо поведінку.
             try:
                 del features_to_add[-1]
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             provider.addFeatures(features_to_add)
 
@@ -720,12 +729,14 @@ class BoundaryAgreementCreator:
             try:
                 if lyr.customProperty(self._ROLE_PROP_KEY, "") != self._ROLE_PROP_VALUE:
                     continue
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 continue
             try:
                 if root.findLayer(lyr.id()) is None:
                     to_remove.append(lyr.id())
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 continue
         if to_remove:
             try:
@@ -734,5 +745,6 @@ class BoundaryAgreementCreator:
                 for lid in to_remove:
                     try:
                         project.removeMapLayer(lid)
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass

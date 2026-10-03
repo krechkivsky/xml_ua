@@ -222,14 +222,16 @@ class xml_ua:
                 logFile.seek(0)
                 logFile.truncate(0)
                 logFile.flush()
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         log_path = os.path.join(self.plugin_dir, "log.md")
         try:
             with open(log_path, "w", encoding="utf-8"):
                 pass
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
 
@@ -455,11 +457,13 @@ class xml_ua:
         if hasattr(self, "action_help") and self.action_help:
             try:
                 self.iface.unregisterMainWindowAction(self.action_help)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             try:
                 self.action_help.deleteLater()
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             self.action_help = None
 
@@ -489,8 +493,9 @@ class xml_ua:
             try:
                 self.iface.mainWindow().removeToolBar(self.toolbar)
 
-            except Exception:
+            except Exception as e:
 
+                log_calls(logFile, f"{e}")
                 pass
             self.toolbar = None
 
@@ -917,7 +922,8 @@ class xml_ua:
                     "xml-ua", "Команди встановлення скопійовано в буфер обміну.",
                     level=Qgis.Info, duration=5,
                 )
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
     def initGui(self):
@@ -936,7 +942,8 @@ class xml_ua:
                 if bad_count:
                     msg += f", failed: {bad_count}"
                 self.iface.messageBar().pushMessage("XML-UA", msg, level=Qgis.Info, duration=5)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         try:
@@ -1037,13 +1044,16 @@ class xml_ua:
                     self.toolbar.removeAction(act)
                     try:
                         w.deleteLater()
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
                     try:
                         act.deleteLater()
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         pass
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.tools_menu = QMenu(self.iface.mainWindow())
@@ -1123,7 +1133,8 @@ class xml_ua:
         self.text_doc_menu.setIcon(new_icon)
         try:
             self.text_doc_menu.aboutToShow.connect(self._populate_text_documents_menu)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         self.doc_menu.addSeparator()
@@ -1167,7 +1178,8 @@ class xml_ua:
             self.on_cadastral_plan_clicked)
         try:
             self.action_boundary_agreement.triggered.connect(self.on_boundary_agreement_clicked)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         connector.connect(self.action_new_tool, "triggered", self.on_new_tool)
@@ -1349,7 +1361,8 @@ class xml_ua:
                     if layer and layer.name() == "Закріплені вузли" and parent and parent.name() == group_name:
                         original_control_points_layer = layer
                         break
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     continue
 
             if original_control_points_layer:
@@ -1884,7 +1897,8 @@ class xml_ua:
                 act = QAction(title, self.iface.mainWindow())
                 try:
                     act.setIcon(icon_provider.icon(QFileInfo(full_path)))
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 doc_type = self._doc_type_for_template_name(fname)
                 act.triggered.connect(lambda _, dt=doc_type, n=fname: self.on_create_document(dt, n))

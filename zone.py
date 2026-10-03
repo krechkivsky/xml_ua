@@ -14,7 +14,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtWidgets import QMessageBox
 
-from .common import ensure_object_layer_fields
+from .common import ensure_object_layer_fields, log_calls, logFile
 
 
 class CadastralZoneInfo:
@@ -138,7 +138,8 @@ class CadastralZoneInfo:
                     for lines_el in internals_lines_list:
                         try:
                             interior_shapes.append(processor._get_polyline_object_shape(lines_el))
-                        except Exception:
+                        except Exception as e:
+                            log_calls(logFile, f"{e}")
                             continue
                     object_shape = "|".join([s for s in ([exterior_shape] + interior_shapes) if s])
                 except Exception:

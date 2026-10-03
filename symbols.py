@@ -17,6 +17,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor, QFont
+from .common import log_calls, logFile
 
 
 class Symbols:
@@ -189,7 +190,8 @@ class Symbols:
                         pattern.setLineAngle(float(angle_deg))
                     elif hasattr(pattern, "setAngle"):
                         pattern.setAngle(float(angle_deg))
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
 
             if pattern is None:
@@ -199,32 +201,38 @@ class Symbols:
                         pattern.setLineAngle(float(angle_deg))
                     elif hasattr(pattern, "setAngle"):
                         pattern.setAngle(float(angle_deg))
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 try:
                     if hasattr(pattern, "setDistance"):
                         pattern.setDistance(3.0)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 try:
                     if hasattr(pattern, "setLineWidth"):
                         pattern.setLineWidth(0.1)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 try:
                     if hasattr(pattern, "setColor"):
                         pattern.setColor(QColor(0, 0, 0))
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 try:
                     if hasattr(pattern, "setDistanceUnit"):
                         pattern.setDistanceUnit(QgsUnitTypes.RenderMillimeters)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
                 try:
                     if hasattr(pattern, "setLineWidthUnit"):
                         pattern.setLineWidthUnit(QgsUnitTypes.RenderMillimeters)
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     pass
 
 
@@ -239,7 +247,8 @@ class Symbols:
                 )
                 if hasattr(pattern, "setSubSymbol"):
                     pattern.setSubSymbol(line_sym)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
             try:
@@ -297,7 +306,8 @@ class Symbols:
         lbl.setFont(f)
         try:
             lbl.setWordWrap(True)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         self.layout.addLayoutItem(lbl)
         lbl.attemptResize(QgsLayoutSize(w_mm, h_mm, QgsUnitTypes.LayoutMillimeters))
@@ -367,7 +377,8 @@ class Symbols:
                     cand = os.path.join(base_dir, rel)
                     if os.path.exists(cand):
                         return cand
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
             return ""
 
@@ -394,7 +405,8 @@ class Symbols:
                     pic.setSvgFillColor(black)
                 if hasattr(pic, "setSvgStrokeColor"):
                     pic.setSvgStrokeColor(black)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
         lbl = QgsLayoutItemLabel(self.layout)
@@ -475,7 +487,8 @@ class Symbols:
         lbl.setFont(f)
         try:
             lbl.setWordWrap(False)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         self.layout.addLayoutItem(lbl)
         lbl.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutMillimeters))
@@ -558,7 +571,8 @@ class Symbols:
                 }
             )
             title_rect.setSymbol(title_sym)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
 
         title_lbl = QgsLayoutItemLabel(self.layout)
@@ -705,7 +719,8 @@ class Symbols:
                         geom = ftr.geometry()
                         if geom is None or geom.isEmpty():
                             continue
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         continue
 
                     oid = None
@@ -720,7 +735,8 @@ class Symbols:
                         continue
                     try:
                         oid_int = int(str(oid).strip())
-                    except Exception:
+                    except Exception as e:
+                        log_calls(logFile, f"{e}")
                         continue
 
                     code = ""

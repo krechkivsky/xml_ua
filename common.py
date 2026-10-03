@@ -147,12 +147,14 @@ def normalize_decimal_commas_in_tree(xml_tree, xpaths=None):
     for xp in xpaths:
         try:
             elems = root.xpath(xp)
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             continue
         for el in elems:
             try:
                 old = el.text
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 continue
             if old is None:
                 continue
@@ -161,7 +163,8 @@ def normalize_decimal_commas_in_tree(xml_tree, xpaths=None):
                 continue
             try:
                 el.text = new
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 continue
             changes.append({"tag": getattr(el, "tag", ""), "old": str(old), "new": str(new)})
 
@@ -198,8 +201,9 @@ def ensure_object_layer_fields(layer):
             if idx != -1:
                 form_config.setReadOnly(idx, True)
         layer.setEditFormConfig(form_config)
-    except Exception:
+    except Exception as e:
 
+        log_calls(logFile, f"{e}")
         pass
 
 
@@ -217,7 +221,8 @@ def ensure_object_layer_fields(layer):
                     True,
                 ),
             )
-    except Exception:
+    except Exception as e:
+        log_calls(logFile, f"{e}")
         pass
 
 def next_object_id_in_container(parent, child_tag: str) -> str:

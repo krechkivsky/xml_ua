@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 from qgis.PyQt.QtGui import QFont, QFontMetricsF
 from qgis.PyQt.QtWidgets import QApplication
 
-from .common import config
+from .common import config, log_calls, logFile
 
 
 class LandsExplicationTable:
@@ -60,12 +60,14 @@ class LandsExplicationTable:
         try:
             if "LandsCode" in config:
                 return dict(config["LandsCode"])
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         try:
             if "LandCodes" in config:
                 return dict(config["LandCodes"])
-        except Exception:
+        except Exception as e:
+            log_calls(logFile, f"{e}")
             pass
         return {}
 

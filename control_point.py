@@ -10,6 +10,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
+from .common import log_calls, logFile
 
 
 class ControlPoint:
@@ -49,7 +50,8 @@ class ControlPoint:
         if self.points_handler:
             try:
                 self.points_handler.read_points()
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
         uidps = self._get_control_point_uidps()
@@ -74,7 +76,8 @@ class ControlPoint:
                 feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(y), float(x))))
                 feature.setAttributes([uidp])
                 provider.addFeature(feature)
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 continue
 
         self.layer.commitChanges()

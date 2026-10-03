@@ -16,7 +16,7 @@ from qgis.PyQt.QtWidgets import (
     QStyledItemDelegate,
 )
 
-from .common import config, config_docs
+from .common import config, config_docs, log_calls, logFile
 
 
 class StateActTypeDelegate(QStyledItemDelegate):
@@ -744,7 +744,8 @@ class DispatcherDelegate(QStyledItemDelegate):
                     code = index.model().data(index, Qt.ItemDataRole.EditRole)
                     option.text = self.doc_code_delegate.doc_list.get(str(code), str(option.text))
                     return
-            except Exception:
+            except Exception as e:
+                log_calls(logFile, f"{e}")
                 pass
 
             if self.doc_code_delegate and self.doc_code_delegate._is_target_element(index):

@@ -12,6 +12,7 @@ from typing import Dict, List, Tuple
 
 from qgis.PyQt.QtGui import QFont, QFontMetricsF
 from qgis.PyQt.QtWidgets import QApplication
+from .common import log_calls, logFile
 
 
 class RestrictionsPartsTable:
@@ -96,7 +97,8 @@ class RestrictionsPartsTable:
                         continue
                     area_m2 = float(g.area())
                     out[oid] = area_m2 / 10000.0
-                except Exception:
+                except Exception as e:
+                    log_calls(logFile, f"{e}")
                     continue
         except Exception:
             return out
