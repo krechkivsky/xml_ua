@@ -28,7 +28,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox
 
 from .boundary_agreement_layout import BoundaryAgreementLayoutCreator
@@ -243,7 +243,7 @@ class BoundaryAgreementCreator:
         self.iface.messageBar().pushMessage(
             "Акт погодження меж",
             f"Створюємо групу 'Акт погодження меж' для групи: {group_name}...",
-            level=Qgis.Info,
+            level=Qgis.MessageLevel.Info,
             duration=5,
         )
 
@@ -403,7 +403,7 @@ class BoundaryAgreementCreator:
         self.iface.messageBar().pushMessage(
             "Акт погодження меж",
             f"Групу 'Акт погодження меж' створено для групи: {group_name}",
-            level=Qgis.Success,
+            level=Qgis.MessageLevel.Success,
             duration=5,
         )
 
@@ -670,8 +670,8 @@ class BoundaryAgreementCreator:
         layer = QgsVectorLayer(f"Point?crs={crs}", layer_name, "memory")
         provider = layer.dataProvider()
         fields = QgsFields()
-        fields.append(QgsField("PN", QVariant.String, "Ім'я точки"))
-        fields.append(QgsField("LITERA", QVariant.String, "Літера"))
+        fields.append(QgsField("PN", QMetaType.Type.QString, "Ім'я точки"))
+        fields.append(QgsField("LITERA", QMetaType.Type.QString, "Літера"))
         provider.addAttributes(fields)
         layer.updateFields()
 

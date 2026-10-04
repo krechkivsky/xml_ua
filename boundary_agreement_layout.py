@@ -175,7 +175,7 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
             raise RuntimeError("Layout create failed")
 
         page = layout.pageCollection().page(0)
-        page.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutMillimeters))
+        page.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         content_x = float(MARGIN_LEFT_MM)
         content_w = float(PAGE_W_MM - MARGIN_LEFT_MM - MARGIN_RIGHT_MM)
@@ -217,8 +217,10 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         map_item.setId("Ділянка")
         map_item.setObjectName("Ділянка")
         layout.addLayoutItem(map_item)
-        map_item.attemptMove(QgsLayoutPoint(content_x, map_y, QgsUnitTypes.LayoutMillimeters))
-        map_item.attemptResize(QgsLayoutSize(float(MAP_SIDE_MM), float(MAP_SIDE_MM), QgsUnitTypes.LayoutMillimeters))
+        map_item.attemptMove(QgsLayoutPoint(content_x, map_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        map_item.attemptResize(QgsLayoutSize(float(MAP_SIDE_MM),
+                                             float(MAP_SIDE_MM),
+                                             QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         neighbors = self._find_layer_exact(self.cadastral_plan_group, "Суміжники")
         extent = neighbors.extent() if neighbors else self._group_extent()
@@ -251,9 +253,9 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
 
         # Title background (same style as cadastral plan)
         title_bg = QgsLayoutItemShape(layout)
-        title_bg.setShapeType(QgsLayoutItemShape.Rectangle)
-        title_bg.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutMillimeters))
-        title_bg.attemptResize(QgsLayoutSize(content_w, float(TITLE_H_MM), QgsUnitTypes.LayoutMillimeters))
+        title_bg.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
+        title_bg.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        title_bg.attemptResize(QgsLayoutSize(content_w, float(TITLE_H_MM), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         title_bg_symbol = QgsFillSymbol.createSimple(
             {
                 "color": "242,242,242,255",
@@ -285,10 +287,10 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         fnt.setBold(False)
         title.setFont(fnt)
         layout.addLayoutItem(title)
-        title.attemptResize(QgsLayoutSize(content_w, float(TITLE_H_MM), QgsUnitTypes.LayoutMillimeters))
+        title.attemptResize(QgsLayoutSize(content_w, float(TITLE_H_MM), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         title.setHAlign(Qt.AlignmentFlag.AlignHCenter)
         title.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        title.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutMillimeters))
+        title.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         # Neighbor letters (same as cadastral plan)
         try:
@@ -326,10 +328,10 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
             pass
         layout.addLayoutItem(info)
         info_h = float(NODES_TABLE_TITLE_H_MM) * 3.0
-        info.attemptResize(QgsLayoutSize(content_w, info_h, QgsUnitTypes.LayoutMillimeters))
+        info.attemptResize(QgsLayoutSize(content_w, info_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         info.setHAlign(Qt.AlignmentFlag.AlignLeft)
         info.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        info.attemptMove(QgsLayoutPoint(content_x, y_cursor, QgsUnitTypes.LayoutMillimeters))
+        info.attemptMove(QgsLayoutPoint(content_x, y_cursor, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         y_cursor = float(y_cursor + info_h + 2.0)
 
         # Boundary table (no extra title, with signature column)
@@ -358,7 +360,7 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         )
         if html and rows:
             tbl = QgsLayoutItemLabel(layout)
-            tbl.setMode(QgsLayoutItemLabel.ModeHtml)
+            tbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
             tbl.setText(html)
             try:
                 tbl.setFont(QFont(table_font))
@@ -370,9 +372,9 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
             layout.addLayoutItem(tbl)
 
             tbl_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(rows) * float(body_row_h) + 2.0
-            tbl.attemptResize(QgsLayoutSize(float(table_w), float(tbl_h), QgsUnitTypes.LayoutMillimeters))
+            tbl.attemptResize(QgsLayoutSize(float(table_w), float(tbl_h), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             tx = float(content_x) + max(0.0, (float(content_w) - float(table_w)) / 2.0)
-            tbl.attemptMove(QgsLayoutPoint(tx, y_cursor, QgsUnitTypes.LayoutMillimeters))
+            tbl.attemptMove(QgsLayoutPoint(tx, y_cursor, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         # Signature (same as cadastral plan)
         sig = QgsLayoutItemLabel(layout)
@@ -387,9 +389,9 @@ class BoundaryAgreementLayoutCreator(PlanLayoutCreator):
         except Exception as e:
             log_calls(logFile, f"{e}")
             pass
-        sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
+        sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         sig.setHAlign(Qt.AlignmentFlag.AlignLeft)
         sig.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutMillimeters))
+        sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         return layout

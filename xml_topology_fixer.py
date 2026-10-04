@@ -95,7 +95,9 @@ class XmlTopologyFixer:
 
             self.tree.write(self.file_path, pretty_print=True, xml_declaration=True, encoding="UTF-8")
             iface.messageBar().pushMessage(
-                "Успіх", "Топологію було виправлено. Файл буде перезавантажено.", level=Qgis.Success, duration=5
+                "Успіх",
+                "Топологію було виправлено. Файл буде перезавантажено.",
+                level=Qgis.MessageLevel.Success, duration=5
             )
             return self.FixResult.FILE_FIXED_AND_SAVED
 
@@ -156,7 +158,7 @@ class XmlTopologyFixer:
         msg_box.addButton("Скасувати", QMessageBox.ButtonRole.RejectRole)
 
         msg_box.setDefaultButton(fix_button)
-        msg_box.exec_()
+        msg_box.exec()
 
         return msg_box, msg_box.clickedButton()
 

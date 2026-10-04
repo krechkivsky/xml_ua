@@ -75,7 +75,7 @@ class NewXmlCreator:
 
         selected_feature = selected_features[0]
         geometry_type = selected_feature.geometry().wkbType()
-        if geometry_type not in (QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon):
+        if geometry_type not in (QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon):
             QMessageBox.warning(
                 None, "Помилка", "Межі земельної ділянки повинні бути полігоном або мультиполігоном.")
             return None
@@ -95,12 +95,12 @@ class NewXmlCreator:
         # - Internals: zero or more interior rings (holes) stored under Externals/Internals
         external_rings = []
         internal_rings = []
-        if geometry_type == QgsWkbTypes.Polygon:
+        if geometry_type == QgsWkbTypes.Type.Polygon:
             polygon = geometry.asPolygon()
             if polygon:
                 external_rings.append(polygon[0])
                 internal_rings.extend(polygon[1:])
-        elif geometry_type == QgsWkbTypes.MultiPolygon:
+        elif geometry_type == QgsWkbTypes.Type.MultiPolygon:
             for polygon in geometry.asMultiPolygon():
                 if not polygon:
                     continue
@@ -355,9 +355,9 @@ class NewXmlCreator:
             return None
 
         geometry = selected_feature.geometry()
-        if geometry.wkbType() == QgsWkbTypes.Polygon:
+        if geometry.wkbType() == QgsWkbTypes.Type.Polygon:
             return geometry
-        elif geometry.wkbType() == QgsWkbTypes.MultiPolygon:
+        elif geometry.wkbType() == QgsWkbTypes.Type.MultiPolygon:
             return geometry
         else:
             QMessageBox.warning(
@@ -373,9 +373,9 @@ class NewXmlCreator:
         if not selected_feature:
             return None
         geometry = selected_feature.geometry()
-        if geometry.wkbType() == QgsWkbTypes.Polygon:
+        if geometry.wkbType() == QgsWkbTypes.Type.Polygon:
             return geometry
-        elif geometry.wkbType() == QgsWkbTypes.MultiPolygon:
+        elif geometry.wkbType() == QgsWkbTypes.Type.MultiPolygon:
             return geometry
         else:
             QMessageBox.warning(
@@ -398,10 +398,10 @@ class NewXmlCreator:
         land_use_element = etree.SubElement(parcel_info_element, "LandUse")
         etree.SubElement(land_use_element, "Type").text = "Unknown"
 
-        if land_use_polygon.wkbType() == QgsWkbTypes.Polygon:
+        if land_use_polygon.wkbType() == QgsWkbTypes.Type.Polygon:
             for point in land_use_polygon.asPolygon()[0]:
                 pass
-        elif land_use_polygon.wkbType() == QgsWkbTypes.MultiPolygon:
+        elif land_use_polygon.wkbType() == QgsWkbTypes.Type.MultiPolygon:
             for polygon in land_use_polygon.asMultiPolygon():
                 for point in polygon[0]:
                     pass

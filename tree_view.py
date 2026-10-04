@@ -2857,7 +2857,7 @@ class CustomTreeView(QTreeView):
             if reset_visuals:
                 root_item = self.model.invisibleRootItem().child(0, 0)
                 if root_item:
-                    default_brush = QBrush(Qt.black)
+                    default_brush = QBrush(Qt.GlobalColor.black)
                     stack = [root_item]
                     while stack:
                         curr = stack.pop()

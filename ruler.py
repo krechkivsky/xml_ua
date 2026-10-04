@@ -31,12 +31,16 @@ class Ruler:
         y_bottom = float(map_y_mm) + float(map_side_mm)
 
         baseline = QgsLayoutItemShape(self.layout)
-        baseline.setShapeType(QgsLayoutItemShape.Rectangle)
+        baseline.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         baseline.setId("Ruler:baseline")
         baseline.setObjectName("Ruler:baseline")
 
-        baseline.attemptMove(QgsLayoutPoint(float(map_x_mm), y_bottom - thickness_mm, QgsUnitTypes.LayoutMillimeters))
-        baseline.attemptResize(QgsLayoutSize(float(map_side_mm), thickness_mm, QgsUnitTypes.LayoutMillimeters))
+        baseline.attemptMove(QgsLayoutPoint(float(map_x_mm),
+                                            y_bottom - thickness_mm,
+                                            QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        baseline.attemptResize(QgsLayoutSize(float(map_side_mm),
+                                             thickness_mm,
+                                             QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         baseline_symbol = QgsFillSymbol.createSimple(
             {
                 "color": "0,0,0,255",
@@ -60,12 +64,12 @@ class Ruler:
                 tick_h = 1.0
 
             tick = QgsLayoutItemShape(self.layout)
-            tick.setShapeType(QgsLayoutItemShape.Rectangle)
+            tick.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
             tick.setId(f"Ruler:tick:{m}")
             tick.setObjectName(f"Ruler:tick:{m}")
 
-            tick.attemptMove(QgsLayoutPoint(x, y_bottom - tick_h, QgsUnitTypes.LayoutMillimeters))
-            tick.attemptResize(QgsLayoutSize(thickness_mm, tick_h, QgsUnitTypes.LayoutMillimeters))
+            tick.attemptMove(QgsLayoutPoint(x, y_bottom - tick_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+            tick.attemptResize(QgsLayoutSize(thickness_mm, tick_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             tick_symbol = QgsFillSymbol.createSimple(
                 {
                     "color": "0,0,0,255",

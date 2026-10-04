@@ -8,7 +8,7 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtWidgets import QMessageBox
 
 
@@ -98,7 +98,7 @@ class PLs:
 
         provider = self.layer.dataProvider()
 
-        provider.addAttributes([QgsField("ULID", QVariant.String), QgsField("Length", QVariant.String)])
+        provider.addAttributes([QgsField("ULID", QMetaType.Type.QString), QgsField("Length", QMetaType.Type.QString)])
         self.layer.updateFields()
 
         for line_data in self.xml_lines:

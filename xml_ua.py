@@ -47,7 +47,7 @@ from qgis.PyQt.QtCore import (
     Qt,
     QTranslator,
     QUrl,
-    QVariant,
+    QMetaType
 )
 from qgis.PyQt.QtGui import (
     QDesktopServices,
@@ -189,7 +189,7 @@ class xml_ua:
             if not self.signal_log_enabled:
                 message += ". Файли логування очищено"
             log_calls(logFile, message)
-            self.iface.messageBar().pushMessage("XML-UA", message, level=Qgis.Info, duration=4)
+            self.iface.messageBar().pushMessage("XML-UA", message, level=Qgis.MessageLevel.Info, duration=4)
 
     def on_toggle_signal_log(self, checked):
         self._apply_signal_log_setting(checked, persist=True, notify=True)
@@ -604,7 +604,9 @@ class xml_ua:
         # log_calls(logFile, "Запуск плагіна.")
 
         if not QgsProject.instance().fileName():
-            self.iface.messageBar().pushMessage("XML-UA", "Спочатку треба відкрити проект.", level=Qgis.Warning)
+            self.iface.messageBar().pushMessage("XML-UA",
+                                                "Спочатку треба відкрити проект.",
+                                                level=Qgis.MessageLevel.Warning)
             return
 
         if self.dockwidget is None:
@@ -646,7 +648,9 @@ class xml_ua:
     def on_open_tool(self):
 
         if not QgsProject.instance().fileName():
-            self.iface.messageBar().pushMessage("XML-UA", "Спочатку треба відкрити проект.", level=Qgis.Warning)
+            self.iface.messageBar().pushMessage("XML-UA",
+                                                "Спочатку треба відкрити проект.",
+                                                level=Qgis.MessageLevel.Warning)
             return
 
         self.run()
@@ -754,7 +758,7 @@ class xml_ua:
         else:
             self.dockwidget.hide()
             self.iface.messageBar().pushMessage(
-                "Інфо", "Відкрийте XML-файл, щоб побачити його структуру.", level=Qgis.Info, duration=4
+                "Інфо", "Відкрийте XML-файл, щоб побачити його структуру.", level=Qgis.MessageLevel.Info, duration=4
             )
 
     def _missing_optional_dependencies(self):
@@ -814,7 +818,7 @@ class xml_ua:
                 self.iface.messageBar().pushMessage(
                     "xml-ua",
                     "Команди встановлення скопійовано в буфер обміну.",
-                    level=Qgis.Info,
+                    level=Qgis.MessageLevel.Info,
                     duration=5,
                 )
             except Exception as e:
@@ -836,7 +840,7 @@ class xml_ua:
                 msg = f"Custom CRS imported: {ok_count}"
                 if bad_count:
                     msg += f", failed: {bad_count}"
-                self.iface.messageBar().pushMessage("XML-UA", msg, level=Qgis.Info, duration=5)
+                self.iface.messageBar().pushMessage("XML-UA", msg, level=Qgis.MessageLevel.Info, duration=5)
         except Exception as e:
             log_calls(logFile, f"{e}")
             pass
@@ -1096,7 +1100,9 @@ class xml_ua:
         if not group_name:
             group_name = "(група не визначена)"
         self.iface.messageBar().pushMessage(
-            "Кадастровий план", f"Створюємо кадастровий план для групи: {group_name}...", level=Qgis.Info, duration=5
+            "Кадастровий план",
+            f"Створюємо кадастровий план для групи: {group_name}...",
+            level=Qgis.MessageLevel.Info, duration=5
         )
 
         current_xml_data = self.dockwidget.current_xml
@@ -1343,7 +1349,9 @@ class xml_ua:
         self.create_parcel_nodes_layer(cadastral_plan_group)
 
         self.iface.messageBar().pushMessage(
-            "Кадастровий план", f"Кадастровий план створено для групи: {group_name}", level=Qgis.Success, duration=5
+            "Кадастровий план",
+            f"Кадастровий план створено для групи: {group_name}",
+            level=Qgis.MessageLevel.Success, duration=5
         )
 
         parent_group = xml_group
@@ -1610,8 +1618,8 @@ class xml_ua:
         layer = QgsVectorLayer(f"Point?crs={crs}", layer_name, "memory")
         provider = layer.dataProvider()
         fields = QgsFields()
-        fields.append(QgsField("PN", QVariant.String, "Ім'я точки"))
-        fields.append(QgsField("LITERA", QVariant.String, "Літера"))
+        fields.append(QgsField("PN", QMetaType.Type.QString, "Ім'я точки"))
+        fields.append(QgsField("LITERA", QMetaType.Type.QString, "Літера"))
         provider.addAttributes(fields)
         layer.updateFields()
 
@@ -1805,7 +1813,8 @@ class xml_ua:
 
             self.dockwidget.open_xml_file(original_path)
             self.iface.messageBar().pushMessage(
-                "Диск:", f"Файл '{os.path.basename(original_path)}' успішно відновлено.", level=Qgis.Success, duration=5
+                "Диск:", f"Файл '{os.path.basename(original_path)}' успішно відновлено.",
+                level=Qgis.MessageLevel.Success, duration=5
             )
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Помилка відновлення", f"Сталася помилка: {e}")

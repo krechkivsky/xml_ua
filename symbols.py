@@ -222,13 +222,13 @@ class Symbols:
                     pass
                 try:
                     if hasattr(pattern, "setDistanceUnit"):
-                        pattern.setDistanceUnit(QgsUnitTypes.RenderMillimeters)
+                        pattern.setDistanceUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
                 except Exception as e:
                     log_calls(logFile, f"{e}")
                     pass
                 try:
                     if hasattr(pattern, "setLineWidthUnit"):
-                        pattern.setLineWidthUnit(QgsUnitTypes.RenderMillimeters)
+                        pattern.setLineWidthUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
                 except Exception as e:
                     log_calls(logFile, f"{e}")
                     pass
@@ -259,22 +259,22 @@ class Symbols:
     def _add_demo_restriction_rect(self, x_mm: float, y_mm: float, w_mm: float, h_mm: float, object_id: int):
         angle = (15.0 + float(object_id) * 35.0) % 360.0
         rect = QgsLayoutItemShape(self.layout)
-        rect.setShapeType(QgsLayoutItemShape.Rectangle)
+        rect.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         rect.setId(f"Symbols:restriction_demo:{object_id}")
         rect.setObjectName(f"Symbols:restriction_demo:{object_id}")
-        rect.attemptMove(QgsLayoutPoint(float(x_mm), float(y_mm), QgsUnitTypes.LayoutMillimeters))
-        rect.attemptResize(QgsLayoutSize(float(w_mm), float(h_mm), QgsUnitTypes.LayoutMillimeters))
+        rect.attemptMove(QgsLayoutPoint(float(x_mm), float(y_mm), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        rect.attemptResize(QgsLayoutSize(float(w_mm), float(h_mm), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         rect.setSymbol(self._make_restriction_hatch_symbol(angle))
         self.layout.addLayoutItem(rect)
         return rect
 
     def _add_cell_rect(self, x_mm: float, y_mm: float, w_mm: float, h_mm: float, obj_id: str):
         rect = QgsLayoutItemShape(self.layout)
-        rect.setShapeType(QgsLayoutItemShape.Rectangle)
+        rect.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         rect.setId(obj_id)
         rect.setObjectName(obj_id)
-        rect.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutMillimeters))
-        rect.attemptResize(QgsLayoutSize(w_mm, h_mm, QgsUnitTypes.LayoutMillimeters))
+        rect.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        rect.attemptResize(QgsLayoutSize(w_mm, h_mm, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         sym = QgsFillSymbol.createSimple(
             {
                 "color": "255,255,255,0",
@@ -307,20 +307,20 @@ class Symbols:
             log_calls(logFile, f"{e}")
             pass
         self.layout.addLayoutItem(lbl)
-        lbl.attemptResize(QgsLayoutSize(w_mm, h_mm, QgsUnitTypes.LayoutMillimeters))
+        lbl.attemptResize(QgsLayoutSize(w_mm, h_mm, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         lbl.setHAlign(align)
         lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutMillimeters))
+        lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         return lbl
 
     def _add_demo_fill_rect(self, layer_name: str, x_mm: float, y_mm: float, w_mm: float, h_mm: float, obj_id: str):
         lyr = self._find_layer_from_sources(layer_name)
         rect = QgsLayoutItemShape(self.layout)
-        rect.setShapeType(QgsLayoutItemShape.Rectangle)
+        rect.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         rect.setId(obj_id)
         rect.setObjectName(obj_id)
-        rect.attemptMove(QgsLayoutPoint(float(x_mm), float(y_mm), QgsUnitTypes.LayoutMillimeters))
-        rect.attemptResize(QgsLayoutSize(float(w_mm), float(h_mm), QgsUnitTypes.LayoutMillimeters))
+        rect.attemptMove(QgsLayoutPoint(float(x_mm), float(y_mm), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        rect.attemptResize(QgsLayoutSize(float(w_mm), float(h_mm), QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         symbol = self._clone_renderer_symbol(lyr)
         if symbol is None or not isinstance(symbol, QgsFillSymbol):
@@ -355,11 +355,11 @@ class Symbols:
         seg_y = cy - seg_h / 2.0
 
         base = QgsLayoutItemShape(self.layout)
-        base.setShapeType(QgsLayoutItemShape.Rectangle)
+        base.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         base.setId("Symbols:adj_line_v")
         base.setObjectName("Symbols:adj_line_v")
-        base.attemptMove(QgsLayoutPoint(seg_x, seg_y, QgsUnitTypes.LayoutMillimeters))
-        base.attemptResize(QgsLayoutSize(seg_w, seg_h, QgsUnitTypes.LayoutMillimeters))
+        base.attemptMove(QgsLayoutPoint(seg_x, seg_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        base.attemptResize(QgsLayoutSize(seg_w, seg_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         base.setSymbol(QgsFillSymbol.createSimple({"color": line_color, "outline_style": "no"}))
         self.layout.addLayoutItem(base)
 
@@ -389,8 +389,8 @@ class Symbols:
             pic.setObjectName("Symbols:adj_arrow_top")
             pic.setPicturePath(arrow_svg)
             self.layout.addLayoutItem(pic)
-            pic.attemptResize(QgsLayoutSize(aw, ah, QgsUnitTypes.LayoutMillimeters))
-            pic.attemptMove(QgsLayoutPoint(arrow_x, arrow_y, QgsUnitTypes.LayoutMillimeters))
+            pic.attemptResize(QgsLayoutSize(aw, ah, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+            pic.attemptMove(QgsLayoutPoint(arrow_x, arrow_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
             try:
                 black = QColor(0, 0, 0)
@@ -413,12 +413,12 @@ class Symbols:
         self.layout.addLayoutItem(lbl)
         lbl_w = 4.0
         lbl_h = 3.0
-        lbl.attemptResize(QgsLayoutSize(lbl_w, lbl_h, QgsUnitTypes.LayoutMillimeters))
+        lbl.attemptResize(QgsLayoutSize(lbl_w, lbl_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         lbl.setHAlign(Qt.AlignmentFlag.AlignLeft)
         lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         lbl_x = cx + aw / 2.0 + 0.5
         lbl_y = (arrow_y + ah / 2.0) - (lbl_h / 2.0)
-        lbl.attemptMove(QgsLayoutPoint(lbl_x, lbl_y, QgsUnitTypes.LayoutMillimeters))
+        lbl.attemptMove(QgsLayoutPoint(lbl_x, lbl_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
     def _add_demo_point(self, layer_name: str, x_mm: float, y_mm: float, w_mm: float, h_mm: float):
 
@@ -435,13 +435,13 @@ class Symbols:
 
         dot = QgsLayoutItemShape(self.layout)
         try:
-            dot.setShapeType(QgsLayoutItemShape.Ellipse)
+            dot.setShapeType(QgsLayoutItemShape.Shape.Ellipse)
         except Exception:
-            dot.setShapeType(QgsLayoutItemShape.Rectangle)
+            dot.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         dot.setId("Symbols:control_point")
         dot.setObjectName("Symbols:control_point")
-        dot.attemptMove(QgsLayoutPoint(cx, cy, QgsUnitTypes.LayoutMillimeters))
-        dot.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutMillimeters))
+        dot.attemptMove(QgsLayoutPoint(cx, cy, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        dot.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         dot.setSymbol(QgsFillSymbol.createSimple({"color": color, "outline_style": "no"}))
         self.layout.addLayoutItem(dot)
 
@@ -452,13 +452,13 @@ class Symbols:
 
         circle = QgsLayoutItemShape(self.layout)
         try:
-            circle.setShapeType(QgsLayoutItemShape.Ellipse)
+            circle.setShapeType(QgsLayoutItemShape.Shape.Ellipse)
         except Exception:
-            circle.setShapeType(QgsLayoutItemShape.Rectangle)
+            circle.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
         circle.setId("Symbols:lands_num_circle")
         circle.setObjectName("Symbols:lands_num_circle")
-        circle.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
-        circle.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutMillimeters))
+        circle.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        circle.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         circle.setSymbol(
             QgsFillSymbol.createSimple(
                 {
@@ -483,10 +483,10 @@ class Symbols:
             log_calls(logFile, f"{e}")
             pass
         self.layout.addLayoutItem(lbl)
-        lbl.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutMillimeters))
+        lbl.attemptResize(QgsLayoutSize(d, d, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         lbl.setHAlign(Qt.AlignmentFlag.AlignHCenter)
         lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
+        lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         return circle, lbl
 
     def _add_demo_parcel(self, cell_x_mm: float, cell_y_mm: float, cell_w_mm: float, cell_h_mm: float):
@@ -514,10 +514,10 @@ class Symbols:
             lbl.setText(text)
             lbl.setFont(font)
             self.layout.addLayoutItem(lbl)
-            lbl.attemptResize(QgsLayoutSize(w, h, QgsUnitTypes.LayoutMillimeters))
+            lbl.attemptResize(QgsLayoutSize(w, h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             lbl.setHAlign(halign)
             lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-            lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
+            lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             return lbl
 
         pad = 0.3
@@ -580,10 +580,10 @@ class Symbols:
         f.setBold(False)
         title_lbl.setFont(f)
         self.layout.addLayoutItem(title_lbl)
-        title_lbl.attemptResize(QgsLayoutSize(table_w_mm, self.TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
+        title_lbl.attemptResize(QgsLayoutSize(table_w_mm, self.TITLE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         title_lbl.setHAlign(Qt.AlignmentFlag.AlignHCenter)
         title_lbl.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        title_lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutMillimeters))
+        title_lbl.attemptMove(QgsLayoutPoint(x_mm, y_mm, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         row_y = y_mm + self.TITLE_H_MM
         pad = 1.0

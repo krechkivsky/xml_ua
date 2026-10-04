@@ -2,8 +2,8 @@
 name=xml_ua
 qgisMinimumVersion=4.2.0
 description=Processing Ukrainian cadastral XML files (Geodesy).
-version=0.9.9
-date=2026-10-02
+version=0.9.10
+date=2026-10-04
 author=krechkivsky.dev@gmail.com
 email=krechkivsky.dev@gmail.com
 about=A comprehensive tool for Ukrainian land surveyors. 

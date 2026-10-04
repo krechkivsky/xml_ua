@@ -7,7 +7,7 @@ from gc import get_referents
 from types import FunctionType, ModuleType
 
 from qgis.core import QgsField, QgsGeometry, QgsWkbTypes
-from qgis.PyQt.QtCore import QObject, QVariant, pyqtSignal
+from qgis.PyQt.QtCore import QObject, QMetaType, pyqtSignal
 from qgis.PyQt.QtWidgets import QDockWidget, QMessageBox
 
 logFile = open(os.path.dirname(__file__) + "/log.md", "w", encoding="utf-8")
@@ -186,9 +186,9 @@ def ensure_object_layer_fields(layer):
 
     fields_to_add = []
     if "object_id" not in existing_names:
-        fields_to_add.append(QgsField("object_id", QVariant.Int))
+        fields_to_add.append(QgsField("object_id", QMetaType.Type.Int))
     if "object_shape" not in existing_names:
-        fields_to_add.append(QgsField("object_shape", QVariant.String))
+        fields_to_add.append(QgsField("object_shape", QMetaType.Type.QString))
 
     if fields_to_add:
         provider.addAttributes(fields_to_add)
@@ -480,34 +480,34 @@ def geometry_to_string(geometry):
     geometry_type = geometry.wkbType()
     result_string = ""
 
-    if geometry_type == QgsWkbTypes.Point:
+    if geometry_type == QgsWkbTypes.Type.Point:
         result_string += "point:\n"
         point = geometry.asPoint()
         result_string += f"1. {point.x():.2f}, {point.y():.2f}\n"
 
-    elif geometry_type == QgsWkbTypes.MultiPoint:
+    elif geometry_type == QgsWkbTypes.Type.MultiPoint:
         result_string += "multipoint:\n"
         for i, point in enumerate(geometry.asMultiPoint()):
             result_string += f"\t{i + 1}. {point.x():.2f}, {point.y():.2f}\n"
 
-    elif geometry_type == QgsWkbTypes.LineString:
+    elif geometry_type == QgsWkbTypes.Type.LineString:
         result_string += "linestring:\n"
         for i, point in enumerate(geometry.asPolyline()):
             result_string += f"{i + 1}. {point.x():.2f}, {point.y():.2f}\n"
 
-    elif geometry_type == QgsWkbTypes.MultiLineString:
+    elif geometry_type == QgsWkbTypes.Type.MultiLineString:
         result_string += "multilinestring:\n"
         for j, polyline in enumerate(geometry.asMultiPolyline()):
             result_string += f"linestring {j + 1}:\n"
             for i, point in enumerate(polyline):
                 result_string += f"\t{i + 1}. {point.x():.2f}, {point.y():.2f}\n"
 
-    elif geometry_type == QgsWkbTypes.Polygon:
+    elif geometry_type == QgsWkbTypes.Type.Polygon:
         result_string += "polygon:\n"
         for i, point in enumerate(geometry.asPolygon()[0]):
             result_string += f"{i + 1}. {point.x():.2f}, {point.y():.2f}\n"
 
-    elif geometry_type == QgsWkbTypes.MultiPolygon:
+    elif geometry_type == QgsWkbTypes.Type.MultiPolygon:
         result_string += "multipolygon:\n"
         for j, polygon in enumerate(geometry.asMultiPolygon()):
             result_string += f"polygon {j + 1}:\n"

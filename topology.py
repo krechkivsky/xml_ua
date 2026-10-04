@@ -346,10 +346,10 @@ class GeometryProcessor:
             log_calls(logFile, f"(початок): Розділ 'AdjacentUnits' ІСНУЄ. Кількість суміжників: {count}.")
 
         log_calls(logFile)
-        if geometry.wkbType() not in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
+        if geometry.wkbType() not in [QgsWkbTypes.Type.LineString, QgsWkbTypes.Type.MultiLineString]:
             raise ValueError("Геометрія суміжника повинна бути полілінією.")
 
-        if geometry.type() == QgsWkbTypes.MultiLineString:
+        if geometry.type() == QgsWkbTypes.Type.MultiLineString:
             polyline = geometry.asMultiPolyline()[0]
         else:
             polyline = geometry.asPolyline()
@@ -778,7 +778,7 @@ class GeometryProcessor:
         Обробляє геометрію оренди, оновлює PointInfo, Polyline та додає LeaseInfo
         з усіма обов'язковими порожніми піделементами.
         """
-        if geometry.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geometry.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             raise ValueError("Геометрія оренди повинна бути полігоном.")
 
         externals_element, _, _, object_shape = self.process_new_geometry(geometry)
@@ -834,7 +834,7 @@ class GeometryProcessor:
         Обробляє геометрію суборенди, оновлює PointInfo, Polyline та додає SubleaseInfo
         з усіма обов'язковими порожніми піделементами.
         """
-        if geometry.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geometry.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             raise ValueError("Геометрія суборенди повинна бути полігоном.")
 
         externals_element, _, _, object_shape = self.process_new_geometry(geometry)
@@ -894,7 +894,7 @@ class GeometryProcessor:
         Обробляє геометрію обмеження, оновлює PointInfo, Polyline та додає RestrictionInfo
         з усіма обов'язковими порожніми піделементами.
         """
-        if geometry.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geometry.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             raise ValueError("Геометрія обмеження повинна бути полігоном.")
 
         externals_element, _, _, object_shape = self.process_new_geometry(geometry)

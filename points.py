@@ -10,7 +10,7 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtWidgets import QMessageBox
 
 
@@ -122,13 +122,13 @@ class Points:
         provider = self.layer.dataProvider()
 
         provider.addAttributes([
-            QgsField("UIDP", QVariant.String),
-            QgsField("PN", QVariant.String),
-            QgsField("H", QVariant.String),
-            QgsField("MX", QVariant.String),
-            QgsField("MY", QVariant.String),
-            QgsField("MH", QVariant.String),
-            QgsField("Description", QVariant.String)
+            QgsField("UIDP", QMetaType.Type.QString),
+            QgsField("PN", QMetaType.Type.QString),
+            QgsField("H", QMetaType.Type.QString),
+            QgsField("MX", QMetaType.Type.QString),
+            QgsField("MY", QMetaType.Type.QString),
+            QgsField("MH", QMetaType.Type.QString),
+            QgsField("Description", QMetaType.Type.QString)
         ])
         self.layer.updateFields()
 

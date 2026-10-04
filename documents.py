@@ -128,7 +128,7 @@ class DocumentGenerator:
                 continue
 
         try:
-            docs_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+            docs_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
         except Exception:
             docs_dir = ""
         if not docs_dir:
@@ -718,7 +718,7 @@ class DocumentGenerator:
 
         if has_date:
             date_dialog = DateInputDialog(parent=self.dockwidget)
-            if date_dialog.exec_() == QDialog.DialogCode.Accepted:
+            if date_dialog.exec() == QDialog.DialogCode.Accepted:
                 date_str = date_dialog.get_date()  # yyyy-MM-dd
                 parts.append(f" від {date_str}")
             else:

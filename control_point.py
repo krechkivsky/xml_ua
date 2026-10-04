@@ -8,7 +8,7 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtWidgets import QMessageBox
 from .common import log_calls, logFile
 
@@ -104,7 +104,7 @@ class ControlPoint:
         self.layer.setReadOnly(True)
 
         provider = self.layer.dataProvider()
-        provider.addAttributes([QgsField("UIDP", QVariant.String)])
+        provider.addAttributes([QgsField("UIDP", QMetaType.Type.QString)])
         self.layer.updateFields()
 
         QgsProject.instance().addMapLayer(self.layer, False)

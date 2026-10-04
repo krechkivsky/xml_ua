@@ -80,7 +80,7 @@ class MapCanvasContextMenu:
 
         feature = selected_features[0]
         geom_type = feature.geometry().wkbType()
-        return geom_type in (QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon)
+        return geom_type in (QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon)
 
     def _add_creation_menu(self, menu):
         """Додає до меню пункти для створення нового XML з виділеного полігону."""

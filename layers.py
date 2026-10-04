@@ -440,7 +440,7 @@ class xmlUaLayers:
         iface.messageBar().pushMessage(
             header,  # Заголовок
             message,  # Текст повідомлення
-            level=Qgis.Success,  # Тип повідомлення (зелений фон)
+            level=Qgis.MessageLevel.Success,  # Тип повідомлення (зелений фон)
             duration=0,  # 0 секунд — повідомлення буде жити вічно, поки не закриють
         )
 

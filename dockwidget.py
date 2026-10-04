@@ -87,7 +87,7 @@ class BackupTask(QgsTask):
     """Фонове завдання для створення резервної копії файлу."""
 
     def __init__(self, source_path, dest_path, description, dockwidget):
-        super().__init__(description, QgsTask.CanCancel)
+        super().__init__(description, QgsTask.Flag.CanCancel)
         self.source_path = source_path
         self.dest_path = dest_path
         self.dockwidget = dockwidget
@@ -114,7 +114,9 @@ class BackupTask(QgsTask):
         iface = self.dockwidget.iface if self.dockwidget else qgis.utils.iface
         if result:
             iface.messageBar().pushMessage(
-                "Інфо", f"Створено резервну копію: {os.path.basename(self.dest_path)}", level=Qgis.Info, duration=3
+                "Інфо", f"Створено резервну копію: {os.path.basename(self.dest_path)}",
+                level=Qgis.MessageLevel.Info,
+                duration=3
             )
         else:
             if self.exception:
@@ -170,7 +172,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 "Кадастрові коди",
                 (f"Коди для {total_updated} ділянок у всіх відкритих XML перенумеровано, "
                  "збережено та оновлено у віджеті."),
-                level=Qgis.Success,
+                level=Qgis.MessageLevel.Success,
                 duration=5,
             )
         else:
@@ -442,7 +444,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         progress_bar.setValue(0)
         progress_bar.setMaximumWidth(220)
         progress_message.layout().addWidget(progress_bar)
-        message_bar.pushWidget(progress_message, Qgis.Info)
+        message_bar.pushWidget(progress_message, Qgis.MessageLevel.Info)
 
         simulated_progress = {"value": 0}
         simulated_timer = QTimer(self)
@@ -533,7 +535,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.iface.messageBar().pushMessage(
                     "xml_ua:",
                     f"Перевірку файлу '{os.path.basename(self.current_xml.path)}' завершено. Помилок не знайдено.",
-                    level=Qgis.Success,
+                    level=Qgis.MessageLevel.Success,
                     duration=5,
                 )
                 log_calls(logFile, "Валідацію завершено. Помилок не знайдено.")
@@ -569,7 +571,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         progress_bar.setValue(0)
         progress_bar.setMaximumWidth(220)
         progress_message.layout().addWidget(progress_bar)
-        message_bar.pushWidget(progress_message, Qgis.Info)
+        message_bar.pushWidget(progress_message, Qgis.MessageLevel.Info)
 
         simulated_progress = {"value": 0}
         simulated_timer = QTimer(self)
@@ -614,7 +616,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.iface.messageBar().pushMessage(
                     "XML-UA",
                     f"Порядок елементів у '{self.current_xml.group_name}' впорядковано за XSD, збережено та оновлено.",
-                    level=Qgis.Success,
+                    level=Qgis.MessageLevel.Success,
                     duration=5,
                 )
             else:
@@ -622,7 +624,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 simulated_timer.stop()
                 message_bar.popWidget(progress_message)
                 self.iface.messageBar().pushMessage(
-                    "XML-UA", "Порядок елементів вже відповідає XSD.", level=Qgis.Info, duration=4
+                    "XML-UA", "Порядок елементів вже відповідає XSD.", level=Qgis.MessageLevel.Info, duration=4
                 )
         except Exception as e:
             simulated_timer.stop()
@@ -756,7 +758,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     self.iface.messageBar().pushMessage(
                         "XML-UA",
                         f"Не вдалося створити звіт по площах: {e}",
-                        level=Qgis.Warning,
+                        level=Qgis.MessageLevel.Warning,
                         duration=12,
                     )
 
@@ -816,7 +818,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         self.iface.messageBar().pushMessage(
                             "XML-UA",
                             "Виправлення застосовано у відкритому дереві. Збережіть файл для фіксації змін.",
-                            level=Qgis.Warning,
+                            level=Qgis.MessageLevel.Warning,
                             duration=12,
                         )
                 else:
@@ -832,7 +834,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 self.iface.messageBar().pushMessage(
                     "XML-UA",
                     f"Звіт по площах: {os.path.basename(report_path)}",
-                    level=Qgis.Info,
+                    level=Qgis.MessageLevel.Info,
                     duration=10,
                 )
         except Exception as e:
@@ -1220,12 +1222,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     "Диск:",
                     (f"Файли '{os.path.basename(xml_to_save.original_path)}' "
                      f"та '{os.path.basename(xml_to_save.path)}' збережено."),
-                    level=Qgis.Success,
+                    level=Qgis.MessageLevel.Success,
                     duration=5,
                 )
             else:
                 self.iface.messageBar().pushMessage(
-                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5
+                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.MessageLevel.Success, duration=5
                 )
 
             xml_to_save.changed = False
@@ -1278,7 +1280,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             template_tree.write(template_path, encoding="utf-8", xml_declaration=True)
             self.iface.messageBar().pushMessage(
-                "Диск:", f"Шаблон '{template_name}' успішно збережено.", level=Qgis.Success, duration=5
+                "Диск:", f"Шаблон '{template_name}' успішно збережено.", level=Qgis.MessageLevel.Success, duration=5
             )
             log_calls(logFile, f"Шаблон збережено: {template_path}")
 
@@ -1394,7 +1396,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                         self.iface.messageBar().pushMessage(
                             "Інфо",
                             f"Резервну копію для '{os.path.basename(xml_to_close.path)}' видалено.",
-                            level=Qgis.Info,
+                            level=Qgis.MessageLevel.Info,
                             duration=3,
                         )
                 except (OSError, TypeError) as e:
@@ -2132,12 +2134,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     "Диск:",
                     (f"Файли '{os.path.basename(xml_to_save.original_path)}' "
                      f"та '{os.path.basename(xml_to_save.path)}' збережено."),
-                    level=Qgis.Success,
+                    level=Qgis.MessageLevel.Success,
                     duration=5,
                 )
             else:
                 self.iface.messageBar().pushMessage(
-                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.Success, duration=5
+                    "Диск:", f"Файл збережено: {xml_to_save.path}", level=Qgis.MessageLevel.Success, duration=5
                 )
 
             try:
@@ -2493,7 +2495,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.iface.messageBar().pushMessage(
                 "Інформація",
                 f"Вузол '{uidp}' було переміщено. Збережіть зміни, щоб оновити XML та шари.",
-                level=Qgis.Info,
+                level=Qgis.MessageLevel.Info,
                 duration=5,
             )
 
@@ -2598,7 +2600,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 # --- Логіка для шару "Угіддя" ---
                 if layer_name == "Угіддя":
-                    if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
+                    if layer.geometryType() != QgsWkbTypes.GeometryType.PolygonGeometry:
                         continue
 
                     externals, _, _, object_shape = processor.process_new_geometry(geometry)
@@ -2629,7 +2631,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
                 # --- Логіка для шару "Оренда" ---
                 elif layer_name == "Оренда":
-                    if layer.geometryType() != QgsWkbTypes.PolygonGeometry:
+                    if layer.geometryType() != QgsWkbTypes.GeometryType.PolygonGeometry:
                         continue
 
                     object_id, object_shape = processor.process_lease_geometry(geometry)
@@ -2748,7 +2750,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         feature = selected_features[0]
         geom = feature.geometry()
-        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
@@ -2869,7 +2871,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.iface.messageBar().pushMessage(
                 "Інформація",
                 f"Угіддя з кодом '{land_code}' було додано. Збережіть зміни, щоб оновити XML та шари.",
-                level=Qgis.Info,
+                level=Qgis.MessageLevel.Info,
                 duration=25,
             )
 
@@ -2898,7 +2900,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         feature = selected_features[0]
         geom = feature.geometry()
-        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
@@ -2950,7 +2952,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         feature = selected_features[0]
         geom = feature.geometry()
-        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
@@ -3002,7 +3004,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         feature = selected_features[0]
         geom = feature.geometry()
-        if geom.wkbType() not in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+        if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
             return
 
@@ -3165,7 +3167,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         selected_features = []
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
-            if layer.type() == layer.VectorLayer and layer.geometryType() == QgsWkbTypes.LineGeometry:
+            if layer.type() == layer.VectorLayer and layer.geometryType() == QgsWkbTypes.GeometryType.LineGeometry:
                 selected_features.extend(layer.selectedFeatures())
 
         if len(selected_features) != 1:
@@ -3173,11 +3175,11 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         feature = selected_features[0]
         geom = feature.geometry()
-        if geom.wkbType() not in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
+        if geom.wkbType() not in [QgsWkbTypes.Type.LineString, QgsWkbTypes.Type.MultiLineString]:
             QMessageBox.warning(self, "Помилка додавання суміжника", "Вибраний об'єкт не є полілінією.")
             return
 
-        if geom.wkbType() == QgsWkbTypes.MultiLineString:
+        if geom.wkbType() == QgsWkbTypes.Type.MultiLineString:
             multi_polyline = geom.asMultiPolyline()
             polyline_points = multi_polyline[0] if multi_polyline else []
         else:
@@ -3440,7 +3442,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.iface.messageBar().pushMessage(
                 "XML-UA",
                 f"Площа ділянки в XML оновлена: {old_text_for_msg or 'N/A'} -> {new_text} га",
-                level=Qgis.Info,
+                level=Qgis.MessageLevel.Info,
                 duration=6,
             )
         return True
@@ -3486,7 +3488,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             except Exception as e:
                 log_calls(logFile, f"Помилка при синхронізації після commit: {e}")
                 self.iface.messageBar().pushMessage(
-                    "Помилка", f"Не вдалося синхронізувати зміни: {e}", level=Qgis.Critical
+                    "Помилка", f"Не вдалося синхронізувати зміни: {e}", level=Qgis.MessageLevel.Critical
                 )
 
         else:  # Зміни було відкинуто користувачем

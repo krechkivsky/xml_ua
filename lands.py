@@ -220,7 +220,7 @@ class LandsParcels:
                     iface.messageBar().pushMessage(
                         "Попередження",
                         f"Знайдено дублікат геометрії угіддя (shape: {object_shape}). Об'єкт не буде додано на карту.",
-                        level=Qgis.Warning,
+                        level=Qgis.MessageLevel.Warning,
                         duration=10,
                     )
                     log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат угіддя з object_shape: {object_shape}")

@@ -188,7 +188,7 @@ class Restrictions:
                         "Попередження",
                         (f"Знайдено дублікат геометрії обмеження (shape: {object_shape}). "
                          "Об'єкт не буде додано на карту."),
-                        level=Qgis.Warning,
+                        level=Qgis.MessageLevel.Warning,
                         duration=10,
                     )
                     log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат обмеження з object_shape: {object_shape}")

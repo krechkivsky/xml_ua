@@ -861,7 +861,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             return
 
         desc = QgsLayoutItemLabel(layout)
-        desc.setMode(QgsLayoutItemLabel.ModeHtml)
+        desc.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
         desc.setText(desc_html)
 
         desc.setObjectName("Опис меж")
@@ -871,9 +871,13 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
 
         desc_height = float(nrows) * float(NODES_TABLE_ROW_H_MM)
 
-        desc.attemptResize(QgsLayoutSize(float(table_w_mm), desc_height, QgsUnitTypes.LayoutMillimeters))
+        desc.attemptResize(QgsLayoutSize(float(table_w_mm),
+                                         desc_height,
+                                         QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
-        desc.attemptMove(QgsLayoutPoint(BOUNDARY_DESC_X_MM, BOUNDARY_DESC_Y_MM, QgsUnitTypes.LayoutMillimeters))
+        desc.attemptMove(QgsLayoutPoint(BOUNDARY_DESC_X_MM,
+                                        BOUNDARY_DESC_Y_MM,
+                                        QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
     def _add_nodes_coordinates_table(self, layout):
         """
@@ -884,7 +888,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             return
 
         tbl = QgsLayoutItemLabel(layout)
-        tbl.setMode(QgsLayoutItemLabel.ModeHtml)
+        tbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
         tbl.setText(nodes_html)
 
         tbl.setObjectName("Таблиця координат")
@@ -894,9 +898,9 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
 
         total_h = NODES_TABLE_HEADER_ROW_H_MM + (int(nrows) * NODES_TABLE_ROW_H_MM)
 
-        tbl.attemptResize(QgsLayoutSize(NODES_TABLE_W_MM, total_h, QgsUnitTypes.LayoutMillimeters))
+        tbl.attemptResize(QgsLayoutSize(NODES_TABLE_W_MM, total_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
-        tbl.attemptMove(QgsLayoutPoint(NODES_TABLE_X_MM, NODES_TABLE_Y_MM, QgsUnitTypes.LayoutMillimeters))
+        tbl.attemptMove(QgsLayoutPoint(NODES_TABLE_X_MM, NODES_TABLE_Y_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         try:
             w = float(tbl.rect().width())
             h = float(tbl.rect().height())
@@ -952,17 +956,17 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             head.adjustSizeToText()
             hw = float(head.rect().width())
             head_x = float(x_mm) + max(0.0, (float(w_mm) - hw) / 2.0)
-            head.attemptResize(QgsLayoutSize(hw, head_h, QgsUnitTypes.LayoutMillimeters))
+            head.attemptResize(QgsLayoutSize(hw, head_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         except Exception:
-            head.attemptResize(QgsLayoutSize(float(w_mm), head_h, QgsUnitTypes.LayoutMillimeters))
+            head.attemptResize(QgsLayoutSize(float(w_mm), head_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             head.setHAlign(Qt.AlignmentFlag.AlignHCenter)
             head.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        head.attemptMove(QgsLayoutPoint(head_x, top_y, QgsUnitTypes.LayoutMillimeters))
+        head.attemptMove(QgsLayoutPoint(head_x, top_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         head.setObjectName("Заголовок таблиці координат:p2")
         head.setId("Заголовок таблиці координат:p2")
 
         tbl = QgsLayoutItemLabel(layout)
-        tbl.setMode(QgsLayoutItemLabel.ModeHtml)
+        tbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
         tbl.setText(nodes_html)
         try:
             tbl.setFont(QFont(font))
@@ -978,7 +982,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
 
         tbl_x = float(x_mm)
         tbl_y = top_y + head_h
-        tbl.attemptResize(QgsLayoutSize(expected_w, expected_h, QgsUnitTypes.LayoutMillimeters))
+        tbl.attemptResize(QgsLayoutSize(expected_w, expected_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         tbl_x = float(x_mm) + max(0.0, (float(w_mm) - expected_w) / 2.0)
         try:
             tw = float(tbl.rect().width())
@@ -991,7 +995,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
         except Exception as e:
             log_calls(logFile, f"{e}")
             pass
-        tbl.attemptMove(QgsLayoutPoint(tbl_x, tbl_y, QgsUnitTypes.LayoutMillimeters))
+        tbl.attemptMove(QgsLayoutPoint(tbl_x, tbl_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         try:
             boundary_html, brow_count, boundary_w_mm = self._build_boundary_description_table_html(
@@ -1010,15 +1014,15 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                     pass
                 layout.addLayoutItem(bhead)
                 bhead_h = float(NODES_TABLE_TITLE_H_MM)
-                bhead.attemptResize(QgsLayoutSize(float(w_mm), bhead_h, QgsUnitTypes.LayoutMillimeters))
+                bhead.attemptResize(QgsLayoutSize(float(w_mm), bhead_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                 bhead.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                 bhead.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-                bhead.attemptMove(QgsLayoutPoint(float(x_mm), next_y, QgsUnitTypes.LayoutMillimeters))
+                bhead.attemptMove(QgsLayoutPoint(float(x_mm), next_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                 bhead.setObjectName("Опис меж заголовок:p2")
                 bhead.setId("Опис меж заголовок:p2")
 
                 btbl = QgsLayoutItemLabel(layout)
-                btbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                btbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
                 btbl.setText(boundary_html)
                 try:
                     btbl.setFont(QFont(font))
@@ -1030,9 +1034,9 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                 layout.addLayoutItem(btbl)
 
                 b_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(brow_count) * float(NODES_TABLE_ROW_H_MM) + 2.0
-                btbl.attemptResize(QgsLayoutSize(float(boundary_w_mm), b_h, QgsUnitTypes.LayoutMillimeters))
+                btbl.attemptResize(QgsLayoutSize(float(boundary_w_mm), b_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                 bx = float(x_mm) + max(0.0, (float(w_mm) - float(boundary_w_mm)) / 2.0)
-                btbl.attemptMove(QgsLayoutPoint(bx, next_y + bhead_h, QgsUnitTypes.LayoutMillimeters))
+                btbl.attemptMove(QgsLayoutPoint(bx, next_y + bhead_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
                 try:
                     exp_gap = 5.0
@@ -1047,10 +1051,12 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                         pass
                     layout.addLayoutItem(etitle)
                     etitle_h = float(NODES_TABLE_TITLE_H_MM)
-                    etitle.attemptResize(QgsLayoutSize(float(w_mm), etitle_h, QgsUnitTypes.LayoutMillimeters))
+                    etitle.attemptResize(QgsLayoutSize(float(w_mm),
+                                                       etitle_h,
+                                                       QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                     etitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                     etitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-                    etitle.attemptMove(QgsLayoutPoint(float(x_mm), exp_y, QgsUnitTypes.LayoutMillimeters))
+                    etitle.attemptMove(QgsLayoutPoint(float(x_mm), exp_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                     etitle.setObjectName("Експлікація угідь заголовок:p2")
                     etitle.setId("Експлікація угідь заголовок:p2")
 
@@ -1062,7 +1068,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                     )
                     if ehtml and erows:
                         etbl = QgsLayoutItemLabel(layout)
-                        etbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                        etbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
                         etbl.setText(ehtml)
                         try:
                             etbl.setFont(QFont(font))
@@ -1074,9 +1080,11 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                         layout.addLayoutItem(etbl)
 
                         e_h = float(NODES_TABLE_HEADER_ROW_H_MM) + float(erows) * float(NODES_TABLE_ROW_H_MM) + 2.0
-                        etbl.attemptResize(QgsLayoutSize(float(e_w), e_h, QgsUnitTypes.LayoutMillimeters))
+                        etbl.attemptResize(QgsLayoutSize(float(e_w), e_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                         ex = float(x_mm) + max(0.0, (float(w_mm) - float(e_w)) / 2.0)
-                        etbl.attemptMove(QgsLayoutPoint(ex, exp_y + etitle_h, QgsUnitTypes.LayoutMillimeters))
+                        etbl.attemptMove(QgsLayoutPoint(ex,
+                                                        exp_y + etitle_h,
+                                                        QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
                         try:
 
@@ -1110,18 +1118,18 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                 layout.addLayoutItem(rtitle)
                                 rtitle_h = float(NODES_TABLE_TITLE_H_MM)
                                 rtitle.attemptResize(
-                                    QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutSize(float(w_mm), rtitle_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 rtitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                                 rtitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                                 rtitle.attemptMove(
-                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 rtitle.setObjectName("Обмеження заголовок:p2")
                                 rtitle.setId("Обмеження заголовок:p2")
 
                                 rtbl = QgsLayoutItemLabel(layout)
-                                rtbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                                rtbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
                                 rtbl.setText(rhtml)
                                 try:
                                     rtbl.setFont(QFont(font))
@@ -1137,10 +1145,12 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                     + float(rrows) * float(NODES_TABLE_ROW_H_MM)
                                     + 2.0
                                 )
-                                rtbl.attemptResize(QgsLayoutSize(float(r_w), r_h, QgsUnitTypes.LayoutMillimeters))
+                                rtbl.attemptResize(QgsLayoutSize(float(r_w),
+                                                                 r_h,
+                                                                 QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                                 rx = float(x_mm) + max(0.0, (float(w_mm) - float(r_w)) / 2.0)
                                 rtbl.attemptMove(
-                                    QgsLayoutPoint(rx, y_cursor + rtitle_h, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutPoint(rx, y_cursor + rtitle_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 y_cursor = float(y_cursor + rtitle_h + r_h)
 
@@ -1156,12 +1166,12 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                 layout.addLayoutItem(ltitle)
                                 ltitle_h = float(NODES_TABLE_TITLE_H_MM)
                                 ltitle.attemptResize(
-                                    QgsLayoutSize(float(w_mm), ltitle_h, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutSize(float(w_mm), ltitle_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 ltitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                                 ltitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                                 ltitle.attemptMove(
-                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 ltitle.setObjectName("Оренда заголовок:p2")
                                 ltitle.setId("Оренда заголовок:p2")
@@ -1174,7 +1184,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                 )
                                 if lhtml and lrows:
                                     ltbl = QgsLayoutItemLabel(layout)
-                                    ltbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                                    ltbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
                                     ltbl.setText(lhtml)
                                     try:
                                         ltbl.setFont(QFont(font))
@@ -1190,10 +1200,14 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                         + float(lrows) * float(NODES_TABLE_ROW_H_MM)
                                         + 2.0
                                     )
-                                    ltbl.attemptResize(QgsLayoutSize(float(l_w), l_h, QgsUnitTypes.LayoutMillimeters))
+                                    ltbl.attemptResize(QgsLayoutSize(float(l_w),
+                                                                     l_h,
+                                                                     QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                                     lx = float(x_mm) + max(0.0, (float(w_mm) - float(l_w)) / 2.0)
                                     ltbl.attemptMove(
-                                        QgsLayoutPoint(lx, y_cursor + ltitle_h, QgsUnitTypes.LayoutMillimeters)
+                                        QgsLayoutPoint(lx,
+                                                       y_cursor + ltitle_h,
+                                                       QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                     )
                                     y_cursor = float(y_cursor + ltitle_h + l_h)
 
@@ -1209,12 +1223,12 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                 layout.addLayoutItem(stitle)
                                 stitle_h = float(NODES_TABLE_TITLE_H_MM)
                                 stitle.attemptResize(
-                                    QgsLayoutSize(float(w_mm), stitle_h, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutSize(float(w_mm), stitle_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 stitle.setHAlign(Qt.AlignmentFlag.AlignHCenter)
                                 stitle.setVAlign(Qt.AlignmentFlag.AlignVCenter)
                                 stitle.attemptMove(
-                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutMillimeters)
+                                    QgsLayoutPoint(float(x_mm), y_cursor, QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                 )
                                 stitle.setObjectName("Суборенда заголовок:p2")
                                 stitle.setId("Суборенда заголовок:p2")
@@ -1227,7 +1241,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                 )
                                 if shtml and srows:
                                     stbl = QgsLayoutItemLabel(layout)
-                                    stbl.setMode(QgsLayoutItemLabel.ModeHtml)
+                                    stbl.setMode(QgsLayoutItemLabel.Mode.ModeHtml)
                                     stbl.setText(shtml)
                                     try:
                                         stbl.setFont(QFont(font))
@@ -1243,10 +1257,14 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                                         + float(srows) * float(NODES_TABLE_ROW_H_MM)
                                         + 2.0
                                     )
-                                    stbl.attemptResize(QgsLayoutSize(float(s_w), s_h, QgsUnitTypes.LayoutMillimeters))
+                                    stbl.attemptResize(QgsLayoutSize(float(s_w),
+                                                                     s_h,
+                                                                     QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                                     sx = float(x_mm) + max(0.0, (float(w_mm) - float(s_w)) / 2.0)
                                     stbl.attemptMove(
-                                        QgsLayoutPoint(sx, y_cursor + stitle_h, QgsUnitTypes.LayoutMillimeters)
+                                        QgsLayoutPoint(sx,
+                                                       y_cursor + stitle_h,
+                                                       QgsUnitTypes.LayoutUnit.LayoutMillimeters)
                                     )
                                     y_cursor = float(y_cursor + stitle_h + s_h)
                         except Exception as e:
@@ -1275,7 +1293,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             raise RuntimeError("Layout create failed")
 
         page = layout.pageCollection().page(0)
-        page.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutMillimeters))
+        page.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         try:
             from qgis.core import QgsLayoutItemPage
@@ -1283,7 +1301,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             pc = layout.pageCollection()
             if int(pc.pageCount()) < 2:
                 p2 = QgsLayoutItemPage(layout)
-                p2.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutMillimeters))
+                p2.setPageSize(QgsLayoutSize(PAGE_W_MM, PAGE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                 pc.addPage(p2)
         except Exception as e:
             log_calls(logFile, f"{e}")
@@ -1349,8 +1367,8 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
         map_item.setObjectName("Ділянка")
         layout.addLayoutItem(map_item)
 
-        map_item.attemptMove(QgsLayoutPoint(content_x, map_y, QgsUnitTypes.LayoutMillimeters))
-        map_item.attemptResize(QgsLayoutSize(MAP_SIDE_MM, MAP_SIDE_MM, QgsUnitTypes.LayoutMillimeters))
+        map_item.attemptMove(QgsLayoutPoint(content_x, map_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        map_item.attemptResize(QgsLayoutSize(MAP_SIDE_MM, MAP_SIDE_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         neighbors = self._find_layer_exact(self.cadastral_plan_group, "Суміжники")
         extent = neighbors.extent() if neighbors else self._group_extent()
@@ -1383,9 +1401,9 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                 log_calls(logFile, f"Ruler add failed: {e}")
 
         title_bg = QgsLayoutItemShape(layout)
-        title_bg.setShapeType(QgsLayoutItemShape.Rectangle)
-        title_bg.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutMillimeters))
-        title_bg.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
+        title_bg.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
+        title_bg.attemptMove(QgsLayoutPoint(content_x, title_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        title_bg.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         title_bg_symbol = QgsFillSymbol.createSimple(
             {
                 "color": "242,242,242,255",  # як у шапці таблиць (#f2f2f2)
@@ -1408,14 +1426,14 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
 
         layout.addLayoutItem(title)  # IMPORTANT before attemptResize
 
-        title.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
+        title.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         title.setHAlign(Qt.AlignmentFlag.AlignHCenter)
         title.setVAlign(Qt.AlignmentFlag.AlignVCenter)
         title.attemptMove(
             QgsLayoutPoint(
                 content_x,
                 title_y,
-                QgsUnitTypes.LayoutMillimeters,
+                QgsUnitTypes.LayoutUnit.LayoutMillimeters,
             )
         )
 
@@ -1433,10 +1451,10 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             pass
         sig_h = TITLE_H_MM
         sig_y = PAGE_H_MM - MARGIN_BOTTOM_MM - sig_h
-        sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
+        sig.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         sig.setHAlign(Qt.AlignmentFlag.AlignLeft)
         sig.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-        sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutMillimeters))
+        sig.attemptMove(QgsLayoutPoint(content_x, sig_y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
         scale_label = QgsLayoutItemLabel(layout)
         scale_label.setText(f"Масштаб 1:{int(scale_value)}")
@@ -1448,7 +1466,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
 
         layout.addLayoutItem(scale_label)
 
-        scale_label.attemptResize(QgsLayoutSize(MAP_SIDE_MM, SCALE_H_MM, QgsUnitTypes.LayoutMillimeters))
+        scale_label.attemptResize(QgsLayoutSize(MAP_SIDE_MM, SCALE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         scale_label.setHAlign(Qt.AlignmentFlag.AlignHCenter)
         scale_label.setVAlign(Qt.AlignmentFlag.AlignVCenter)
 
@@ -1456,7 +1474,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             QgsLayoutPoint(
                 content_x,
                 map_y + MAP_SIDE_MM + OVERLAY_PAD_MM,
-                QgsUnitTypes.LayoutMillimeters,
+                QgsUnitTypes.LayoutUnit.LayoutMillimeters,
             )
         )
 
@@ -1550,11 +1568,15 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
                     log_calls(logFile, f"{e}")
                     pass
                 layout.addLayoutItem(paragraph)
-                paragraph.attemptResize(QgsLayoutSize(content_w, available_h, QgsUnitTypes.LayoutMillimeters))
+                paragraph.attemptResize(QgsLayoutSize(content_w,
+                                                      available_h,
+                                                      QgsUnitTypes.LayoutUnit.LayoutMillimeters))
                 paragraph.setHAlign(Qt.AlignmentFlag.AlignLeft)
 
                 paragraph.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-                paragraph.attemptMove(QgsLayoutPoint(content_x, symbols_bottom_y, QgsUnitTypes.LayoutMillimeters))
+                paragraph.attemptMove(QgsLayoutPoint(content_x,
+                                                     symbols_bottom_y,
+                                                     QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         except Exception as e:
             log_calls(logFile, f"Parcel text block add failed: {e}")
 
@@ -1619,9 +1641,9 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             y_off = self._page_y_offset(layout, page_idx)
 
             bg = QgsLayoutItemShape(layout)
-            bg.setShapeType(QgsLayoutItemShape.Rectangle)
-            bg.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutMillimeters))
-            bg.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
+            bg.setShapeType(QgsLayoutItemShape.Shape.Rectangle)
+            bg.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+            bg.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             try:
                 bg.setSymbol(title_bg_symbol)
             except Exception as e:
@@ -1635,10 +1657,10 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             t.setText(f"{sheet_title} (аркуш {page_idx} з {page_count})")
             t.setFont(fnt)
             layout.addLayoutItem(t)
-            t.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutMillimeters))
+            t.attemptResize(QgsLayoutSize(content_w, TITLE_H_MM, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             t.setHAlign(Qt.AlignmentFlag.AlignHCenter)
             t.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-            t.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutMillimeters))
+            t.attemptMove(QgsLayoutPoint(content_x, title_y + y_off, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             t.setObjectName(f"Title:p{page_idx}")
             t.setId(f"Title:p{page_idx}")
 
@@ -1651,10 +1673,10 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             except Exception as e:
                 log_calls(logFile, f"{e}")
                 pass
-            s.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutMillimeters))
+            s.attemptResize(QgsLayoutSize(content_w, sig_h, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             s.setHAlign(Qt.AlignmentFlag.AlignLeft)
             s.setVAlign(Qt.AlignmentFlag.AlignVCenter)
-            s.attemptMove(QgsLayoutPoint(content_x, sig_y + y_off, QgsUnitTypes.LayoutMillimeters))
+            s.attemptMove(QgsLayoutPoint(content_x, sig_y + y_off, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
             s.setObjectName(f"Signature:p{page_idx}")
             s.setId(f"Signature:p{page_idx}")
 
@@ -1783,7 +1805,7 @@ text-align:center; font-size:{font_pt}pt; font-weight:normal;">
             layout.addLayoutItem(lbl)
 
             lbl.setReferencePoint(4)  # center
-            lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
+            lbl.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
 
     def _build_boundary_description(self) -> str:
         """

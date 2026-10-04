@@ -82,7 +82,7 @@ class AdjacentUnits:
                         iface.messageBar().pushMessage(
                             "Попередження",
                             f"Знайдено дублікат геометрії суміжника (shape: {object_shape}). Об'єкт не буде додано.",
-                            level=Qgis.Warning,
+                            level=Qgis.MessageLevel.Warning,
                             duration=10,
                         )
                         log_msg(logFile, f"ПОПЕРЕДЖЕННЯ: Пропущено дублікат суміжника з object_shape: {object_shape}")

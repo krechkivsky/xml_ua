@@ -1,6 +1,9 @@
 # Журнал змін
 
 
+## v0.9.10 (2026-10-04)
+- **Security:** Issues raised by compatibily scanner pyqgis4-checker have been fixed.
+
 ## v0.9.9 (2026-10-03)
 - **Security:** Issues raised by security scanners have been fixed.
 - **Security:** Open generated DOCX files through the operating system instead of launching Word with `subprocess`.
