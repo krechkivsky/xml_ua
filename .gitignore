@@ -27,6 +27,8 @@ log.md
 # Python caches
 __pycache__/
 
+tests/
+
 antigravity_prompt.md
 duplicates.md
 xml_ua.code-workspace
