@@ -13,8 +13,8 @@
     </ServiceInfo>
     <InfoLandWork>
       <Executor>
-        <CompanyName></CompanyName>
-        <EDRPOU>00000000</EDRPOU>
+        <CompanyName>@Назва</CompanyName>
+        <EDRPOU>@00000000</EDRPOU>
         <License>
           <LicenseSeries>АА</LicenseSeries>
           <LicenseNumber>000000</LicenseNumber>
@@ -116,7 +116,7 @@
       </PointInfo>
       <Polyline>
         <PL>
-          <ULID>-1</ULID>
+          <ULID>1</ULID>
           <Points>
             <P>0</P>
             <P>0</P>
@@ -172,7 +172,7 @@
                   <Boundary>
                     <Lines>
                       <Line>
-                        <ULID>-1</ULID>
+                        <ULID>1</ULID>
                       </Line>
                     </Lines>
                     <Closed>true</Closed>

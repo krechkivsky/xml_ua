@@ -3,14 +3,18 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Virtual Environment
+.venv/
+
+tests/
 
 # IDE
-/.vscode/
-/.idea/
 /.context/
+/.continue/
+/.pytest_cache/
+/.ruff_cache/
+/.vscode/
 
-# Doc files
-/docs/
 
 # Logs
 log.md
@@ -20,14 +24,6 @@ log.md
 
 # Jupyter Notebook
 *.ipynb
-
-# Virtual Environment
-.venv/
-
-# Python caches
-__pycache__/
-
-tests/
 
 antigravity_prompt.md
 duplicates.md
