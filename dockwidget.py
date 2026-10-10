@@ -2603,9 +2603,12 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                     if layer.geometryType() != QgsWkbTypes.GeometryType.PolygonGeometry:
                         continue
 
-                    externals, _, _, object_shape = processor.process_new_geometry(geometry)
+                    externals, _, _, object_shape = processor.process_new_geometry(
+                        geometry, normalize_ring_orientation=True
+                    )
                     if externals is None:
                         continue
+                    processor.add_line_endpoint_refs(externals)
 
                     # 2. ПЕРЕВІРКА: Перевірка на існування такого ж object_shape в XML
                     if (
@@ -2757,7 +2760,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         tree = self.current_xml.tree
         processor = GeometryProcessor(tree)
         try:
-            externals_element, new_points, new_polylines, object_shape = processor.process_new_geometry(geom)  # noqa
+            externals_element, new_points, new_polylines, object_shape = processor.process_new_geometry(
+                geom, normalize_ring_orientation=True
+            )  # noqa
+            processor.add_line_endpoint_refs(externals_element)
         except ValueError as e:
             QMessageBox.critical(self, "Критична помилка топології", str(e))
             return

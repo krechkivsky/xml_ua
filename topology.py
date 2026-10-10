@@ -168,10 +168,11 @@ class GeometryProcessor:
 
         return new_ulid
 
-    def process_new_geometry(self, qgis_geom: QgsGeometry):
+    def process_new_geometry(self, qgis_geom: QgsGeometry, normalize_ring_orientation=False):
         """
         Обробляє нову геометрію, унікалізує вузли та полілінії,
-        та повертає структуру для вставки в XML.
+        та повертає структуру для вставки в XML. За потреби орієнтує зовнішнє
+        кільце з отворами за годинниковою стрілкою, а без отворів — проти.
         """
         object_shapes = []
         geom_part = qgis_geom.constGet()
@@ -183,42 +184,53 @@ class GeometryProcessor:
 
         externals = etree.Element("Externals")
 
-        polygon = geom_part if isinstance(geom_part, QgsPolygon) else geom_part.geometryN(0)
-
-        exterior_ring = polygon.exteriorRing()
-        if exterior_ring:
-            boundary_ulids, processed_points, processed_polylines = self._process_ring(exterior_ring)
-            new_points_to_add.extend(processed_points)
-            new_polylines_to_add.extend(processed_polylines)
-
-            boundary = etree.SubElement(externals, "Boundary")
-
-            lines = etree.SubElement(boundary, "Lines")
-            for ulid in boundary_ulids:
-                line_elem = etree.SubElement(lines, "Line")
-                etree.SubElement(line_elem, "ULID").text = ulid
-            etree.SubElement(boundary, "Closed").text = "true"
-
-            object_shapes.append(self._get_polyline_object_shape(lines))
-
         internals = None
-        if polygon.numInteriorRings() > 0:
-            internals = etree.Element("Internals")
-            for i in range(polygon.numInteriorRings()):
-                interior_ring = polygon.interiorRing(i)
-                if interior_ring:
-                    boundary_ulids, processed_points, processed_polylines = self._process_ring(interior_ring)
-                    new_points_to_add.extend(processed_points)
-                    new_polylines_to_add.extend(processed_polylines)
+        if isinstance(geom_part, QgsMultiPolygon) and normalize_ring_orientation:
+            polygons = [geom_part.geometryN(index) for index in range(geom_part.numGeometries())]
+        else:
+            polygons = [geom_part if isinstance(geom_part, QgsPolygon) else geom_part.geometryN(0)]
 
-                    boundary = etree.SubElement(internals, "Boundary")
+        for polygon in polygons:
+            has_interior_rings = polygon.numInteriorRings() > 0
+            exterior_ring = polygon.exteriorRing()
+            if exterior_ring:
+                # Для угідь із отворами зовнішні кільця орієнтуються за
+                # годинниковою; без отворів — проти годинникової стрілки.
+                exterior_ccw = not has_interior_rings if normalize_ring_orientation else None
+                boundary_ulids, processed_points, processed_polylines = self._process_ring(
+                    exterior_ring, counterclockwise=exterior_ccw
+                )
+                new_points_to_add.extend(processed_points)
+                new_polylines_to_add.extend(processed_polylines)
 
-                    lines = etree.SubElement(boundary, "Lines")
-                    for ulid in boundary_ulids:
-                        line_elem = etree.SubElement(lines, "Line")
-                        etree.SubElement(line_elem, "ULID").text = ulid
-                    etree.SubElement(boundary, "Closed").text = "true"
-                    object_shapes.append(self._get_polyline_object_shape(lines))
+                boundary = etree.SubElement(externals, "Boundary")
+                lines = etree.SubElement(boundary, "Lines")
+                for ulid in boundary_ulids:
+                    line_elem = etree.SubElement(lines, "Line")
+                    etree.SubElement(line_elem, "ULID").text = ulid
+                etree.SubElement(boundary, "Closed").text = "true"
+                object_shapes.append(self._get_polyline_object_shape(lines))
+
+            if has_interior_rings:
+                if internals is None:
+                    internals = etree.Element("Internals")
+                for index in range(polygon.numInteriorRings()):
+                    interior_ring = polygon.interiorRing(index)
+                    if interior_ring:
+                        interior_ccw = False if normalize_ring_orientation else None
+                        boundary_ulids, processed_points, processed_polylines = self._process_ring(
+                            interior_ring, counterclockwise=interior_ccw
+                        )
+                        new_points_to_add.extend(processed_points)
+                        new_polylines_to_add.extend(processed_polylines)
+
+                        boundary = etree.SubElement(internals, "Boundary")
+                        lines = etree.SubElement(boundary, "Lines")
+                        for ulid in boundary_ulids:
+                            line_elem = etree.SubElement(lines, "Line")
+                            etree.SubElement(line_elem, "ULID").text = ulid
+                        etree.SubElement(boundary, "Closed").text = "true"
+                        object_shapes.append(self._get_polyline_object_shape(lines))
 
         point_info_container = self.root.find(".//PointInfo")
         if point_info_container is not None:
@@ -234,7 +246,51 @@ class GeometryProcessor:
         final_object_shape = "|".join(filter(None, object_shapes))
         return externals, new_points_to_add, new_polylines_to_add, final_object_shape
 
-    def _process_ring(self, ring):
+    def add_line_endpoint_refs(self, externals_element):
+        """Додає FP/TP за кінцевими точками відповідних PL до меж угіддя.
+
+        Порядок ліній не змінюється; повторний виклик безпечний.
+        """
+        if externals_element is None:
+            return
+
+        for lines_element in externals_element.xpath("./Boundary/Lines | ./Internals/Boundary/Lines"):
+            line_elements = lines_element.findall("Line")
+            endpoints_by_line = []
+            for line_element in line_elements:
+                ulid = line_element.findtext("ULID")
+                polyline_data = self.polylines.get(ulid)
+                endpoints = polyline_data.get("points", []) if polyline_data else []
+                if len(endpoints) < 2:
+                    log_calls(logFile, f"Не вдалося визначити FP/TP для лінії угіддя ULID={ulid}.")
+                    endpoints_by_line.append(None)
+                else:
+                    endpoints_by_line.append(endpoints[:2])
+
+            for index, (line_element, endpoints) in enumerate(zip(line_elements, endpoints_by_line)):
+                if endpoints is None:
+                    continue
+
+                # Орієнтуємо ребро вздовж цього контуру: TP є спільною
+                # вершиною з наступним ребром, FP — його початковою вершиною.
+                next_endpoints = endpoints_by_line[(index + 1) % len(endpoints_by_line)] if endpoints_by_line else None
+                if next_endpoints:
+                    shared = set(endpoints).intersection(next_endpoints)
+                    if len(shared) == 1:
+                        tp_uidp = next(iter(shared))
+                        fp_uidp = endpoints[1] if endpoints[0] == tp_uidp else endpoints[0]
+                    else:
+                        fp_uidp, tp_uidp = endpoints
+                else:
+                    fp_uidp, tp_uidp = endpoints
+
+                for tag, uidp in (("FP", fp_uidp), ("TP", tp_uidp)):
+                    element = line_element.find(tag)
+                    if element is None:
+                        element = etree.SubElement(line_element, tag)
+                    element.text = uidp
+
+    def _process_ring(self, ring, counterclockwise=None):
         """Обробляє один контур (QgsLineString)."""
         newly_created_points = []
         newly_created_polylines = []
@@ -243,6 +299,15 @@ class GeometryProcessor:
         points_in_ring = ring.points()
         if len(points_in_ring) > 1 and points_in_ring[0] == points_in_ring[-1]:
             points_in_ring = points_in_ring[:-1]
+        if counterclockwise is not None and len(points_in_ring) > 2:
+            signed_area = sum(
+                points_in_ring[index].x() * points_in_ring[(index + 1) % len(points_in_ring)].y()
+                - points_in_ring[(index + 1) % len(points_in_ring)].x() * points_in_ring[index].y()
+                for index in range(len(points_in_ring))
+            )
+            if signed_area and (signed_area > 0) != counterclockwise:
+                # Зберігаємо початкову вершину, але задаємо потрібну орієнтацію кільця.
+                points_in_ring = [points_in_ring[0], *reversed(points_in_ring[1:])]
 
         ring_uidps = []
         for qgis_point in points_in_ring:
