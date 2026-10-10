@@ -107,6 +107,23 @@ class NewXmlCreator:
                 external_rings.append(polygon[0])
                 internal_rings.extend(polygon[1:])
 
+        def orient_ring(points, counterclockwise):
+            ring_points = list(points)
+            if len(ring_points) > 1 and ring_points[0] == ring_points[-1]:
+                ring_points.pop()
+            if len(ring_points) > 2:
+                signed_area = sum(
+                    ring_points[index].x() * ring_points[(index + 1) % len(ring_points)].y()
+                    - ring_points[(index + 1) % len(ring_points)].x() * ring_points[index].y()
+                    for index in range(len(ring_points))
+                )
+                if signed_area and (signed_area > 0) != counterclockwise:
+                    ring_points = [ring_points[0], *reversed(ring_points[1:])]
+            return ring_points
+
+        external_rings = [orient_ring(ring, counterclockwise=True) for ring in external_rings]
+        internal_rings = [orient_ring(ring, counterclockwise=False) for ring in internal_rings]
+
         if not os.path.exists(template_file):
             QMessageBox.critical(
                 None, "Помилка", f"Файл шаблону {template_file} не знайдено.")
