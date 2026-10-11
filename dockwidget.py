@@ -381,7 +381,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             result = run_proximity_checks(
                 xml_tree=tree_view.xml_tree,
-                threshold_m=0.3,
+                threshold_m=0.1,
             )
             uidps = {hit.uidp for hit in result.close_hits}
             uidps.update(hit.uidp for hit in result.near_line_hits)
@@ -896,7 +896,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
             result = run_proximity_checks(
                 xml_tree=self.current_xml.tree,
-                threshold_m=0.3,
+                threshold_m=0.1,
             )
             proximity_uidps = {hit.uidp for hit in result.close_hits}
             proximity_uidps.update(hit.uidp for hit in result.near_line_hits)
@@ -3019,6 +3019,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         try:
             processor.process_restriction_geometry(geom)
+            # GeometryProcessor adds points and polylines directly to the XML
+            # tree. Refresh the coordinate cache before building the layer so
+            # newly assigned ULIDs are available to linesToCoordinates().
+            self.layers_obj.points_handler.read_points()
+            self.layers_obj.lines_handler.qgis_points = self.layers_obj.points_handler.qgisPoints
+            self.layers_obj.lines_handler.read_lines()
+            self.layers_obj.qgisLines = self.layers_obj.lines_handler.qgis_lines
             log_calls(logFile, "Геометрію для нового обмеження оброблено та додано до XML.")
         except ValueError as e:
             QMessageBox.critical(self, "Критична помилка топології", str(e))
@@ -3660,11 +3667,26 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if shape_to_remove in xml_data.shapes:
                 xml_data.shapes.remove(shape_to_remove)
 
+        emptied_containers = set()
         for element in elements_to_delete:
             parent = element.getparent()
             if parent is not None:
                 log_calls(logFile, f"Видалення елемента дерева: '{element.tag}'.")
                 parent.remove(element)
+                if parent.tag in {"AdjacentUnits", "Restrictions", "Subleases", "Leases", "LandsParcel"}:
+                    emptied_containers.add(parent)
+
+        # If the removed feature was the last item in its XML section, remove
+        # that section too. Rebuilding the group below then drops its empty layer.
+        for container in emptied_containers:
+            if not any(child.tag in self.XML_INFO_TAG_TO_LAYER_NAME for child in container):
+                container_parent = container.getparent()
+                if container_parent is not None:
+                    log_calls(
+                        logFile,
+                        f"Видалено порожній розділ '{container.tag}' після видалення останнього об'єкта.",
+                    )
+                    container_parent.remove(container)
 
         log_calls(logFile, "Очистка геометрії: запуск.")
         processor.cleanup_and_renumber_geometry()
@@ -3672,10 +3694,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         xml_data.tree_view.rebuild_tree_view()
         self.mark_xml_data_as_changed(xml_data)
 
+        if xml_data is self.current_xml:
+            self.redraw_current_group()
+
         log_calls(logFile, f"Стан shapes після видалення елемента:\n{self.plugin.shapes_state_string()}")
 
         self._signal_log(
-            f"[SIGNAL] committedFeaturesRemoved done: layer='{layer_name}', redraw_current_group skipped for safety"
+            f"[SIGNAL] committedFeaturesRemoved done: layer='{layer_name}', geometry cleaned and group redrawn"
         )
 
     def delete_adjacent_from_map(self, xml_element_to_delete):

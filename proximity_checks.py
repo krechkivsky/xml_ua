@@ -257,7 +257,7 @@ def find_points_near_lines(
 def run_proximity_checks(
     *,
     xml_tree,
-    threshold_m: float = 0.3,
+    threshold_m: float = 0.1,
     progress: ProgressCb | None = None,
 ) -> ProximityCheckResult:
     started = time.time()

@@ -185,7 +185,7 @@ class GeometryProcessor:
         externals = etree.Element("Externals")
 
         internals = None
-        if isinstance(geom_part, QgsMultiPolygon) and normalize_ring_orientation:
+        if isinstance(geom_part, QgsMultiPolygon):
             polygons = [geom_part.geometryN(index) for index in range(geom_part.numGeometries())]
         else:
             polygons = [geom_part if isinstance(geom_part, QgsPolygon) else geom_part.geometryN(0)]
@@ -194,9 +194,9 @@ class GeometryProcessor:
             has_interior_rings = polygon.numInteriorRings() > 0
             exterior_ring = polygon.exteriorRing()
             if exterior_ring:
-                # Для угідь із отворами зовнішні кільця орієнтуються за
-                # годинниковою; без отворів — проти годинникової стрілки.
-                exterior_ccw = not has_interior_rings if normalize_ring_orientation else None
+                # ISO 19107 / GML: exterior rings counterclockwise,
+                # interior rings clockwise. Normalize only when requested.
+                exterior_ccw = True if normalize_ring_orientation else None
                 boundary_ulids, processed_points, processed_polylines = self._process_ring(
                     exterior_ring, counterclockwise=exterior_ccw
                 )
@@ -733,29 +733,34 @@ class GeometryProcessor:
             if line_ref.text:
                 used_ulids.add(line_ref.text)
 
-        polyline_container = self.root.find(".//Polyline")  # Блок опису поліліній
+        polyline_containers = self.root.findall(".//Polyline")
         lines_removed_count = 0
         lines_removed_str = ""
-        if polyline_container is not None:
-            for pl in list(polyline_container):
+        remaining_polylines = []
+        for polyline_container in polyline_containers:
+            for pl in list(polyline_container.findall("PL")):
                 ulid = pl.findtext("ULID")
                 if ulid not in used_ulids:
                     polyline_container.remove(pl)
                     lines_removed_count += 1
-                    lines_removed_str += ulid + ","
+                    lines_removed_str += f"{ulid or ''},"
+                else:
+                    remaining_polylines.append(pl)
         if lines_removed_count > 0:
             log_calls(logFile, f"2. Видалено {lines_removed_count} поліліній: {lines_removed_str}")
 
         used_uidps = set()
-        if polyline_container is not None:
-            for p_ref in polyline_container.xpath(".//PL/Points/P"):
+        for polyline in remaining_polylines:
+            for p_ref in polyline.findall("./Points/P"):
                 if p_ref.text:
                     used_uidps.add(p_ref.text)
 
-        point_info_container = self.root.find(".//PointInfo")
+        point_info_containers = self.root.findall(".//PointInfo")
         points_removed_count = 0
-        if point_info_container is not None:
+        for point_info_container in point_info_containers:
             for point in list(point_info_container):
+                if point.tag != "Point":
+                    continue
                 uidp = point.findtext("UIDP")
                 if uidp not in used_uidps:
                     point_info_container.remove(point)
@@ -846,7 +851,7 @@ class GeometryProcessor:
         if geometry.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             raise ValueError("Геометрія оренди повинна бути полігоном.")
 
-        externals_element, _, _, object_shape = self.process_new_geometry(geometry)
+        externals_element, _, _, object_shape = self.process_new_geometry(geometry, normalize_ring_orientation=True)
         if externals_element is None:
             raise ValueError("Не вдалося обробити геометрію полігону оренди.")
 
@@ -902,7 +907,7 @@ class GeometryProcessor:
         if geometry.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             raise ValueError("Геометрія суборенди повинна бути полігоном.")
 
-        externals_element, _, _, object_shape = self.process_new_geometry(geometry)
+        externals_element, _, _, object_shape = self.process_new_geometry(geometry, normalize_ring_orientation=True)
         if externals_element is None:
             raise ValueError("Не вдалося обробити геометрію полігону суборенди.")
 
@@ -962,7 +967,7 @@ class GeometryProcessor:
         if geometry.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             raise ValueError("Геометрія обмеження повинна бути полігоном.")
 
-        externals_element, _, _, object_shape = self.process_new_geometry(geometry)
+        externals_element, _, _, object_shape = self.process_new_geometry(geometry, normalize_ring_orientation=True)
         if externals_element is None:
             raise ValueError("Не вдалося обробити геометрію полігону обмеження.")
 

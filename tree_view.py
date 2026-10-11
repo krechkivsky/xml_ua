@@ -1652,6 +1652,7 @@ class CustomTreeView(QTreeView):
                 processor.cleanup_and_renumber_geometry()
 
                 self.parent.current_xml.tree_view.rebuild_tree_view()
+                self.parent.redraw_current_group()
 
             else:
                 log_msg(logFile, f"Не знайдено відповідної назви шару для тегу '{item_tag}'. Видалення лише з XML.")
@@ -1661,6 +1662,7 @@ class CustomTreeView(QTreeView):
 
                 processor = GeometryProcessor(self.parent.current_xml.tree)  # type: ignore
                 processor.cleanup_and_renumber_geometry()
+                self.parent.redraw_current_group()
         else:
             try:
                 parent_xml_element.remove(xml_element_to_delete)

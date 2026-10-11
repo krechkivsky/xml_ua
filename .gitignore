@@ -15,6 +15,10 @@ tests/
 /.ruff_cache/
 /.vscode/
 
+/docs/
+!/docs/
+!/docs/using_XSD.md
+!/docs/changes_XSD.md
 
 # Logs
 log.md
