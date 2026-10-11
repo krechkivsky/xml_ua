@@ -3204,26 +3204,36 @@ class CustomTreeView(QTreeView):
     def sort_xml_tree_by_xsd(self):
         """
         Впорядковує дочірні елементи XML-дерева згідно з порядком children у xsd_schema.
-        Повертає True, якщо були внесені зміни.
+        Повертає True, якщо були внесені зміни. Деталі зберігає в
+        `last_sort_changes` для повідомлення користувачу.
         """
+        self.last_sort_changes = []
         if self.xml_tree is None:
             return False
         root = self.xml_tree.getroot()
         if root is None or not self.xsd_schema:
             return False
 
+        changes = []
+
         def _lname(node):
+            if not isinstance(node.tag, str):
+                return "XML-коментар"
             try:
                 return etree.QName(node).localname
             except Exception:
                 return node.tag
 
-        def _reorder(element, schema_path):
+        def _reorder(element, schema_path, xml_path):
             changed_local = False
 
+            sibling_counts = {}
             for child in list(element):
                 child_schema_path = f"{schema_path}/{_lname(child)}" if schema_path else _lname(child)
-                if _reorder(child, child_schema_path):
+                child_name = _lname(child)
+                sibling_counts[child_name] = sibling_counts.get(child_name, 0) + 1
+                child_xml_path = f"{xml_path}/{child_name}[{sibling_counts[child_name]}]"
+                if _reorder(child, child_schema_path, child_xml_path):
                     changed_local = True
 
             schema = self.xsd_schema.get(schema_path, {})
@@ -3249,13 +3259,22 @@ class CustomTreeView(QTreeView):
                     ordered.append(child)
 
             if len(ordered) == len(children) and any(ordered[i] is not children[i] for i in range(len(children))):
+                changed_tags = []
+                for before, after in zip(children, ordered):
+                    if before is not after:
+                        for tag in (_lname(before), _lname(after)):
+                            if tag not in changed_tags:
+                                changed_tags.append(tag)
                 for child in children:
                     element.remove(child)
                 for child in ordered:
                     element.append(child)
                 changed_local = True
+                changes.append((xml_path, changed_tags))
 
             return changed_local
 
         root_schema_path = _lname(root)
-        return _reorder(root, root_schema_path)
+        _reorder(root, root_schema_path, f"{root_schema_path}[1]")
+        self.last_sort_changes = changes
+        return bool(changes)

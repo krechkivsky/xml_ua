@@ -594,6 +594,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         try:
             set_progress(10)
             changed = tree_view.sort_xml_tree_by_xsd()
+            sort_changes = tree_view.last_sort_changes
             set_progress(45)
             if changed:
                 tree_view.update_view_from_tree()
@@ -613,9 +614,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 simulated_timer.stop()
                 message_bar.popWidget(progress_message)
 
+                change_details = "; ".join(
+                    f"{path}: {', '.join(tags)}"
+                    for path, tags in sort_changes[:3]
+                )
+                remaining_blocks = len(sort_changes) - 3
+                if remaining_blocks > 0:
+                    change_details += f"; ще у {remaining_blocks} блоках"
+
                 self.iface.messageBar().pushMessage(
                     "XML-UA",
-                    f"Порядок елементів у '{self.current_xml.group_name}' впорядковано за XSD, збережено та оновлено.",
+                    (f"У '{self.current_xml.group_name}' змінено порядок дочірніх елементів відповідно до XSD, "
+                     f"зміни збережено. Блоки й переставлені елементи: {change_details}."),
                     level=Qgis.MessageLevel.Success,
                     duration=5,
                 )
@@ -846,16 +856,35 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             self.load_data(xml_path, tree=self.current_xml.tree)
 
         was_reordered = False
-        parcel_info_element = self.current_xml.tree.find(".//ParcelInfo")
-        if parcel_info_element is not None:
+        reordered_parcels = []
+        parcel_info_elements = self.current_xml.tree.findall(".//ParcelInfo")
+        if parcel_info_elements:
             from .common import sort_children_in_parcel_info
 
-            was_reordered = sort_children_in_parcel_info(parcel_info_element)
-            if was_reordered:
-                # log_calls(
-                #     logFile, "Порядок елементів у ParcelInfo було виправлено згідно зі схемою XSD.")
+            for parcel_index, parcel_info_element in enumerate(parcel_info_elements, 1):
+                parcel_was_reordered, moved_tags = sort_children_in_parcel_info(
+                    parcel_info_element, return_details=True
+                )
+                if parcel_was_reordered:
+                    was_reordered = True
+                    reordered_parcels.append((parcel_index, moved_tags))
 
+            if was_reordered:
                 self.mark_as_changed()
+                change_details = "; ".join(
+                    f"ParcelInfo[{parcel_index}]: {', '.join(tags)}"
+                    for parcel_index, tags in reordered_parcels[:3]
+                )
+                remaining_parcels = len(reordered_parcels) - 3
+                if remaining_parcels > 0:
+                    change_details += f"; ще у {remaining_parcels} ParcelInfo"
+                self.iface.messageBar().pushMessage(
+                    "XML-UA",
+                    ("Під час відкриття автоматично змінено порядок полів: "
+                     f"{change_details}. Зміни лише в пам’яті — збережіть файл, щоб записати їх."),
+                    level=Qgis.MessageLevel.Warning,
+                    duration=10,
+                )
 
         was_renumbered = False
         try:

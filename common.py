@@ -751,40 +751,45 @@ area_determination_map = {
 }
 
 
+_PARCEL_INFO_CHILD_ORDER = (
+    "ParcelLocationInfo",
+    "CategoryPurposeInfo",
+    "LandsMassif",
+    "OwnershipInfo",
+    "ParcelMetricInfo",
+    "Proprietors",
+    "LegalModeInfo",
+    "TechnicalDocumentationInfo",
+    "StateActInfo",
+    "ValuationInfo",
+    "Leases",
+    "Subleases",
+    "Restrictions",
+    "Melioration",
+    "LandsParcel",
+    "LandsAndSoilsProtections",
+    "AdjacentUnits",
+    "AdditionalInfoBlock",
+)
+
+
 def insert_element_in_order(parent_element, new_element):
     """
     Вставляє new_element в parent_element у правильному порядку,
     визначеному схемою для ParcelInfo.
     """
 
-    order = [
-        "ParcelLocationInfo",
-        "CategoryPurposeInfo",
-        "OwnershipInfo",
-        "ParcelMetricInfo",
-        "Proprietors",
-        "LegalModeInfo",
-        "TechnicalDocumentationInfo",
-        "StateActInfo",
-        "ValuationInfo",
-        "Leases",
-        "Subleases",
-        "Restrictions",
-        "LandsParcel",
-        "AdjacentUnits",
-        "AdditionalInfoBlock",
-    ]
-
     new_tag = new_element.tag
-    if new_tag not in order:
+    if new_tag not in _PARCEL_INFO_CHILD_ORDER:
         parent_element.append(new_element)
         return
 
-    new_element_order_index = order.index(new_tag)
+    order_index = {tag: index for index, tag in enumerate(_PARCEL_INFO_CHILD_ORDER)}
+    new_element_order_index = order_index[new_tag]
 
     insert_before_element = None
     for child in parent_element:
-        if child.tag in order and order.index(child.tag) > new_element_order_index:
+        if child.tag in order_index and order_index[child.tag] > new_element_order_index:
             insert_before_element = child
             break
 
@@ -794,46 +799,40 @@ def insert_element_in_order(parent_element, new_element):
         parent_element.append(new_element)
 
 
-def sort_children_in_parcel_info(parcel_info_element):
+def sort_children_in_parcel_info(parcel_info_element, *, return_details=False):
     """
-    Сортує дочірні елементи <ParcelInfo> згідно з порядком, визначеним у схемі XSD.
-    Повертає True, якщо порядок було змінено, інакше False.
+    Стабільно впорядковує відомі дочірні елементи <ParcelInfo>.
+
+    Невідомі елементи, коментарі та інші вузли лишаються на своїх позиціях;
+    батьківські атрибути й текст також зберігаються. Повертає True, якщо
+    порядок відомих елементів змінився. Якщо `return_details=True`, повертає
+    пару (чи змінено порядок, назви полів, які змінили позицію).
     """
-
-    order = [
-        "ParcelLocationInfo",
-        "CategoryPurposeInfo",
-        "OwnershipInfo",
-        "ParcelMetricInfo",
-        "Proprietors",
-        "LegalModeInfo",
-        "TechnicalDocumentationInfo",
-        "StateActInfo",
-        "ValuationInfo",
-        "Leases",
-        "Subleases",
-        "Restrictions",
-        "LandsParcel",
-        "AdjacentUnits",
-        "AdditionalInfoBlock",
-    ]
-
     current_children = list(parcel_info_element)
-    current_tags = [child.tag for child in current_children]
+    order_index = {tag: index for index, tag in enumerate(_PARCEL_INFO_CHILD_ORDER)}
+    known_children = [child for child in current_children if child.tag in order_index]
+    sorted_known_children = sorted(known_children, key=lambda child: order_index[child.tag])
 
-    sorted_children = []
+    if all(before is after for before, after in zip(known_children, sorted_known_children)):
+        return (False, []) if return_details else False
 
-    children_map = {child.tag: child for child in current_children}
+    sorted_iterator = iter(sorted_known_children)
+    sorted_children = [
+        next(sorted_iterator) if child.tag in order_index else child
+        for child in current_children
+    ]
+    moved_tags = []
+    for before, after in zip(current_children, sorted_children):
+        if before is not after:
+            for tag in (before.tag, after.tag):
+                if tag not in moved_tags:
+                    moved_tags.append(tag)
 
-    for tag in order:
-        if tag in children_map:
-            sorted_children.append(children_map[tag])
+    # Move children individually instead of clear(): clear() also discards
+    # unknown future elements, parent attributes and parent text.
+    for child in current_children:
+        parcel_info_element.remove(child)
+    for child in sorted_children:
+        parcel_info_element.append(child)
 
-    present_tags_sorted = [child.tag for child in sorted_children]
-    if current_tags != present_tags_sorted:
-        parcel_info_element.clear()
-        for child in sorted_children:
-            parcel_info_element.append(child)
-        return True  # Порядок було змінено
-
-    return False  # Порядок не змінювався
+    return (True, moved_tags) if return_details else True
