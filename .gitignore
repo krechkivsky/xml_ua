@@ -26,9 +26,7 @@ log.md
 # Jupyter Notebook
 *.ipynb
 
-antigravity_prompt.md
-duplicates.md
+# Sequrity check
+bandit_to_md.py
+
 xml_ua.code-workspace
-.aider*
-templates/Роздільна_4.xml
-templates/001.xml

@@ -1,6 +1,10 @@
 # Журнал змін
 
 
+## v0.9.11 (2026-10-12)
+- **New** Adapted plugin to meet complex polygon topology requirements (DSTU ISO 19107).
+- **New*** Introduced time-independent XSD schema versioning: legacy documents open using historical rules, while new developments align with current specifications.
+
 ## v0.9.10 (2026-10-04)
 - **Security:** Issues raised by compatibily scanner pyqgis4-checker have been fixed.
 
