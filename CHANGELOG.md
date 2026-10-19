@@ -1,9 +1,14 @@
 # Журнал змін
 
 
+## v0.9.12 (2026-10-19)
+- **New** Navigating the XML tree and editing attributes without a mouse.
+- **New** A standard set of technical documentation has been added to the template, and obsolete elements have been removed.
+- **Fix** Multiple changes to the interface, the HSD scheme, and the algorithm, aimed at making things easier for beginners.
+
 ## v0.9.11 (2026-10-12)
 - **New** Adapted plugin to meet complex polygon topology requirements (DSTU ISO 19107).
-- **New*** Introduced time-independent XSD schema versioning: legacy documents open using historical rules, while new developments align with current specifications.
+- **New** Introduced time-independent XSD schema versioning: legacy documents open using historical rules, while new developments align with current specifications.
 
 ## v0.9.10 (2026-10-04)
 - **Security:** Issues raised by compatibily scanner pyqgis4-checker have been fixed.

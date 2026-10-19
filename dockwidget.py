@@ -2777,6 +2777,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if layer.type() == layer.VectorLayer:
                 selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
+        if len(selected_features) > 1:
+            QMessageBox.warning(
+                self,
+                "Забагато вибраних об'єктів",
+                "Вибрано більше одного об'єкта. Для додавання геометричної складової виберіть лише один об'єкт.",
+            )
+            return
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
@@ -2935,6 +2942,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if layer.type() == layer.VectorLayer:
                 selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
+        if len(selected_features) > 1:
+            QMessageBox.warning(
+                self,
+                "Забагато вибраних об'єктів",
+                "Вибрано більше одного об'єкта. Для додавання геометричної складової виберіть лише один об'єкт.",
+            )
+            return
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
@@ -2988,6 +3002,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if layer.type() == layer.VectorLayer:
                 selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
+        if len(selected_features) > 1:
+            QMessageBox.warning(
+                self,
+                "Забагато вибраних об'єктів",
+                "Вибрано більше одного об'єкта. Для додавання геометричної складової виберіть лише один об'єкт.",
+            )
+            return
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
@@ -3041,6 +3062,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             if layer.type() == layer.VectorLayer:
                 selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
+        if len(selected_features) > 1:
+            QMessageBox.warning(
+                self,
+                "Забагато вибраних об'єктів",
+                "Вибрано більше одного об'єкта. Для додавання геометричної складової виберіть лише один об'єкт.",
+            )
+            return
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
@@ -3234,6 +3262,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             ):
                 selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
+        if len(selected_features) > 1:
+            QMessageBox.warning(
+                self,
+                "Забагато вибраних об'єктів",
+                "Вибрано більше одного об'єкта. Для додавання геометричної складової виберіть лише один об'єкт.",
+            )
+            return
         if len(selected_features) != 1:
             return
 

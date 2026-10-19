@@ -182,7 +182,10 @@ class CustomTreeView(QTreeView):
                     self.edit(editor_index)
                 event.accept()
                 return
-            if index.isValid() and index.data(TEXT_EDIT_CELL_ROLE) and self.state() != QAbstractItemView.State.EditingState:
+            if (index.isValid() 
+                and index.data(TEXT_EDIT_CELL_ROLE) 
+                and self.state() 
+                != QAbstractItemView.State.EditingState):
                 self.edit(index)
                 event.accept()
                 return
