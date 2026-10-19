@@ -2721,16 +2721,41 @@ class CustomTreeView(QTreeView):
                     child_errors.extend(collected_child_errors)  # Збираємо помилки з дочірніх гілок
 
             is_self_valid = validate_element(xml_element, path)
+            schema_path = re.sub(r"\[\d+\]", "", str(path or ""))
+            element_schema = self.xsd_schema.get(schema_path, {})
+            is_company_name = schema_path.endswith("/InfoLandWork/Executor/CompanyName")
+            try:
+                local_name = etree.QName(xml_element).localname if xml_element is not None else ""
+            except ValueError:
+                local_name = ""
+            is_empty_text_field = (
+                xml_element is not None
+                and isinstance(xml_element.tag, str)
+                and len(xml_element) == 0
+                and (not element_schema.get("complex") or is_company_name)
+                and not ("fixed" in element_schema and element_schema.get("fixed") == "")
+                and local_name not in {"Urban", "Rural"}
+                and not (xml_element.text or "").strip()
+            )
+            if is_empty_text_field:
+                element_name = self.xsd_appinfo.get(schema_path, item.text())
+                element_name = re.sub(r"[⋮↵↓]+$", "", str(element_name)).strip()
+                empty_value_error = f"Значення {element_name} не повинно бути пустим"
+                is_self_valid = False
+                direct_item_errors.append(empty_value_error)
+                if generate_report:
+                    errors.append(empty_value_error)
+
             if not is_self_valid and generate_report:
-                self._generate_ukr_path(path)
-
-                ukr_name = item.text().rstrip(" ⋮↵")
-                value = xml_element.text if xml_element is not None else "N/A"
-
-                error_msg = f"В елементі '{ukr_name}' некоректне значення: '{value}'"
-                direct_item_errors.append(error_msg)
-
-                errors.append(error_msg)
+                # Порожнє значення вже отримало точне повідомлення вище.
+                # Інші помилки залишаються у звичному форматі звіту.
+                if not is_empty_text_field:
+                    self._generate_ukr_path(path)
+                    ukr_name = item.text().rstrip(" ⋮↵")
+                    value = xml_element.text if xml_element is not None else "N/A"
+                    error_msg = f"В елементі '{ukr_name}' некоректне значення: '{value}'"
+                    direct_item_errors.append(error_msg)
+                    errors.append(error_msg)
 
             is_structure_valid = True
 
@@ -2792,7 +2817,6 @@ class CustomTreeView(QTreeView):
                     self.expand(parent.index())
                     parent = parent.parent()
 
-            schema_path = re.sub(r"\[\d+\]", "", str(path or ""))
             base_tooltip = self.xsd_descriptions.get(schema_path, "")
             value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
 

@@ -11,6 +11,8 @@ def validate_element(element, path):
     if element is None:
         return True  # Нема чого валідувати
 
+    path = re.sub(r"\[\d+\]", "", str(path or ""))
+
     if path.endswith("/InfoLandWork/Executor/CompanyName"):
         text = element.text
         if not text or not text.strip():
