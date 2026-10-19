@@ -13,18 +13,8 @@
     </ServiceInfo>
     <InfoLandWork>
       <Executor>
-        <CompanyName>@Назва</CompanyName>
-        <EDRPOU>@00000000</EDRPOU>
-        <License>
-          <LicenseSeries>АА</LicenseSeries>
-          <LicenseNumber>000000</LicenseNumber>
-          <LicenseIssuedDate>2024-01-01</LicenseIssuedDate>
-        </License>
-        <License>
-          <LicenseSeries>АА</LicenseSeries>
-          <LicenseNumber>000000</LicenseNumber>
-          <LicenseIssuedDate>2024-01-01</LicenseIssuedDate>
-        </License>
+        <CompanyName>Землевпорядна організація</CompanyName>
+        <EDRPOU>12345678</EDRPOU>
         <Chief>
           <ChiefName>
             <LastName>Прізвище</LastName>
@@ -41,11 +31,11 @@
           </ExecutorName>
           <ExecutorPosition>Посада виконавця виконавця №1</ExecutorPosition>
           <Qualification>
-            <QualificationNumber>0 виконавця №1</QualificationNumber>
+            <QualificationNumber>0001</QualificationNumber>
             <QualificationDate>2024-01-01</QualificationDate>
           </Qualification>
           <ContactInfo>
-            <Phone>0000000000 виконавця №1</Phone>
+            <Phone>+38-000-000-00-00</Phone>
           </ContactInfo>
         </Executor>
         <Executor>
@@ -56,11 +46,11 @@
           </ExecutorName>
           <ExecutorPosition>Посада виконавця №2</ExecutorPosition>
           <Qualification>
-            <QualificationNumber>0 виконавця №2</QualificationNumber>
+            <QualificationNumber>0002</QualificationNumber>
             <QualificationDate>2024-01-01</QualificationDate>
           </Qualification>
           <ContactInfo>
-            <Phone>0000000000 виконавця №2</Phone>
+            <Phone>+38-000-000-00-00</Phone>
           </ContactInfo>
         </Executor>
         <Address>
@@ -184,6 +174,18 @@
                 <DocumentationType></DocumentationType>
                 <DraftingDate>2024-01-01</DraftingDate>
                 <DocumentList>001</DocumentList>
+                <DocumentList>002</DocumentList>
+                <DocumentList>007</DocumentList>
+                <DocumentList>013</DocumentList>
+                <DocumentList>014</DocumentList>
+                <DocumentList>016</DocumentList>
+                <DocumentList>022</DocumentList>
+                <DocumentList>034</DocumentList>
+                <DocumentList>036</DocumentList>
+                <DocumentList>040</DocumentList>
+                <DocumentList>041</DocumentList>
+                <DocumentList>042</DocumentList>
+                <DocumentList>046</DocumentList>
               </TechnicalDocumentationInfo>
             </ParcelInfo>
           </Parcels>
