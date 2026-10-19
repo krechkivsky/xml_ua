@@ -2893,14 +2893,18 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         self.current_xml.shapes.append(shape_info)
         log_calls(logFile, f"Додано новий об'єкт до shapes: LID:{shape_info.layer_id}, OID:{shape_info.object_id}")
 
-        self.current_xml.tree_view.rebuild_tree_view()
-        self.mark_as_changed()
-
-        self.redraw_current_group()
-
         processor = GeometryProcessor(self.current_xml.tree)
         if processor.cleanup_and_renumber_geometry():
             log_calls(logFile, "Геометрію було перенумеровано після додавання угіддя.")
+
+        # Вставлення LandsParcel через SubElement додає його в кінець ParcelInfo;
+        # повертаємо XML до порядку XSD перед перебудовою дерева та автовалідацією.
+        if self.current_xml.tree_view.sort_xml_tree_by_xsd():
+            log_calls(logFile, "XML впорядковано за XSD після додавання угіддя.")
+
+        self.current_xml.tree_view.rebuild_tree_view()
+        self.mark_as_changed()
+        self.redraw_current_group()
 
         if not hasattr(self.current_xml, "temp_tree_state") or self.current_xml.temp_tree_state is None:
             self.iface.messageBar().pushMessage(

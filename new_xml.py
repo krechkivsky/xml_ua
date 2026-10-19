@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 
 from lxml import etree
-from qgis.core import QgsFeature, QgsProject, QgsWkbTypes
+from qgis.core import QgsCoordinateTransform, QgsFeature, QgsGeometry, QgsProject, QgsWkbTypes
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 
 from .common import log_msg, logFile, xml_template
@@ -23,6 +23,7 @@ class NewXmlCreator:
         self.iface = iface
         self.plugin = plugin_instance
         self.new_xml_path = ""
+        self.selected_layer = None
 
     def execute(self, geometry=None, template_path=None):
         """Основний метод для запуску процесу створення файлу."""
@@ -35,10 +36,25 @@ class NewXmlCreator:
 
             selected_feature = QgsFeature()
             selected_feature.setGeometry(geometry)
+            self.selected_layer = None
         else:
             selected_feature = self.get_selection()
             if not selected_feature:
                 return
+
+            source_crs = self.selected_layer.crs() if self.selected_layer else None
+            target_crs = self.iface.mapCanvas().mapSettings().destinationCrs()
+            if source_crs and source_crs.isValid() and target_crs.isValid() and source_crs != target_crs:
+                try:
+                    geometry_in_map_crs = QgsGeometry(selected_feature.geometry())
+                    transform = QgsCoordinateTransform(source_crs, target_crs, QgsProject.instance())
+                    result = geometry_in_map_crs.transform(transform)
+                    if result != QgsGeometry.OperationResult.Success:
+                        raise ValueError(f"Не вдалося перетворити геометрію в CRS карти: {result}")
+                    selected_feature.setGeometry(geometry_in_map_crs)
+                except Exception as e:
+                    QMessageBox.critical(None, "Помилка перетворення CRS", str(e))
+                    return
 
         tree = self.set_intro_metric(
             selected_feature, selected_feature.geometry(), base_template)
@@ -59,9 +75,10 @@ class NewXmlCreator:
 
         layers = [layer] if layer else QgsProject.instance().mapLayers().values()
         selected_features = []
-        for layer in layers:
-            if layer.type() == layer.VectorLayer:
-                selected_features.extend(layer.selectedFeatures())
+        self.selected_layer = None
+        for candidate_layer in layers:
+            if candidate_layer.type() == candidate_layer.VectorLayer:
+                selected_features.extend((candidate_layer, feature) for feature in candidate_layer.selectedFeatures())
 
         if not selected_features:
             QMessageBox.warning(
@@ -73,7 +90,7 @@ class NewXmlCreator:
                 None, "Помилка", "Треба вибрати лише один полігон.")
             return None
 
-        selected_feature = selected_features[0]
+        self.selected_layer, selected_feature = selected_features[0]
         geometry_type = selected_feature.geometry().wkbType()
         if geometry_type not in (QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon):
             QMessageBox.warning(
