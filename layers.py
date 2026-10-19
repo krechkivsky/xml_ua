@@ -84,7 +84,7 @@ class xmlUaLayers:
         self.under_construction = self.check_construction_status()
 
         self.project = QgsProject.instance()
-        self.crs = self.project.crs()
+        self.crs = getattr(self.xml_data, "crs", None) or self.project.crs()
         self.crsEpsg = self.crs.authid()
         self.added_layers = []
 

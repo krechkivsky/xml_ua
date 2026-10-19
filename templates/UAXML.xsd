@@ -1082,7 +1082,7 @@
 				<xsd:element name="PointInfo" type="PointInfo">
 					<xsd:annotation>
 						<xsd:documentation>Координати вузлів полігона кадастрової одиниці</xsd:documentation>
-						<xsd:appinfo>Координати вузлів</xsd:appinfo>
+						<xsd:appinfo>Вузли</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="Polyline">

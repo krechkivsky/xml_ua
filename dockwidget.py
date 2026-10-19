@@ -1081,12 +1081,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         pass
 
-    def process_action_new(self, xml_path, tree):
+    def process_action_new(self, xml_path, tree, crs=None):
         """ """
 
         log_calls(logFile)
 
         new_xml_data = xml_data(path=xml_path, tree=tree, group_name="")
+        new_xml_data.crs = crs or QgsProject.instance().crs()
         self.current_xml = new_xml_data
 
         new_tab = QWidget()
@@ -2774,13 +2775,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
             if layer.type() == layer.VectorLayer:
-                selected_features.extend(layer.selectedFeatures())
+                selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
-        feature = selected_features[0]
+        source_layer, feature = selected_features[0]
+        self.current_xml.crs = source_layer.crs()
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
@@ -2817,7 +2819,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         if lands_layer is None:
             log_calls(logFile, f"Шар '{layer_name}' не знайдено. Створюємо новий шар.")
             lands_layer = QgsVectorLayer(
-                f"MultiPolygon?crs={self.iface.mapCanvas().mapSettings().destinationCrs().authid()}",
+                f"MultiPolygon?crs={source_layer.crs().authid()}",
                 layer_name,
                 "memory",
             )
@@ -2931,13 +2933,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
             if layer.type() == layer.VectorLayer:
-                selected_features.extend(layer.selectedFeatures())
+                selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
-        feature = selected_features[0]
+        source_layer, feature = selected_features[0]
+        self.current_xml.crs = source_layer.crs()
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
@@ -2983,13 +2986,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
             if layer.type() == layer.VectorLayer:
-                selected_features.extend(layer.selectedFeatures())
+                selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
-        feature = selected_features[0]
+        source_layer, feature = selected_features[0]
+        self.current_xml.crs = source_layer.crs()
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
@@ -3035,13 +3039,14 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
             if layer.type() == layer.VectorLayer:
-                selected_features.extend(layer.selectedFeatures())
+                selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
         if len(selected_features) != 1:
             QMessageBox.warning(self, "Помилка", "Будь ласка, виберіть рівно один полігональний об'єкт.")
             return
 
-        feature = selected_features[0]
+        source_layer, feature = selected_features[0]
+        self.current_xml.crs = source_layer.crs()
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon]:
             QMessageBox.warning(self, "Помилка", "Вибраний об'єкт не є полігоном.")
@@ -3093,7 +3098,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         restrictions_handler = Restrictions(
             root=self.current_xml.tree.getroot(),
-            crs_epsg=self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+            crs_epsg=source_layer.crs().authid(),
             group=group,
             plugin_dir=self.plugin.plugin_dir,  # type: ignore
             lines_to_coords_func=lambda elem: self.layers_obj.linesToCoordinates(elem),  # type: ignore
@@ -3110,6 +3115,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
             log_calls(logFile, f"Шар '{layer_name}' знайдено. Оновлюємо його.")
 
             restrictions_handler.redraw_restrictions_layer(restrictions_layer)
+
+        self.redraw_current_group()
 
         log_calls(logFile, f"Обмеження додано до XML для групи '{self.current_xml.group_name}'.")
 
@@ -3214,12 +3221,13 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
             if layer.type() == layer.VectorLayer and layer.geometryType() == QgsWkbTypes.GeometryType.LineGeometry:
-                selected_features.extend(layer.selectedFeatures())
+                selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
         if len(selected_features) != 1:
             return
 
-        feature = selected_features[0]
+        source_layer, feature = selected_features[0]
+        self.current_xml.crs = source_layer.crs()
         geom = feature.geometry()
         if geom.wkbType() not in [QgsWkbTypes.Type.LineString, QgsWkbTypes.Type.MultiLineString]:
             QMessageBox.warning(self, "Помилка додавання суміжника", "Вибраний об'єкт не є полілінією.")
@@ -4031,7 +4039,7 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
 
         lands_handler = LandsParcels(
             xml_data.tree.getroot(),
-            self.iface.mapCanvas().mapSettings().destinationCrs().authid(),
+            (getattr(xml_data, "crs", None) or QgsProject.instance().crs()).authid(),
             self.layers_obj.group,
             self.layers_obj.plugin_dir,
             QgsProject.instance().layerTreeRoot(),

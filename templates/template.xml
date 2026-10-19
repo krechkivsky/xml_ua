@@ -114,8 +114,8 @@
         </PL>
       </Polyline>
       <ControlPoint>
-        <P>0</P>
-        <P>0</P>
+        <P>1</P>
+        <P>2</P>
       </ControlPoint>
     </MetricInfo>
     <CadastralZoneInfo>
@@ -148,6 +148,9 @@
                 <Purpose>01.01</Purpose>
                 <Use/>
               </CategoryPurposeInfo>
+              <OwnershipInfo>
+                <Code></Code>
+              </OwnershipInfo>
               <ParcelMetricInfo>
                 <ParcelID></ParcelID>
                 <Area>

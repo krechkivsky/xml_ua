@@ -817,9 +817,12 @@ class RegionDelegate(QStyledItemDelegate):
         return {}
 
     def _is_target_element(self, index):
-        """Перевіряє, чи є елемент '/Address/Region'."""
+        """Перевіряє, чи є елементом Region адреси або місцезнаходження ділянки."""
         full_path = index.data(Qt.ItemDataRole.UserRole)
-        return full_path and full_path.endswith("/Address/Region")
+        if not full_path:
+            return False
+        schema_path = re.sub(r"\[\d+\]", "", str(full_path))
+        return schema_path.endswith("/Address/Region") or schema_path.endswith("/ParcelLocationInfo/Region")
 
     def createEditor(self, parent, option, index):
         """Створює QComboBox редактор для 'Region'."""

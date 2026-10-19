@@ -24,3 +24,4 @@ class xml_data:
         self.was_ever_changed = False
         self.shapes = []  # Список об'єктів ShapeInfo для відстеження геометрії
         self._object_id_counter = 0
+        self.crs = None

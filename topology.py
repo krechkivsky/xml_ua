@@ -334,7 +334,6 @@ class GeometryProcessor:
                 etree.SubElement(p_elem, "MX").text = "0.05"
                 etree.SubElement(p_elem, "MY").text = "0.05"
                 etree.SubElement(p_elem, "MH").text = "0.05"
-                etree.SubElement(p_elem, "Description").text = ""
                 newly_created_points.append(p_elem)
                 self.points[new_uidp] = {"x": qgis_point.x(), "y": qgis_point.y(), "elem": p_elem}
 

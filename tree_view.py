@@ -157,6 +157,38 @@ class CustomTreeView(QTreeView):
         self.viewport().unsetCursor()
         super().leaveEvent(event)
 
+    def keyPressEvent(self, event):
+        """Enter відкриває стандартний редактор поточної текстової комірки."""
+        if event.key() == Qt.Key.Key_Right:
+            index = self.currentIndex()
+            if index.isValid() and index.column() == 0:
+                value_index = index.sibling(index.row(), 1)
+                if value_index.isValid():
+                    self.setCurrentIndex(value_index)
+                    self.setFocus(Qt.FocusReason.OtherFocusReason)
+                    event.accept()
+                    return
+
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            index = self.currentIndex()
+            if (
+                index.isValid()
+                and self.region_delegate._is_target_element(index)
+                and self.state() != QAbstractItemView.State.EditingState
+            ):
+                editor_index = index if index.column() == 1 else index.sibling(index.row(), 1)
+                if editor_index.isValid():
+                    self.setCurrentIndex(editor_index)
+                    self.edit(editor_index)
+                event.accept()
+                return
+            if index.isValid() and index.data(TEXT_EDIT_CELL_ROLE) and self.state() != QAbstractItemView.State.EditingState:
+                self.edit(index)
+                event.accept()
+                return
+        # Коли редактор уже відкритий, Enter обробляє сам QLineEdit і завершує редагування.
+        super().keyPressEvent(event)
+
     def mouseDoubleClickEvent(self, event):
         """
         Intercepts double-clicks to open dedicated selection dialogs for some
@@ -754,7 +786,7 @@ class CustomTreeView(QTreeView):
                 return True
             return True
         elif schema_item_path and schema_item_path.endswith("/ParcelLocationInfo/Region"):
-            self.handle_region_edit(item)
+            self.edit(index)
             return True
         elif schema_item_path and schema_item_path.endswith("/CategoryPurposeInfo/Category"):
             self.handle_land_category_edit(index)
@@ -1576,9 +1608,19 @@ class CustomTreeView(QTreeView):
         else:
             new_xml_element.text = " "  # Додаємо пробіл, щоб тег не був самозакриваючим
         parent_xml_element.append(new_xml_element)
-
         new_child_index = len(parent_xml_element.findall(child_tag))
         full_child_path = f"{parent_path}/{child_tag}[{new_child_index}]"
+
+        if child_tag in ("OwnershipInfo", "ProprietorCode"):
+            self.sort_xml_tree_by_xsd()
+            self.rebuild_tree_view()
+            self.parent.mark_as_changed(self)
+            try:
+                self.dataChangedInTree.emit(full_child_path, new_xml_element.text or "")
+            except Exception as e:
+                log_calls(logFile, f"{e}")
+            return
+
         name_item, value_item = self._create_qt_items_for_element(
             new_xml_element, full_child_path, f"{schema_parent_path}/{child_tag}"
         )

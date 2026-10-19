@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 
 from lxml import etree
-from qgis.core import QgsCoordinateTransform, QgsFeature, QgsGeometry, QgsProject, QgsWkbTypes
+from qgis.core import QgsFeature, QgsProject, QgsWkbTypes
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 
 from .common import log_msg, logFile, xml_template
@@ -42,20 +42,6 @@ class NewXmlCreator:
             if not selected_feature:
                 return
 
-            source_crs = self.selected_layer.crs() if self.selected_layer else None
-            target_crs = self.iface.mapCanvas().mapSettings().destinationCrs()
-            if source_crs and source_crs.isValid() and target_crs.isValid() and source_crs != target_crs:
-                try:
-                    geometry_in_map_crs = QgsGeometry(selected_feature.geometry())
-                    transform = QgsCoordinateTransform(source_crs, target_crs, QgsProject.instance())
-                    result = geometry_in_map_crs.transform(transform)
-                    if result != QgsGeometry.OperationResult.Success:
-                        raise ValueError(f"Не вдалося перетворити геометрію в CRS карти: {result}")
-                    selected_feature.setGeometry(geometry_in_map_crs)
-                except Exception as e:
-                    QMessageBox.critical(None, "Помилка перетворення CRS", str(e))
-                    return
-
         tree = self.set_intro_metric(
             selected_feature, selected_feature.geometry(), base_template)
         if not tree:
@@ -66,7 +52,8 @@ class NewXmlCreator:
 
             return
 
-        self.plugin.dockwidget.process_action_new(self.new_xml_path, tree)
+        source_crs = self.selected_layer.crs() if self.selected_layer else QgsProject.instance().crs()
+        self.plugin.dockwidget.process_action_new(self.new_xml_path, tree, crs=source_crs)
 
     def get_selection(self, layer=None):
         """
@@ -212,7 +199,6 @@ class NewXmlCreator:
                 etree.SubElement(point_element, "MX").text = "0.05"
                 etree.SubElement(point_element, "MY").text = "0.05"
                 etree.SubElement(point_element, "MH").text = "0.05"
-                etree.SubElement(point_element, "Description").text = ""
                 uidp_counter += 1
 
         polyline_info = root.find(".//InfoPart/MetricInfo/Polyline")
