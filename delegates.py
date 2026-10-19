@@ -555,7 +555,10 @@ class ClosedDelegate(QStyledItemDelegate):
     def _is_target_element(self, index):
         """Перевіряє, чи є елемент 'Closed'."""
         full_path = index.data(Qt.ItemDataRole.UserRole)
-        return full_path and (full_path.endswith("/Boundary/Closed") or full_path.endswith("/AdjacentBoundary/Closed"))
+        if not full_path:
+            return False
+        schema_path = re.sub(r"\[\d+\]", "", str(full_path))
+        return schema_path.endswith("/Boundary/Closed") or schema_path.endswith("/AdjacentBoundary/Closed")
 
     def createEditor(self, parent, option, index):
         if self._is_target_element(index):

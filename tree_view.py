@@ -375,6 +375,8 @@ class CustomTreeView(QTreeView):
         full_item_path = item.data(Qt.ItemDataRole.UserRole)
 
         schema_item_path = re.sub(r"\[\d+\]", "", full_item_path) if full_item_path else ""
+        if schema_item_path.endswith("/Closed"):
+            return
 
         menu = QMenu()
         has_actions = False
@@ -1603,6 +1605,9 @@ class CustomTreeView(QTreeView):
     def delete_element(self, item):
         """Видаляє елемент з XML та з дерева GUI."""
         item_path = item.data(Qt.ItemDataRole.UserRole)
+        schema_item_path = re.sub(r"\[\d+\]", "", str(item_path or ""))
+        if schema_item_path.endswith("/Closed"):
+            return
         xml_element_to_delete = self._find_xml_element_by_path(item_path)
 
         if xml_element_to_delete is None:
@@ -1790,6 +1795,10 @@ class CustomTreeView(QTreeView):
             return
         item = self.model.itemFromIndex(index)
         if item:
+            item_path = item.data(Qt.ItemDataRole.UserRole)
+            schema_item_path = re.sub(r"\[\d+\]", "", str(item_path or ""))
+            if schema_item_path.endswith("/Closed"):
+                return
             parent = item.parent()
             if parent:
                 parent.removeRow(item.row())
@@ -2361,14 +2370,14 @@ class CustomTreeView(QTreeView):
         self.doc_code_delegate._is_target_element(name_item.index())
         is_doc_type = self.doc_type_delegate._is_target_element(name_item.index())
         is_land_code = self.land_code_delegate._is_target_element(name_item.index())
-        is_closed = self.closed_delegate._is_target_element(name_item.index())
+        is_closed = schema_path.endswith(("/Boundary/Closed", "/AdjacentBoundary/Closed"))
         raw_value_text = element.text.strip() if element.text and element.text.strip() else ""
         value_text = raw_value_text
 
         if schema_path.endswith("DocumentList"):
             value_text = self.doc_code_delegate.doc_list.get(value_text, value_text)
         elif is_closed:
-            value_text = self.closed_delegate.closed_options.get(value_text, value_text)
+            value_text = self.closed_delegate.closed_options.get(value_text.lower(), value_text)
 
         value_item = QStandardItem(value_text)
         if schema_path.endswith("DocumentList"):
@@ -2390,11 +2399,10 @@ class CustomTreeView(QTreeView):
             or is_ownership_code
             or is_doc_type
             or is_land_code
-            or is_closed
             or schema_path.endswith("DocumentList")
         ):
             value_item.setEditable(True)
-        elif is_empty_marker or is_fixed_value:
+        elif is_empty_marker or is_fixed_value or is_closed:
             value_item.setEditable(False)
         else:
             value_item.setEditable(is_leaf and not is_complex_type)
