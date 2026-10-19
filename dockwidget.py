@@ -3129,17 +3129,17 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         порядок вершин Ділянки.
         """
         processor = GeometryProcessor(tree)
-        boundary_lines = tree.find(".//ParcelMetricInfo/Externals/Boundary/Lines")
-        if boundary_lines is None:
-            return []
-
-        object_shape = processor._get_polyline_object_shape(boundary_lines)
-        parcel_pts = [p for p in object_shape.split("-") if p]
-
-        if len(parcel_pts) > 1 and parcel_pts[0] == parcel_pts[-1]:
-            parcel_pts.pop()
-
-        return parcel_pts
+        boundaries = tree.findall(".//ParcelMetricInfo/Externals/Boundary/Lines")
+        boundaries.extend(tree.findall(".//ParcelMetricInfo/Externals/Internals/Boundary/Lines"))
+        parcel_rings = []
+        for boundary_lines in boundaries:
+            object_shape = processor._get_polyline_object_shape(boundary_lines)
+            parcel_pts = [p for p in object_shape.split("-") if p]
+            if len(parcel_pts) > 1 and parcel_pts[0] == parcel_pts[-1]:
+                parcel_pts.pop()
+            if parcel_pts:
+                parcel_rings.append(parcel_pts)
+        return parcel_rings
 
     def _should_invert_adjacent(self, adj_pts, parcel_pts):
         """
@@ -3150,7 +3150,15 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         у визначенні напрямку, але при інверсії повертається вся
         геометрія Суміжника разом із ними.
         """
-        if len(adj_pts) < 2 or len(parcel_pts) < 2:
+        if len(adj_pts) < 2 or not parcel_pts:
+            return False
+
+        parcel_rings = [parcel_pts] if isinstance(parcel_pts[0], str) else parcel_pts
+        return any(self._should_invert_adjacent_for_ring(adj_pts, ring) for ring in parcel_rings)
+
+    @staticmethod
+    def _should_invert_adjacent_for_ring(adj_pts, parcel_pts):
+        if len(parcel_pts) < 2:
             return False
 
         parcel_index = {uidp: i for i, uidp in enumerate(parcel_pts)}
@@ -3220,7 +3228,10 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         selected_features = []
         layers = QgsProject.instance().mapLayers().values()
         for layer in layers:
-            if layer.type() == layer.VectorLayer and layer.geometryType() == QgsWkbTypes.GeometryType.LineGeometry:
+            if layer.type() == layer.VectorLayer and layer.geometryType() in (
+                QgsWkbTypes.GeometryType.LineGeometry,
+                QgsWkbTypes.GeometryType.PolygonGeometry,
+            ):
                 selected_features.extend((layer, feature) for feature in layer.selectedFeatures())
 
         if len(selected_features) != 1:
@@ -3229,21 +3240,29 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         source_layer, feature = selected_features[0]
         self.current_xml.crs = source_layer.crs()
         geom = feature.geometry()
-        if geom.wkbType() not in [QgsWkbTypes.Type.LineString, QgsWkbTypes.Type.MultiLineString]:
-            QMessageBox.warning(self, "Помилка додавання суміжника", "Вибраний об'єкт не є полілінією.")
-            return
-
-        if geom.wkbType() == QgsWkbTypes.Type.MultiLineString:
+        if geom.wkbType() in (QgsWkbTypes.Type.Polygon, QgsWkbTypes.Type.MultiPolygon):
+            # Для полігонального суміжника використовуємо зовнішній контур
+            # першої полігональної частини як замкнену межу.
+            polygons = geom.asMultiPolygon() if geom.wkbType() == QgsWkbTypes.Type.MultiPolygon else [geom.asPolygon()]
+            polyline_points = polygons[0][0] if polygons and polygons[0] else []
+        elif geom.wkbType() == QgsWkbTypes.Type.MultiLineString:
             multi_polyline = geom.asMultiPolyline()
             polyline_points = multi_polyline[0] if multi_polyline else []
-        else:
+        elif geom.wkbType() == QgsWkbTypes.Type.LineString:
             polyline_points = geom.asPolyline()
+        else:
+            QMessageBox.warning(
+                self, "Помилка додавання суміжника", "Виберіть лінійний або полігональний об'єкт."
+            )
+            return
 
         if len(polyline_points) < 2:
             QMessageBox.warning(
                 self, "Помилка додавання суміжника", "Не вдалося отримати послідовність точок виділеної лінії."
             )
             return
+
+        geom = QgsGeometry.fromPolylineXY(polyline_points)
 
         # Попередній розрахунок виконуємо на копії дерева, щоб не створювати
         # PointInfo у реальному XML до визначення напрямку.
@@ -3258,7 +3277,9 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
         parcel_pts = self._get_parcel_ordered_points_for_adjacent(self.current_xml.tree)
         should_invert = self._should_invert_adjacent(shape_uidps, parcel_pts)
 
-        parcel_set = set(parcel_pts)
+        parcel_set = {uidp for ring in parcel_pts for uidp in ring} if parcel_pts and isinstance(
+            parcel_pts[0], list
+        ) else set(parcel_pts)
         log_calls(logFile, f"Точки межі Ділянки для перевірки: {parcel_pts}")
         log_calls(logFile, f"Спільні внутрішні точки Суміжника: {[p for p in shape_uidps if p in parcel_set]}")
         log_calls(logFile, f"Напрямок Суміжника протилежний напрямку Ділянки: {should_invert}")

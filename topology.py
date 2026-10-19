@@ -437,12 +437,14 @@ class GeometryProcessor:
         final_point_uidps = [
             point_uidps[i] for i in range(len(point_uidps)) if i == 0 or point_uidps[i] != point_uidps[i - 1]
         ]
+        is_closed = len(final_point_uidps) > 2 and final_point_uidps[0] == final_point_uidps[-1]
         if len(final_point_uidps) < len(point_uidps):
             log_calls(logFile, "ПОПЕРЕДЖЕННЯ: Видалено помилкові послідовні входження точок у геометрії суміжника.")
 
-        if len(final_point_uidps) != len(set(final_point_uidps)):
+        unique_check_points = final_point_uidps[:-1] if is_closed else final_point_uidps
+        if len(unique_check_points) != len(set(unique_check_points)):
             seen = set()
-            duplicates = {x for x in final_point_uidps if x in seen or seen.add(x)}
+            duplicates = {x for x in unique_check_points if x in seen or seen.add(x)}
             error_msg = (f"Критична топологічна помилка: Точка(и) UIDP {list(duplicates)} "
                          "входять в контур суміжника більше одного разу (самоперетин). Об'єкт не буде додано.")
             log_calls(logFile, error_msg)
@@ -483,7 +485,7 @@ class GeometryProcessor:
             etree.SubElement(line_el, "FP").text = point_uidps[i]
             etree.SubElement(line_el, "TP").text = point_uidps[i + 1]
 
-        etree.SubElement(adj_boundary, "Closed").text = "false"
+        etree.SubElement(adj_boundary, "Closed").text = "true" if is_closed else "false"
 
         etree.SubElement(adj_unit_info, "Proprietor")
 

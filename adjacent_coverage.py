@@ -126,6 +126,7 @@ def check_adjacent_coverage(xml_tree, adjacent_layer=None, tolerance_m=TOLERANCE
         return {"perimeter": None, "xml_total": None, "layer_total": None, "errors": []}
 
     parcel_lines = parcel.findall("./Externals/Boundary/Lines")
+    parcel_lines.extend(parcel.findall("./Externals/Internals/Boundary/Lines"))
     parcel_chains = [_ordered_chain(lines, polylines) for lines in parcel_lines]
     parcel_uidps = {uidp for chain in parcel_chains for uidp in chain}
     perimeter = sum(_chain_length(chain, coords) for chain in parcel_chains)
