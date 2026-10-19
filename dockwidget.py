@@ -4141,6 +4141,8 @@ class xml_uaDockWidget(QDockWidget, FORM_CLASS):
                 xml_data=xml_data,
                 context="redraw",
             )
+            xml_data.layers_obj = self.layers_obj
+            xml_data.group_name = self.layers_obj.group.name()
         finally:
             self._suppress_close_on_layer_remove = prev_suppress
 
