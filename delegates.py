@@ -17,6 +17,8 @@ from qgis.PyQt.QtWidgets import (
 
 from .common import config, config_docs, log_calls, logFile
 
+TEXT_EDIT_CELL_ROLE = Qt.ItemDataRole.UserRole + 20
+
 
 class StateActTypeDelegate(QStyledItemDelegate):
     """

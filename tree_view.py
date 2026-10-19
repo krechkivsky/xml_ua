@@ -7,7 +7,7 @@ import uuid
 
 from lxml import etree
 from qgis.PyQt.QtCore import QDate, QModelIndex, Qt, pyqtSignal
-from qgis.PyQt.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtGui import QBrush, QColor, QCursor, QStandardItem, QStandardItemModel
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -34,6 +34,7 @@ from .delegates import (
     PurposeDelegate,
     RegionDelegate,
     StateActTypeDelegate,
+    TEXT_EDIT_CELL_ROLE,
 )
 from .validators import validate_element
 
@@ -91,6 +92,8 @@ class CustomTreeView(QTreeView):
 
         self.model = QStandardItemModel()
         self.setModel(self.model)
+        self.setMouseTracking(True)
+        self.viewport().setMouseTracking(True)
 
         self.model.setHorizontalHeaderLabels(["Елемент", "Значення"])
 
@@ -139,6 +142,20 @@ class CustomTreeView(QTreeView):
         self.setItemDelegateForColumn(1, self.dispatcher_delegate)
 
         self.load_restrictions_data()
+
+    def mouseMoveEvent(self, event):
+        """Показує курсор текстового введення над редагованими текстовими комірками."""
+        index = self.indexAt(event.pos())
+        is_text_edit_cell = index.isValid() and bool(index.data(TEXT_EDIT_CELL_ROLE))
+        if is_text_edit_cell:
+            self.viewport().setCursor(QCursor(Qt.CursorShape.IBeamCursor))
+        else:
+            self.viewport().unsetCursor()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.viewport().unsetCursor()
+        super().leaveEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         """
@@ -2384,6 +2401,24 @@ class CustomTreeView(QTreeView):
 
         value_item.setData(full_path, Qt.ItemDataRole.UserRole)
         value_item.setData(element, Qt.ItemDataRole.UserRole + 10)
+        special_editor = any(
+            (
+                is_state_act_type,
+                is_category,
+                is_purpose,
+                is_ownership_code,
+                is_reason_act_doc,
+                is_restriction_code,
+                is_doc_type,
+                is_land_code,
+                is_closed,
+                schema_path.endswith("DocumentList"),
+                schema_path.endswith(("/NaturalPerson/Citizenship", "/Address/Country", "/Address/Region")),
+                schema_path.endswith("/ParcelLocationInfo/Region"),
+                schema_path.endswith("/ProprietorInfo/ProprietorCode"),
+            )
+        )
+        value_item.setData(value_item.isEditable() and not special_editor, TEXT_EDIT_CELL_ROLE)
         if description:
             value_item.setToolTip(description)
         if is_state_act_type:
@@ -2630,13 +2665,13 @@ class CustomTreeView(QTreeView):
 
         def clear_tooltips(item):
             """Рекурсивно очищує старі помилки з підказок."""
-            path = item.data(Qt.ItemDataRole.UserRole)
-            if path in self.xsd_descriptions:
-                base_tooltip = self.xsd_descriptions[path]
-                item.setToolTip(base_tooltip)
-                value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
-                if value_item:
-                    value_item.setToolTip(base_tooltip)
+            path = item.data(Qt.ItemDataRole.UserRole) or ""
+            schema_path = re.sub(r"\[\d+\]", "", str(path))
+            base_tooltip = self.xsd_descriptions.get(schema_path, "")
+            item.setToolTip(base_tooltip)
+            value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
+            if value_item:
+                value_item.setToolTip(base_tooltip)
 
             for row in range(item.rowCount()):
                 child_item = item.child(row, 0)
@@ -2749,7 +2784,8 @@ class CustomTreeView(QTreeView):
                     self.expand(parent.index())
                     parent = parent.parent()
 
-            base_tooltip = self.xsd_descriptions.get(path, "")
+            schema_path = re.sub(r"\[\d+\]", "", str(path or ""))
+            base_tooltip = self.xsd_descriptions.get(schema_path, "")
             value_item = item.parent().child(item.row(), 1) if item.parent() else self.model.item(item.row(), 1)
 
             tooltip_errors = []
