@@ -126,7 +126,7 @@
 			<xsd:element name="MiddleName" type="NonEmptyString" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>По батькові фізичної особи</xsd:documentation>
-					<xsd:appinfo>По батькові ▸</xsd:appinfo>
+					<xsd:appinfo>По батькові</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:all>
@@ -152,7 +152,7 @@
 	</xsd:complexType>
 	<xsd:complexType name="Address">
 		<xsd:annotation>
-			<xsd:documentation>Адреса ▸</xsd:documentation>
+			<xsd:documentation>Адреса</xsd:documentation>
 		</xsd:annotation>
 		<xsd:sequence>
 			<xsd:element name="Country" default="804">
@@ -186,13 +186,13 @@
 			<xsd:element name="District" type="xsd:string" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Назва району регіону</xsd:documentation>
-					<xsd:appinfo>Район ▸</xsd:appinfo>
+					<xsd:appinfo>Район</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="Settlement" type="xsd:string">
 				<xsd:annotation>
 					<xsd:documentation>Назва села, селища, міста</xsd:documentation>
-					<xsd:appinfo>Населений пункт ▸</xsd:appinfo>
+					<xsd:appinfo>Населений пункт</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="Street" type="xsd:string">
@@ -210,7 +210,7 @@
 			<xsd:element name="Block" type="xsd:string" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Номер корпусу</xsd:documentation>
-					<xsd:appinfo>Номер корпусу ▸</xsd:appinfo>
+					<xsd:appinfo>Номер корпусу</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="BuildingUnit" type="xsd:string" minOccurs="0">
@@ -247,7 +247,7 @@
 				<xsd:element name="TaxNumber">
 					<xsd:annotation>
 						<xsd:documentation>Ідентифікаційний номер згідно з ДРФО (за наявності)</xsd:documentation>
-						<xsd:appinfo>Ідентифікаційний номер ▸</xsd:appinfo>
+						<xsd:appinfo>Ідентифікаційний номер</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:simpleType>
 						<xsd:restriction base="xsd:string">
@@ -259,7 +259,7 @@
 			<xsd:element name="License" minOccurs="0" maxOccurs="2">
 				<xsd:annotation>
 					<xsd:documentation>Інформація про ліцензії на право проведення робіт</xsd:documentation>
-					<xsd:appinfo>Ліцензія ▸</xsd:appinfo>
+					<xsd:appinfo>Ліцензія</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:all>
@@ -278,7 +278,7 @@
 						<xsd:element name="LicenseIssuedDate" type="xsd:date">
 							<xsd:annotation>
 								<xsd:documentation>Дата видачі ліцензії</xsd:documentation>
-								<xsd:appinfo>Дата видачі ↓</xsd:appinfo>
+								<xsd:appinfo>Дата видачі ▸</xsd:appinfo>
 							</xsd:annotation>
 						</xsd:element>
 					</xsd:all>
@@ -287,7 +287,7 @@
 			<xsd:element name="Chief" minOccurs="1" maxOccurs="2">
 				<xsd:annotation>
 					<xsd:documentation>Дані про відповідальну особу</xsd:documentation>
-					<xsd:appinfo>Відповідальна особа ▸</xsd:appinfo>
+					<xsd:appinfo>Відповідальна особа</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:sequence>
@@ -315,7 +315,7 @@
 			<xsd:element name="Executor" minOccurs="1" maxOccurs="2">
 				<xsd:annotation>
 					<xsd:documentation>Дані про безпосереднього виконавця</xsd:documentation>
-					<xsd:appinfo>Виконавець ▸</xsd:appinfo>
+					<xsd:appinfo>Виконавець</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:all>
@@ -340,7 +340,7 @@
 						<xsd:element name="ContactInfo">
 							<xsd:annotation>
 								<xsd:documentation>Контактна інформація</xsd:documentation>
-								<xsd:appinfo>Контактна інформація ▸</xsd:appinfo>
+								<xsd:appinfo>Контактна інформація</xsd:appinfo>
 							</xsd:annotation>
 							<xsd:complexType>
 								<xsd:sequence>
@@ -376,7 +376,7 @@
 			<xsd:element name="Address" type="Address">
 				<xsd:annotation>
 					<xsd:documentation>Місцезнаходження (місце проживання)</xsd:documentation>
-					<xsd:appinfo>Адреса ▸</xsd:appinfo>
+					<xsd:appinfo>Адреса</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:sequence>
@@ -408,7 +408,7 @@
 						<xsd:element name="DeterminationMethod">
 							<xsd:annotation>
 								<xsd:documentation>Метод визначення</xsd:documentation>
-								<xsd:appinfo>Метод визначення ▸</xsd:appinfo>
+								<xsd:appinfo>Метод визначення</xsd:appinfo>
 							</xsd:annotation>
 							<xsd:complexType>
 								<xsd:choice>
@@ -494,14 +494,14 @@
 			<xsd:element name="Lines">
 				<xsd:annotation>
 					<xsd:documentation>Блок опису усіх поліліній/ліній об’єкта</xsd:documentation>
-					<xsd:appinfo>Лінії ▸</xsd:appinfo>
+					<xsd:appinfo>Лінії</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:sequence>
 						<xsd:element name="Line" maxOccurs="unbounded">
 							<xsd:annotation>
 								<xsd:documentation>Опис кожної полілінії/лінії об’єкта</xsd:documentation>
-								<xsd:appinfo>Лінія ▸</xsd:appinfo>
+								<xsd:appinfo>Лінія</xsd:appinfo>
 							</xsd:annotation>
 							<xsd:complexType>
 								<xsd:all>
@@ -532,7 +532,7 @@
 			<xsd:element name="Closed" type="xsd:boolean" default="true">
 				<xsd:annotation>
 					<xsd:documentation>Ознака замкнутого полігона</xsd:documentation>
-					<xsd:appinfo>Замкнений ▸</xsd:appinfo>
+					<xsd:appinfo>Замкнений</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:all>
@@ -551,7 +551,7 @@
 			<xsd:element name="TaxNumber" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Індивідуальний податковий номер</xsd:documentation>
-					<xsd:appinfo>Ідентифікаційний номер ▸</xsd:appinfo>
+					<xsd:appinfo>Ідентифікаційний номер</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:simpleType>
 					<xsd:restriction base="xsd:string">
@@ -605,7 +605,7 @@
 			<xsd:element name="AdditionalInfoBlock" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-					<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+					<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:sequence>
@@ -621,13 +621,13 @@
 			<xsd:element name="Citizenship" type="xsd:string" minOccurs="0" maxOccurs="unbounded">
 				<xsd:annotation>
 					<xsd:documentation>Громадянство</xsd:documentation>
-					<xsd:appinfo>Громадянство ▸</xsd:appinfo>
+					<xsd:appinfo>Громадянство</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="Address" type="Address" minOccurs="1" maxOccurs="unbounded">
 				<xsd:annotation>
 					<xsd:documentation>Адреса фізичної особи</xsd:documentation>
-					<xsd:appinfo>Адреса ▸</xsd:appinfo>
+					<xsd:appinfo>Адреса</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:sequence>
@@ -657,13 +657,13 @@
 			<xsd:element name="Address" type="Address">
 				<xsd:annotation>
 					<xsd:documentation>Юридична адреса</xsd:documentation>
-					<xsd:appinfo>Адреса ▸</xsd:appinfo>
+					<xsd:appinfo>Адреса</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="AdditionalInfoBlock" minOccurs="0" maxOccurs="1">
 				<xsd:annotation>
 					<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-					<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+					<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:sequence>
@@ -692,7 +692,7 @@
 			<xsd:element name="TaxNumber" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Індивідуальний податковий номер</xsd:documentation>
-					<xsd:appinfo>Ідентифікаційний номер ▸</xsd:appinfo>
+					<xsd:appinfo>Ідентифікаційний номер</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:simpleType>
 					<xsd:restriction base="xsd:string">
@@ -746,7 +746,7 @@
 			<xsd:element name="AdditionalInfoBlock" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-					<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+					<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:sequence>
@@ -762,13 +762,13 @@
 			<xsd:element name="Citizenship" type="xsd:string" minOccurs="0" maxOccurs="unbounded">
 				<xsd:annotation>
 					<xsd:documentation>Громадянство</xsd:documentation>
-					<xsd:appinfo>Громадянство ▸</xsd:appinfo>
+					<xsd:appinfo>Громадянство</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="Address" type="Address" minOccurs="0" maxOccurs="unbounded">
 				<xsd:annotation>
 					<xsd:documentation>Адреса фізичної особи</xsd:documentation>
-					<xsd:appinfo>Адреса ▸</xsd:appinfo>
+					<xsd:appinfo>Адреса</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:sequence>
@@ -798,13 +798,13 @@
 			<xsd:element name="Address" type="Address" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Юридична адреса</xsd:documentation>
-					<xsd:appinfo>Адреса ▸</xsd:appinfo>
+					<xsd:appinfo>Адреса</xsd:appinfo>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="AdditionalInfoBlock" minOccurs="0" maxOccurs="1">
 				<xsd:annotation>
 					<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-					<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+					<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 				</xsd:annotation>
 				<xsd:complexType>
 					<xsd:sequence>
@@ -822,7 +822,7 @@
 	<xsd:element name="ServiceInfo">
 		<xsd:annotation>
 			<xsd:documentation>Службова інформація про обмінний файл</xsd:documentation>
-			<xsd:appinfo>Інформація про обмінний файл ▸</xsd:appinfo>
+			<xsd:appinfo>Інформація про обмінний файл</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:all>
@@ -836,13 +836,13 @@
 							<xsd:element name="FileDate" type="xsd:date">
 								<xsd:annotation>
 									<xsd:documentation>Дата формування файлу</xsd:documentation>
-									<xsd:appinfo>Дата ↓</xsd:appinfo>
+									<xsd:appinfo>Дата ▸</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 							<xsd:element name="FileGUID" type="xsd:string">
 								<xsd:annotation>
 									<xsd:documentation>Унікальний ідентифікатор файлу</xsd:documentation>
-									<xsd:appinfo>GUID файлу ↓</xsd:appinfo>
+									<xsd:appinfo>GUID файлу ▸</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 						</xsd:all>
@@ -884,14 +884,14 @@
 	<xsd:element name="InfoLandWork">
 		<xsd:annotation>
 			<xsd:documentation>Інформація про осіб, які сформували, здійснили перевірку (коригування) даних обмінного файлу</xsd:documentation>
-			<xsd:appinfo>Інформація про виконавця робіт ▸</xsd:appinfo>
+			<xsd:appinfo>Інформація про виконавця робіт</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
 				<xsd:element name="Executor" type="ExecutorInfo">
 					<xsd:annotation>
 						<xsd:documentation>Відомості про виконавця робіт</xsd:documentation>
-						<xsd:appinfo>Виконавець робіт ▸</xsd:appinfo>
+						<xsd:appinfo>Виконавець робіт</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="Actions" minOccurs="0">
@@ -944,7 +944,7 @@
 	<xsd:element name="CoordinateSystem">
 		<xsd:annotation>
 			<xsd:documentation>Система координат</xsd:documentation>
-			<xsd:appinfo>Система координат ▸</xsd:appinfo>
+			<xsd:appinfo>Система координат</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:choice minOccurs="1">
@@ -981,7 +981,7 @@
 				<xsd:element name="SC63">
 					<xsd:annotation>
 						<xsd:documentation>Система координат 1963 року</xsd:documentation>
-						<xsd:appinfo>SC63 ▸</xsd:appinfo>
+						<xsd:appinfo>SC63</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice>
@@ -1018,7 +1018,7 @@
 	<xsd:element name="MetricInfo">
 		<xsd:annotation>
 			<xsd:documentation>Метрична інформація обмінного файлу</xsd:documentation>
-			<xsd:appinfo>Метрична інформація ▸</xsd:appinfo>
+			<xsd:appinfo>Метрична інформація</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
@@ -1026,7 +1026,7 @@
 				<xsd:element name="HeightSystem">
 					<xsd:annotation>
 						<xsd:documentation>Система висот</xsd:documentation>
-						<xsd:appinfo>Система висот ▸</xsd:appinfo>
+						<xsd:appinfo>Система висот</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice minOccurs="1">
@@ -1054,7 +1054,7 @@
 				<xsd:element name="MeasurementUnit">
 					<xsd:annotation>
 						<xsd:documentation>Одиниці виміру</xsd:documentation>
-						<xsd:appinfo>Одиниці виміру ▸</xsd:appinfo>
+						<xsd:appinfo>Одиниці виміру</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice>
@@ -1082,13 +1082,13 @@
 				<xsd:element name="PointInfo" type="PointInfo">
 					<xsd:annotation>
 						<xsd:documentation>Координати вузлів полігона кадастрової одиниці</xsd:documentation>
-						<xsd:appinfo>Координати вузлів ▸</xsd:appinfo>
+						<xsd:appinfo>Координати вузлів</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="Polyline">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису поліліній</xsd:documentation>
-						<xsd:appinfo>Полілінії ▸</xsd:appinfo>
+						<xsd:appinfo>Полілінії</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -1155,7 +1155,7 @@
 	<xsd:element name="ParcelLocationInfo">
 		<xsd:annotation>
 			<xsd:documentation>Місцезнаходження земельної ділянки</xsd:documentation>
-			<xsd:appinfo>Місцезнаходження ▸</xsd:appinfo>
+			<xsd:appinfo>Місцезнаходження</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:all>
@@ -1180,7 +1180,7 @@
 				<xsd:element name="ParcelLocation">
 					<xsd:annotation>
 						<xsd:documentation>Відношення до населеного пункту</xsd:documentation>
-						<xsd:appinfo>Розміщення ▸</xsd:appinfo>
+						<xsd:appinfo>Розміщення</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice>
@@ -1202,7 +1202,7 @@
 				<xsd:element name="ParcelAddress" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Адреса земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Адреса ▸</xsd:appinfo>
+						<xsd:appinfo>Адреса</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:all>
@@ -1227,7 +1227,7 @@
 							<xsd:element name="Block" type="xsd:string" minOccurs="0">
 								<xsd:annotation>
 									<xsd:documentation>Номер корпусу</xsd:documentation>
-									<xsd:appinfo>Номер корпусу ▸</xsd:appinfo>
+									<xsd:appinfo>Номер корпусу</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 						</xsd:all>
@@ -1236,7 +1236,7 @@
 				<xsd:element name="AdditionalInfoBlock" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-						<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+						<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -1262,13 +1262,13 @@
 				<xsd:element name="Category" type="Category">
 					<xsd:annotation>
 						<xsd:documentation>Категорія земель</xsd:documentation>
-						<xsd:appinfo>Категорія ↓</xsd:appinfo>
+						<xsd:appinfo>Категорія ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="Purpose" type="xsd:string">
 					<xsd:annotation>
 						<xsd:documentation>Цільове призначення (використання) земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Цільове призначення ↓</xsd:appinfo>
+						<xsd:appinfo>Цільове призначення ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="Use" type="xsd:string" minOccurs="0">
@@ -1283,14 +1283,14 @@
 	<xsd:element name="OwnershipInfo">
 		<xsd:annotation>
 			<xsd:documentation>Форма власності на земельну ділянку</xsd:documentation>
-			<xsd:appinfo>Форма власності ▸</xsd:appinfo>
+			<xsd:appinfo>Форма власності</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:all>
 				<xsd:element name="Code" type="OwnershipInfoCode">
 					<xsd:annotation>
 						<xsd:documentation>Код форми власності</xsd:documentation>
-						<xsd:appinfo>Код ↓</xsd:appinfo>
+						<xsd:appinfo>Код ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 			</xsd:all>
@@ -1299,7 +1299,7 @@
 	<xsd:element name="ParcelMetricInfo">
 		<xsd:annotation>
 			<xsd:documentation>Метрична інформація земельної ділянки, обмежень її використання та угідь</xsd:documentation>
-			<xsd:appinfo>Метрична інформація ▸</xsd:appinfo>
+			<xsd:appinfo>Метрична інформація</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
@@ -1330,7 +1330,7 @@
 							<xsd:element name="MeasurementUnit">
 								<xsd:annotation>
 									<xsd:documentation>Одиниці виміру площі</xsd:documentation>
-									<xsd:appinfo>Одиниці виміру ▸</xsd:appinfo>
+									<xsd:appinfo>Одиниці виміру</xsd:appinfo>
 								</xsd:annotation>
 								<xsd:simpleType>
 									<xsd:restriction base="xsd:string">
@@ -1348,7 +1348,7 @@
 							<xsd:element name="DeterminationMethod" minOccurs="0">
 								<xsd:annotation>
 									<xsd:documentation>Метод визначення площі земельної ділянки</xsd:documentation>
-									<xsd:appinfo>Метод визначення ▸</xsd:appinfo>
+									<xsd:appinfo>Метод визначення</xsd:appinfo>
 								</xsd:annotation>
 								<xsd:complexType>
 									<xsd:choice>
@@ -1390,7 +1390,7 @@
 				<xsd:element name="Externals">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису зовнішніх полігонів земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Межі ▸</xsd:appinfo>
+						<xsd:appinfo>Межі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -1425,14 +1425,14 @@
 	<xsd:element name="ProprietorInfo">
 		<xsd:annotation>
 			<xsd:documentation>Інформація про власника або користувача земельної ділянки</xsd:documentation>
-			<xsd:appinfo>Інформація про власника ▸</xsd:appinfo>
+			<xsd:appinfo>Інформація про власника</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
 				<xsd:element name="ParcelPart" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Частка земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Частка ▸</xsd:appinfo>
+						<xsd:appinfo>Частка</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice>
@@ -1486,7 +1486,7 @@
 				<xsd:element name="Authentication">
 					<xsd:annotation>
 						<xsd:documentation>Інформація про власника земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Власник ▸</xsd:appinfo>
+						<xsd:appinfo>Власник</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice>
@@ -1546,7 +1546,7 @@
 				<xsd:element name="AdditionalInfoBlock" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-						<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+						<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -1681,20 +1681,20 @@
 	<xsd:element name="TechnicalDocumentationInfo">
 		<xsd:annotation>
 			<xsd:documentation>Вид, дата та склад технічної документації</xsd:documentation>
-			<xsd:appinfo>Технічна документація ▸</xsd:appinfo>
+			<xsd:appinfo>Технічна документація</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
 				<xsd:element name="DocumentationType" type="DocumentationType">
 					<xsd:annotation>
 						<xsd:documentation>Вид документації</xsd:documentation>
-						<xsd:appinfo>Вид документації ↓</xsd:appinfo>
+						<xsd:appinfo>Вид документації ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="DraftingDate" type="xsd:date">
 					<xsd:annotation>
 						<xsd:documentation>Дата складання документації</xsd:documentation>
-						<xsd:appinfo>Дата складання ↓</xsd:appinfo>
+						<xsd:appinfo>Дата складання ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="RegistrationData" minOccurs="0">
@@ -1750,7 +1750,7 @@
 				<xsd:element name="DocumentList" type="DocumentList" minOccurs="3" maxOccurs="unbounded">
 					<xsd:annotation>
 						<xsd:documentation>Перелік документів, які використовуються для формування обмінного файлу</xsd:documentation>
-						<xsd:appinfo>Документ ↓</xsd:appinfo>
+						<xsd:appinfo>Документ ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="Expertise" minOccurs="0">
@@ -1836,7 +1836,7 @@
 				<xsd:element name="TemporarilyOccupiedZoneInfo" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Інформація про наявність особливостей, визначених перехідними положеннями Земельного кодексу України</xsd:documentation>
-						<xsd:appinfo ua:status="active">Особливості території ▸</xsd:appinfo>
+						<xsd:appinfo ua:status="active">Особливості території</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType><xsd:choice>
 						<xsd:element name="True" type="xsd:string" fixed=""><xsd:annotation><xsd:documentation>Наявні особливості</xsd:documentation><xsd:appinfo>Наявні</xsd:appinfo></xsd:annotation></xsd:element>
@@ -1849,14 +1849,14 @@
 	<xsd:element name="StateActInfo">
 		<xsd:annotation>
 			<xsd:documentation>Державний акт на земельну ділянку</xsd:documentation>
-			<xsd:appinfo>Державний акт ▸</xsd:appinfo>
+			<xsd:appinfo>Державний акт</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
 				<xsd:element name="StateActType" type="StateActType">
 					<xsd:annotation>
 						<xsd:documentation>Тип державного акта</xsd:documentation>
-						<xsd:appinfo>Тип ↓</xsd:appinfo>
+						<xsd:appinfo>Тип ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="StateActForm">
@@ -1989,14 +1989,14 @@
 				<xsd:element name="EntitlementDocument" maxOccurs="unbounded">
 					<xsd:annotation>
 						<xsd:documentation>Документ, на підставі якого видано державний акт</xsd:documentation>
-						<xsd:appinfo>Підстава видання ▸</xsd:appinfo>
+						<xsd:appinfo>Підстава видання</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
 							<xsd:element name="Document" type="PropertyAcquisitionJustificationDocument">
 								<xsd:annotation>
 									<xsd:documentation>Назва документа (код)</xsd:documentation>
-									<xsd:appinfo>Назва документа ↓</xsd:appinfo>
+									<xsd:appinfo>Назва документа ▸</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 							<xsd:element name="DocumentDate" type="xsd:date">
@@ -2352,7 +2352,7 @@
 				<xsd:element name="Externals">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису зовнішніх полігонів оренди земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Межі ▸</xsd:appinfo>
+						<xsd:appinfo>Межі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -2499,7 +2499,7 @@
 				<xsd:element name="Externals">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису зовнішніх полігонів суборенди земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Межі ▸</xsd:appinfo>
+						<xsd:appinfo>Межі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -2541,7 +2541,7 @@
 				<xsd:element name="RestrictionCode" type="RestrictionCode">
 					<xsd:annotation>
 						<xsd:documentation>Код обмеження</xsd:documentation>
-						<xsd:appinfo>Код обмеження ↓</xsd:appinfo>
+						<xsd:appinfo>Код обмеження ▸</xsd:appinfo>
 					</xsd:annotation>
 				</xsd:element>
 				<xsd:element name="RestrictionName" type="xsd:string">
@@ -2553,7 +2553,7 @@
 				<xsd:element name="Externals">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису зовнішніх полігонів зони обмеження</xsd:documentation>
-						<xsd:appinfo>Межі ▸</xsd:appinfo>
+						<xsd:appinfo>Межі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -2592,7 +2592,7 @@
 							<xsd:element name="DocumentType" type="RestrictionEntitlementDocumentType">
 								<xsd:annotation>
 									<xsd:documentation>Вид документа, на підставі якого виникає право</xsd:documentation>
-									<xsd:appinfo>Вид документа ↓</xsd:appinfo>
+									<xsd:appinfo>Вид документа ▸</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 							<xsd:element name="DocumentName" type="xsd:string">
@@ -2789,7 +2789,7 @@
 				<xsd:element name="MetricInfo">
 					<xsd:annotation>
 						<xsd:documentation>Метрична інформація</xsd:documentation>
-						<xsd:appinfo>Метрична інформація ▸</xsd:appinfo>
+						<xsd:appinfo>Метрична інформація</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -2803,7 +2803,7 @@
 										<xsd:element name="MeasurementUnit">
 											<xsd:annotation>
 												<xsd:documentation>Одиниці виміру площі</xsd:documentation>
-												<xsd:appinfo>Одиниці виміру ▸</xsd:appinfo>
+												<xsd:appinfo>Одиниці виміру</xsd:appinfo>
 											</xsd:annotation>
 											<xsd:simpleType>
 												<xsd:restriction base="xsd:string">
@@ -2821,7 +2821,7 @@
 										<xsd:element name="DeterminationMethod" minOccurs="0">
 											<xsd:annotation>
 												<xsd:documentation>Метод визначення площі земельної ділянки</xsd:documentation>
-												<xsd:appinfo>Метод визначення ▸</xsd:appinfo>
+												<xsd:appinfo>Метод визначення</xsd:appinfo>
 											</xsd:annotation>
 											<xsd:complexType>
 												<xsd:choice>
@@ -2869,7 +2869,7 @@
 							<xsd:element name="Externals">
 								<xsd:annotation>
 									<xsd:documentation>Блок опису зовнішніх полігонів угіддя</xsd:documentation>
-									<xsd:appinfo>Межі ▸</xsd:appinfo>
+									<xsd:appinfo>Межі</xsd:appinfo>
 								</xsd:annotation>
 								<xsd:complexType>
 									<xsd:sequence>
@@ -2932,20 +2932,20 @@
 				<xsd:element name="Proprietor" minOccurs="1" maxOccurs="unbounded">
 					<xsd:annotation>
 						<xsd:documentation>Власник або розпорядник</xsd:documentation>
-						<xsd:appinfo>Власник ▸</xsd:appinfo>
+						<xsd:appinfo>Власник</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:choice>
 							<xsd:element name="NaturalPerson" type="NaturalPersonInfo2">
 								<xsd:annotation>
 									<xsd:documentation>Дані про фізичну особу</xsd:documentation>
-									<xsd:appinfo>Фізична особа ▸</xsd:appinfo>
+									<xsd:appinfo>Фізична особа</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 							<xsd:element name="LegalEntity" type="LegalEntityInfo2">
 								<xsd:annotation>
 									<xsd:documentation>Дані про юридичну особу</xsd:documentation>
-									<xsd:appinfo>Юридична особа ▸</xsd:appinfo>
+									<xsd:appinfo>Юридична особа</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 						</xsd:choice>
@@ -2954,7 +2954,7 @@
 				<xsd:element name="AdditionalInfoBlock" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок додаткової інформації</xsd:documentation>
-						<xsd:appinfo>Блок додаткової інформації ▸</xsd:appinfo>
+						<xsd:appinfo>Блок додаткової інформації</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -2973,7 +2973,7 @@
 	<xsd:element name="ParcelInfo">
 		<xsd:annotation>
 			<xsd:documentation>Дані про земельну ділянку</xsd:documentation>
-			<xsd:appinfo>Земельна ділянка ▸</xsd:appinfo>
+			<xsd:appinfo>Земельна ділянка</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
@@ -2986,7 +2986,7 @@
 				<xsd:element name="Proprietors" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису усіх власників або користувачів земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Власники або користувачі ▸</xsd:appinfo>
+						<xsd:appinfo>Власники або користувачі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3001,7 +3001,7 @@
 				<xsd:element name="Leases" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису оренди земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Блок оренди ▸</xsd:appinfo>
+						<xsd:appinfo>Блок оренди</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3012,7 +3012,7 @@
 				<xsd:element name="Subleases" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису суборенди земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Блок суборенди ▸</xsd:appinfo>
+						<xsd:appinfo>Блок суборенди</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3023,7 +3023,7 @@
 				<xsd:element name="Restrictions" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису усіх обмежень земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Блок обмежень ▸</xsd:appinfo>
+						<xsd:appinfo>Блок обмежень</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3034,7 +3034,7 @@
 				<xsd:element name="Melioration" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Дані про гідротехнічну меліорацію в межах земельної ділянки</xsd:documentation>
-						<xsd:appinfo ua:status="active">Меліоративні мережі ▸</xsd:appinfo>
+						<xsd:appinfo ua:status="active">Меліоративні мережі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3045,7 +3045,7 @@
 				<xsd:element name="LandsParcel">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису усіх угідь земельної ділянки</xsd:documentation>
-						<xsd:appinfo>Блок угідь ▸</xsd:appinfo>
+						<xsd:appinfo>Блок угідь</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3056,14 +3056,14 @@
 				<xsd:element name="LandsAndSoilsProtections" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Відомості про заходи щодо охорони земель і ґрунтів</xsd:documentation>
-						<xsd:appinfo ua:status="active">Охорона земель і ґрунтів ▸</xsd:appinfo>
+						<xsd:appinfo ua:status="active">Охорона земель і ґрунтів</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType><xsd:sequence><xsd:element ref="LandAndSoilProtectionInfo" minOccurs="1" maxOccurs="unbounded"/></xsd:sequence></xsd:complexType>
 				</xsd:element>
 				<xsd:element name="AdjacentUnits">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису усіх суміжників кадастрової одиниці</xsd:documentation>
-						<xsd:appinfo>Блок суміжників ▸</xsd:appinfo>
+						<xsd:appinfo>Блок суміжників</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3077,21 +3077,21 @@
 	<xsd:element name="LandsMassif">
 		<xsd:annotation>
 			<xsd:documentation>Масив, до складу якого входить земельна ділянка</xsd:documentation>
-			<xsd:appinfo ua:status="active">Масив ▸</xsd:appinfo>
+			<xsd:appinfo ua:status="active">Масив</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
 				<xsd:element name="LandsMassifCode" type="xsd:string"/>
 				<xsd:element name="DispossessionZone" minOccurs="0" maxOccurs="unbounded">
-					<xsd:annotation><xsd:documentation>Територія суспільної необхідності</xsd:documentation><xsd:appinfo ua:status="active">Територія ▸</xsd:appinfo></xsd:annotation>
+					<xsd:annotation><xsd:documentation>Територія суспільної необхідності</xsd:documentation><xsd:appinfo ua:status="active">Територія</xsd:appinfo></xsd:annotation>
 					<xsd:complexType><xsd:sequence>
 						<xsd:element name="DispossessionZoneNumber" type="xsd:string"/>
 						<xsd:element name="FunctionalZone" minOccurs="0" maxOccurs="unbounded">
-							<xsd:annotation><xsd:documentation>Функціональна зона</xsd:documentation><xsd:appinfo ua:status="active">Функціональна зона ▸</xsd:appinfo></xsd:annotation>
+							<xsd:annotation><xsd:documentation>Функціональна зона</xsd:documentation><xsd:appinfo ua:status="active">Функціональна зона</xsd:appinfo></xsd:annotation>
 							<xsd:complexType><xsd:sequence>
 								<xsd:element name="FunctionalZoneNumber" type="xsd:string"/>
 								<xsd:element name="ModeObjectZone" minOccurs="0" maxOccurs="unbounded">
-									<xsd:annotation><xsd:documentation>Обмеження у використанні земель</xsd:documentation><xsd:appinfo ua:status="active">Обмеження ▸</xsd:appinfo></xsd:annotation>
+									<xsd:annotation><xsd:documentation>Обмеження у використанні земель</xsd:documentation><xsd:appinfo ua:status="active">Обмеження</xsd:appinfo></xsd:annotation>
 									<xsd:complexType><xsd:sequence><xsd:element name="TerritorialZoneNumber" type="xsd:string"/></xsd:sequence></xsd:complexType>
 								</xsd:element>
 							</xsd:sequence></xsd:complexType>
@@ -3104,7 +3104,7 @@
 	<xsd:element name="MeliorationInfo">
 		<xsd:annotation>
 			<xsd:documentation>Дані про гідротехнічну меліорацію в межах земельної ділянки</xsd:documentation>
-			<xsd:appinfo ua:status="active">Меліоративна мережа ▸</xsd:appinfo>
+			<xsd:appinfo ua:status="active">Меліоративна мережа</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:sequence>
@@ -3125,7 +3125,7 @@
 	<xsd:element name="LandAndSoilProtectionInfo">
 		<xsd:annotation>
 			<xsd:documentation>Відомості про заходи щодо охорони земель і ґрунтів</xsd:documentation>
-			<xsd:appinfo ua:status="active">Захід з охорони земель ▸</xsd:appinfo>
+			<xsd:appinfo ua:status="active">Захід з охорони земель</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType><xsd:sequence>
 			<xsd:element name="NameMeasure" type="xsd:string"/>
@@ -3148,7 +3148,7 @@
 	<xsd:element name="CadastralQuarterInfo">
 		<xsd:annotation>
 			<xsd:documentation>Кадастровий квартал</xsd:documentation>
-			<xsd:appinfo>Кадастровий квартал ▸</xsd:appinfo>
+			<xsd:appinfo>Кадастровий квартал</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:all>
@@ -3177,20 +3177,20 @@
 				<xsd:element name="RegionalContacts" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Інформація про регіон</xsd:documentation>
-						<xsd:appinfo>Контакти ▸</xsd:appinfo>
+						<xsd:appinfo>Контакти</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
 							<xsd:element name="LocalAuthorityHead" type="FullNameType"  minOccurs="0">
 								<xsd:annotation>
 									<xsd:documentation>Прізвище, ім’я та по батькові керівника органу виконавчої влади або місцевого самоврядування</xsd:documentation>
-									<xsd:appinfo>ПІБ керівника місцевої влади ▸</xsd:appinfo>
+									<xsd:appinfo>ПІБ керівника місцевої влади</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 							<xsd:element name="DKZRHead" type="FullNameType" minOccurs="0">
 								<xsd:annotation>
 									<xsd:documentation>Прізвище, ім’я та по батькові начальника територіального органу земельних ресурсів</xsd:documentation>
-									<xsd:appinfo>ПІБ начальника ДКЗР ▸</xsd:appinfo>
+									<xsd:appinfo>ПІБ начальника ДКЗР</xsd:appinfo>
 								</xsd:annotation>
 							</xsd:element>
 						</xsd:sequence>
@@ -3199,7 +3199,7 @@
 				<xsd:element name="Externals" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису зовнішніх полігонів кадастрового кварталу</xsd:documentation>
-						<xsd:appinfo>Межі ▸</xsd:appinfo>
+						<xsd:appinfo>Межі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3231,7 +3231,7 @@
 				<xsd:element name="Parcels" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису земельних ділянок</xsd:documentation>
-						<xsd:appinfo>Блок земельних ділянок ▸</xsd:appinfo>
+						<xsd:appinfo>Блок земельних ділянок</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3245,7 +3245,7 @@
 	<xsd:element name="CadastralZoneInfo">
 		<xsd:annotation>
 			<xsd:documentation>Кадастрова зона</xsd:documentation>
-			<xsd:appinfo>Кадастрова зона ▸</xsd:appinfo>
+			<xsd:appinfo>Кадастрова зона</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:all>
@@ -3279,7 +3279,7 @@
 				<xsd:element name="Externals" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису зовнішніх полігонів кадастрової зони</xsd:documentation>
-						<xsd:appinfo>Межі ▸</xsd:appinfo>
+						<xsd:appinfo>Межі</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3311,7 +3311,7 @@
 				<xsd:element name="CadastralQuarters" minOccurs="0">
 					<xsd:annotation>
 						<xsd:documentation>Блок опису усіх кадастрових кварталів</xsd:documentation>
-						<xsd:appinfo>Блок кадастрових кварталів ▸</xsd:appinfo>
+						<xsd:appinfo>Блок кадастрових кварталів</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3325,14 +3325,14 @@
 	<xsd:element name="UkrainianCadastralExchangeFile">
 		<xsd:annotation>
 			<xsd:documentation>Кореневий елемент</xsd:documentation>
-			<xsd:appinfo>Обмінний файл ▸</xsd:appinfo>
+			<xsd:appinfo>Обмінний файл</xsd:appinfo>
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:all>
 				<xsd:element name="AdditionalPart">
 					<xsd:annotation>
 						<xsd:documentation>Інформація про реквізити обмінного файлу та виконавця робіт</xsd:documentation>
-						<xsd:appinfo>Службова частина ▸</xsd:appinfo>
+						<xsd:appinfo>Службова частина</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
@@ -3344,7 +3344,7 @@
 				<xsd:element name="InfoPart">
 					<xsd:annotation>
 						<xsd:documentation>Інформація про земельно-кадастрові одиниці, територіальні зони і їх метричні відомості</xsd:documentation>
-						<xsd:appinfo>Інформаційна частина ▸</xsd:appinfo>
+						<xsd:appinfo>Інформаційна частина</xsd:appinfo>
 					</xsd:annotation>
 					<xsd:complexType>
 						<xsd:sequence>
